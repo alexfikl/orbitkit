@@ -30,4 +30,4 @@ is a particularly good example of state-of-the-art methods.
 Links
 -----
 
-* `Code <https://github.com/alexfikl/pycgdescent>`__.
+* `Code <https://github.com/alexfikl/chaotique>`__.
