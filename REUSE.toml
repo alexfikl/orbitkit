@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2025 Alexandru Fikl <alexfikl@gmail.com>
+# SPDX-License-Identifier: CC0-1.0
+
+version = 1
+SPDX-PackageName = "chaotique"
+SPDX-PackageSupplier = "Alexandru Fikl <alexfikl@gmail.com>"
+SPDX-PackageDownloadLocation = "https://github.com/alexfikl/chaotique"
+
+[[annotations]]
+path = [".gitignore", ".readthedocs.yml", ".github/**.yml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Alexandru Fikl <alexfikl@gmail.com>"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["pyproject.toml", "**justfile", "README.rst"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Alexandru Fikl <alexfikl@gmail.com>"
+SPDX-License-Identifier = "CC0-1.0"
