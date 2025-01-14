@@ -78,11 +78,11 @@ lint.select = [
     "RUF", # ruff
     "S",   # flake8-bandit
     "SIM", # flake8-simplify
-    "TC",  # flake8-type-checking
     "UP",  # pyupgrade
     "W",   # flake8
 ]
 lint.ignore = [
+    "A005",    # shadowing-builtin-module
     "E402",    # module-import-not-at-top-of-file
     "ISC001",  # single-line-implicit-string-concatenation
     "PLC0415", # import-outside-top-level
@@ -114,7 +114,6 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
-    "matplotlib.*",
-    "numpy.*",
+    "scienceplots.*",
 ]
 ignore_missing_imports = true
