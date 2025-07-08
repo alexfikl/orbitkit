@@ -22,11 +22,11 @@ def module_logger(
 
     :arg module: a name for the module to create a logger for.
     :arg level: if *None*, the default value is taken to from the
-        ``CHAOTIQUE_LOGGING_LEVEL`` environment variable and falls back to the
+        ``ORBITKIT_LOGGING_LEVEL`` environment variable and falls back to the
         ``INFO`` level if it does not exist (see :mod:`logging`).
     """
     if level is None:
-        level = os.environ.get("CHAOTIQUE_LOGGING_LEVEL", "INFO").upper()
+        level = os.environ.get("ORBITKIT_LOGGING_LEVEL", "INFO").upper()
 
     if isinstance(level, str):
         level = getattr(logging, level.upper())
@@ -115,10 +115,10 @@ def set_recommended_matplotlib(
     :arg use_tex: if *True*, LaTeX labels are enabled. By default, this checks
         if LaTeX is available on the system and only enables it if possible.
     :arg dark: if *True*, a dark default theme is selected instead of the
-        default light one. If *None*, this takes its values from the ``CHAOTIQUE_DARK``
+        default light one. If *None*, this takes its values from the ``ORBITKIT_DARK``
         boolean environment variable.
     :arg savefig_format: the format used when saving figures. By default, this
-        uses the ``CHAOTIQUE_SAVEFIG`` environment variable and falls back to
+        uses the ``ORBITKIT_SAVEFIG`` environment variable and falls back to
         the :mod:`matplotlib` parameter ``savefig.format``.
     :arg overrides: a mapping of parameters to override the defaults. These
         can also be set separately after this function was called using ``rcParams``.
@@ -142,12 +142,12 @@ def set_recommended_matplotlib(
         log.warning("'use_tex' is disabled on this system.")
 
     if dark is None:
-        tmp = os.environ.get("CHAOTIQUE_DARK", "off").lower()
+        tmp = os.environ.get("ORBITKIT_DARK", "off").lower()
         dark = BOOLEAN_STATES.get(tmp, False)
 
     if savefig_format is None:
         savefig_format = os.environ.get(
-            "CHAOTIQUE_SAVEFIG", mp.rcParams["savefig.format"]
+            "ORBITKIT_SAVEFIG", mp.rcParams["savefig.format"]
         ).lower()
 
     from contextlib import suppress

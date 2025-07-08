@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: CC0-1.0
 
 version = 1
-SPDX-PackageName = "chaotique"
+SPDX-PackageName = "orbitkit"
 SPDX-PackageSupplier = "Alexandru Fikl <alexfikl@gmail.com>"
-SPDX-PackageDownloadLocation = "https://github.com/alexfikl/chaotique"
+SPDX-PackageDownloadLocation = "https://github.com/alexfikl/orbitkit"
 
 [[annotations]]
 path = [".gitignore", ".readthedocs.yml", ".github/**.yml"]

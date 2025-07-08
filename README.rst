@@ -1,11 +1,11 @@
-.. |badge-ci| image:: https://github.com/alexfikl/chaotique/workflows/CI/badge.svg
+.. |badge-ci| image:: https://github.com/alexfikl/orbitkit/workflows/CI/badge.svg
     :alt: Build Status
-    :target: https://github.com/alexfikl/chaotique/actions?query=branch%3Amain+workflow%3ACI
+    :target: https://github.com/alexfikl/orbitkit/actions?query=branch%3Amain+workflow%3ACI
 
 |badge-ci|
 
-chaotique
-=========
+orbitkit
+========
 
 This is bag of random utilities that can be used to analyse and visualize
 continuous dynamical systems. It will mainly grow as various needs arise and
@@ -30,4 +30,4 @@ is a particularly good example of state-of-the-art methods.
 Links
 -----
 
-* `Code <https://github.com/alexfikl/chaotique>`__.
+* `Code <https://github.com/alexfikl/orbitkit>`__.

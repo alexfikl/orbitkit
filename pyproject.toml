@@ -5,7 +5,7 @@ requires = [
 ]
 
 [project]
-name = "chaotique"
+name = "orbitkit"
 version = "0.1.0"
 description = "A set of Python utilities for analysing dynamical systems"
 readme = "README.rst"
@@ -53,7 +53,7 @@ optional-dependencies.docs = [
     "sphinx>=6",
     "sphinx-book-theme",
 ]
-urls.Repository = "https://github.com/alexfikl/chaotique"
+urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [tool.ruff]
 target-version = "py310"
@@ -97,7 +97,7 @@ lint.flake8-quotes.docstring-quotes = "double"
 lint.flake8-quotes.inline-quotes = "double"
 lint.flake8-quotes.multiline-quotes = "double"
 lint.isort.known-first-party = [
-    "chaotique",
+    "orbitkit",
 ]
 lint.isort.required-imports = [
     "from __future__ import annotations",
