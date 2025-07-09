@@ -220,11 +220,12 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
 
 
 def is_limit_cycle_lomb_scargle(
+    t: Array,
     x: Array,
     *,
     eps: float = 1.0e-3,
 ) -> bool:
-    result = evaluate_lomb_scargle_power_spectrum_density_deltas(x)
+    result = evaluate_lomb_scargle_power_spectrum_density_deltas(t, x)
     return bool(np.max(result.deltas) < eps)
 
 

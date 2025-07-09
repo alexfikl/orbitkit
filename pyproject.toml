@@ -128,6 +128,7 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
+    "mpl_toolkits.*",
     "scienceplots.*",
 ]
 ignore_missing_imports = true
