@@ -46,6 +46,7 @@ optional-dependencies.dev = [
     "reuse",
     "rich",
     "ruff",
+    "scipy-stubs",
     "typos",
     "uv",
 ]
@@ -87,6 +88,7 @@ lint.ignore = [
     "ISC001",  # single-line-implicit-string-concatenation
     "PLC0415", # import-outside-top-level
     "PLR0913", # too-many-arguments
+    "PLR0914", # too-many-local-variables
     "PLR0917", # too-many-positional
     "PLR2004", # magic-value-comparison
     "S101",    # assert
