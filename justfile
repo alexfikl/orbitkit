@@ -61,10 +61,15 @@ mypy:
 # {{{ pin
 
 [private]
-requirements_dev_txt:
+requirements_build_txt:
+    uv pip compile --upgrade --universal --python-version "3.10" \
+        -o .ci/requirements-build.txt .ci/requirements-build.in
+
+[private]
+requirements_test_txt:
     uv pip compile --upgrade --universal --python-version '3.10' \
-        --extra dev \
-        -o requirements-dev.txt pyproject.toml
+        --extra test \
+        -o .ci/requirements-test.txt pyproject.toml
 
 [private]
 requirements_txt:
@@ -72,7 +77,7 @@ requirements_txt:
         -o requirements.txt pyproject.toml
 
 [doc('Pin dependency versions to requirements.txt')]
-pin: requirements_txt requirements_dev_txt
+pin: requirements_txt requirements_build_txt requirements_test_txt
 
 # }}}
 # {{{ develop
@@ -86,12 +91,12 @@ develop:
         --no-build-isolation \
         --editable .
 
-[doc("Editable install using pinned dependencies from requirements-dev.txt")]
+[doc("Editable install using pinned dependencies from requirements-test.txt")]
 pip-install:
-    {{ PYTHON }} -m pip install --upgrade pip wheel hatchling
+    {{ PYTHON }} -m pip install --verbose --requirement .ci/requirements-build.txt
     {{ PYTHON }} -m pip install \
         --verbose \
-        --requirement requirements-dev.txt \
+        --requirement .ci/requirements-test.txt \
         --no-build-isolation \
         --editable .
 
@@ -119,7 +124,6 @@ ctags:
 [doc("Run pytest tests")]
 test *PYTEST_ADDOPTS:
     {{ PYTHON }} -m pytest \
-        --junit-xml=pytest-results.xml \
         -rswx --durations=25 -v -s \
         {{ PYTEST_ADDOPTS }}
 

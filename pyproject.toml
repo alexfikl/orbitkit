@@ -35,24 +35,27 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "matplotlib",
-    "numpy",
-    "scipy",
+    "numpy>=2.1",
+    "rich>=10",
+    "scipy>=1.14",
 ]
 optional-dependencies.dev = [
-    "mypy",
+    "matplotlib",
     "pyproject-fmt",
-    "pytest",
     "reuse",
-    "rich",
-    "ruff",
-    "scipy-stubs",
+    "scienceplots",
     "typos",
     "uv",
 ]
 optional-dependencies.docs = [
     "sphinx>=6",
     "sphinx-book-theme",
+]
+optional-dependencies.test = [
+    "mypy",
+    "pytest",
+    "ruff",
+    "scipy-stubs",
 ]
 urls.Repository = "https://github.com/alexfikl/orbitkit"
 
