@@ -52,6 +52,7 @@ optional-dependencies.docs = [
     "sphinx-book-theme",
 ]
 optional-dependencies.test = [
+    "matplotlib",
     "mypy",
     "pytest",
     "ruff",
