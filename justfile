@@ -54,7 +54,7 @@ ruff:
 
 [doc('Run mypy checks over the source code')]
 mypy:
-    {{ PYTHON }} -m mypy src
+    {{ PYTHON }} -m mypy src tests
     @echo -e "\e[1;32mmypy clean!\e[0m"
 
 # }}}
@@ -123,8 +123,6 @@ ctags:
 
 [doc("Run pytest tests")]
 test *PYTEST_ADDOPTS:
-    {{ PYTHON }} -m pytest \
-        -rswx --durations=25 -v -s \
-        {{ PYTEST_ADDOPTS }}
+    {{ PYTHON }} -m pytest {{ PYTEST_ADDOPTS }}
 
 # }}}

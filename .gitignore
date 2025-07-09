@@ -1,0 +1,30 @@
+# system
+.DS_Store
+tags
+
+# temporary
+*~
+*.swp
+*.kate-swp
+
+# python
+*.egg-info
+*.egg
+*.whl
+
+# object files
+*.o
+*.x
+
+# directories
+build.out
+latex.out
+__pycache__
+
+# binary
+*.h5
+*.png
+*.svg
+!docs/*.svg
+*.mp4
+*.pymon

@@ -110,6 +110,12 @@ lint.isort.required-imports = [
 
 [tool.pytest.ini_options]
 testpaths = "tests"
+addopts = [
+    "-rswx",
+    "--durations=25",
+    "--capture=no",
+    "--verbose",
+]
 
 [tool.mypy]
 strict = true
