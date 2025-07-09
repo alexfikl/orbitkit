@@ -12,13 +12,13 @@ format: isort black pyproject justfmt
 
 [doc('Run ruff isort fixes over the source code')]
 isort:
-    ruff check --fix --select=I src
-    ruff check --fix --select=RUF022 src
+    ruff check --fix --select=I src tests
+    ruff check --fix --select=RUF022 src tests
     @echo -e "\e[1;32mruff isort clean!\e[0m"
 
 [doc('Run ruff format over the source code')]
 black:
-    ruff format src
+    ruff format src tests
     @echo -e "\e[1;32mruff format clean!\e[0m"
 
 [doc('Run pyproject-fmt over the configuration')]
