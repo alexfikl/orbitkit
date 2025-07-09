@@ -1,6 +1,6 @@
-.. |badge-ci| image:: https://github.com/alexfikl/orbitkit/workflows/CI/badge.svg
+.. |badge-ci| image:: https://github.com/alexfikl/oribitkit/actions/workflows/ci.yml/badge.svg
     :alt: Build Status
-    :target: https://github.com/alexfikl/orbitkit/actions?query=branch%3Amain+workflow%3ACI
+    :target: https://github.com/alexfikl/oribitkit/actions/workflows/ci.yml
 
 |badge-ci|
 
