@@ -62,6 +62,9 @@ def module_logger(
     name, *rest = module.split(".", maxsplit=1)
     root = logging.getLogger(name)
 
+    # FIXME: what is this??
+    root.propagate = False
+
     if not root.handlers:
         from rich.highlighter import NullHighlighter
         from rich.logging import RichHandler
@@ -89,13 +92,6 @@ log = module_logger(__name__)
 
 
 # {{{ matplotlib helpers
-
-# fmt: off
-BOOLEAN_STATES = {
-    1: True, "1": True, "yes": True, "true": True, "on": True, "y": True,
-    0: False, "0": False, "no": False, "false": False, "off": False, "n": False,
-}
-# fmt: on
 
 
 def check_usetex(*, s: bool) -> bool:
