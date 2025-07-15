@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any, NamedTuple
 
 import numpy as np
@@ -25,6 +26,16 @@ class PSDDeltas(NamedTuple):
     """Frequencies of the last computed power spectrum density."""
     psd: Array
     """The last computed power spectrum density."""
+
+
+def make_windows(
+    n: int, length: int, overlap: float = 0.5
+) -> Iterator[tuple[int, int]]:
+    step = int((1 - overlap) * length)
+    w_ends = [n - i * step for i in reversed(range(n))]
+    w_starts = [max(0, e - length) for e in w_ends]
+
+    return zip(w_starts, w_ends, strict=True)
 
 
 def evaluate_welch_power_spectrum_density_deltas(
@@ -73,15 +84,11 @@ def evaluate_welch_power_spectrum_density_deltas(
 
     # {{{ compute approximate PSD using the Welch algorithm over multiple windows
 
-    step = int((1 - overlap) * window_length)
-    w_ends = [n - i * step for i in reversed(range(nwindows))]
-    w_starts = [max(0, e - window_length) for e in w_ends]
-
     from scipy.signal import welch
 
     # Compute PSD for each variable and average
     psds = []
-    for start, end in zip(w_starts, w_ends, strict=True):
+    for start, end in make_windows(nwindows, window_length, overlap=overlap):
         f, pxx = welch(
             x[:, start:end],
             fs=fs,
@@ -190,19 +197,14 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
 
     # {{{ compute approximate PSD using the Welch algorithm over multiple windows
 
+    from scipy.signal import lombscargle
+
     # determine frequencies
     freqs = _make_lomb_scargle_frequencies(t)
 
-    # determine segments of `window_length`
-    step = int((1 - overlap) * window_length)
-    w_ends = [n - i * step for i in reversed(range(nwindows))]
-    w_starts = [max(0, e - window_length) for e in w_ends]
-
-    from scipy.signal import lombscargle
-
     # compute PSD for each variable and average
     psds = []
-    for start, end in zip(w_starts, w_ends, strict=True):
+    for start, end in make_windows(nwindows, window_length, overlap=overlap):
         pxx = np.array([
             lombscargle(t[start:end], x[i, start:end], freqs) for i in range(d)
         ])
