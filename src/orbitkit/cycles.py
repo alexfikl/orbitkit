@@ -29,10 +29,10 @@ class PSDDeltas(NamedTuple):
 
 
 def make_windows(
-    n: int, length: int, overlap: float = 0.5
+    n: int, nwindows: int, length: int, overlap: float = 0.5
 ) -> Iterator[tuple[int, int]]:
     step = int((1 - overlap) * length)
-    w_ends = [n - i * step for i in reversed(range(n))]
+    w_ends = [n - i * step for i in reversed(range(nwindows))]
     w_starts = [max(0, e - length) for e in w_ends]
 
     return zip(w_starts, w_ends, strict=True)
@@ -67,6 +67,9 @@ def evaluate_welch_power_spectrum_density_deltas(
     if not 0 < overlap < 1:
         raise ValueError(f"'overlap' should be in (0, 1): {overlap}")
 
+    if nwindows <= 0:
+        raise ValueError(f"'nwindows' cannot be negative: {nwindows}")
+
     _, n = x.shape
     if window_length is None:
         window_length = n // (nwindows + 1)
@@ -88,7 +91,7 @@ def evaluate_welch_power_spectrum_density_deltas(
 
     # Compute PSD for each variable and average
     psds = []
-    for start, end in make_windows(nwindows, window_length, overlap=overlap):
+    for start, end in make_windows(n, nwindows, window_length, overlap=overlap):
         f, pxx = welch(
             x[:, start:end],
             fs=fs,
@@ -204,7 +207,7 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
 
     # compute PSD for each variable and average
     psds = []
-    for start, end in make_windows(nwindows, window_length, overlap=overlap):
+    for start, end in make_windows(n, nwindows, window_length, overlap=overlap):
         pxx = np.array([
             lombscargle(t[start:end], x[i, start:end], freqs) for i in range(d)
         ])

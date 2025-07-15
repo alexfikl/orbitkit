@@ -131,6 +131,8 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
+    "igraph.*",
+    "leidenalg.*",
     "mpl_toolkits.*",
     "scienceplots.*",
 ]
