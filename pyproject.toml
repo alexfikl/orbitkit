@@ -39,7 +39,10 @@ dependencies = [
     "rich>=10",
     "scipy>=1.14",
 ]
-optional-dependencies.dev = [
+urls.Repository = "https://github.com/alexfikl/orbitkit"
+
+[dependency-groups]
+dev = [
     "matplotlib",
     "pyproject-fmt",
     "reuse",
@@ -47,18 +50,18 @@ optional-dependencies.dev = [
     "typos",
     "uv",
 ]
-optional-dependencies.docs = [
-    "sphinx>=6",
-    "sphinx-book-theme",
-]
-optional-dependencies.test = [
+test = [
     "matplotlib",
     "mypy",
     "pytest",
     "ruff",
     "scipy-stubs",
 ]
-urls.Repository = "https://github.com/alexfikl/orbitkit"
+docs = [
+    "sphinx>=6",
+    "sphinx-book-theme",
+]
+clustering = [ "leidenalg>=0.10" ]
 
 [tool.ruff]
 target-version = "py310"
