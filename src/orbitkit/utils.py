@@ -369,6 +369,37 @@ def slugify(stem: str, separator: str = "_") -> str:
     return stem
 
 
+def imshow(ax: Any, x: Array) -> Any:
+    im = ax.imshow(
+        x,
+        interpolation="none",
+        vmin=0,
+        vmax=1,
+        aspect="auto",
+        origin="lower",
+    )
+
+    # major ticks
+    ax.set_xticks(np.arange(0, 10, 1))
+    ax.set_yticks(np.arange(0, 10, 1))
+
+    # Labels for major ticks
+    ax.set_xticklabels(np.arange(1, 11, 1))
+    ax.set_yticklabels(np.arange(1, 11, 1))
+
+    # Minor ticks
+    ax.set_xticks(np.arange(-0.5, 10, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, 10, 1), minor=True)
+
+    # Gridlines based on minor ticks
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=2)
+
+    # Remove minor ticks
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    return im
+
+
 # }}}
 
 
