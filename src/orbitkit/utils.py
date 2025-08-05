@@ -349,6 +349,7 @@ def savefig(
         filename,
         bbox_extra_artists=tuple(bbox_extra_artists),
         bbox_inches="tight",
+        pad_inches=pad_inches,
         **kwargs,
     )
 
