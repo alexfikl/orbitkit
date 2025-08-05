@@ -18,6 +18,7 @@ tags
 
 # directories
 build.out
+build.sphinx
 latex.out
 __pycache__
 

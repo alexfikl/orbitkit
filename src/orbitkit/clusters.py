@@ -20,7 +20,7 @@ def make_mse_weight_matrix(x: Array, *, alpha: float = 1.0) -> Array:
 
         W_{ij} = \exp \left(-\alpha
             \sqrt{\frac{1}{n} \sum_{k = 0}^n (x_{ik} - x_{jk})^2}
-        \right)
+        \right).
 
     These weights will be close to zero when the error is large. Due to the use
     of :math:`\ell_2` errors, only signals that are fully synchronized (both in
@@ -42,7 +42,7 @@ def make_spearman_weight_matrix(x: Array) -> Array:
 
     .. math::
 
-        W_{ij} = \mathrm{Sym} max(0, r_{ij})
+        W_{ij} = \max(0, r_{ij}),
 
     where :math:`r_{ij}` are the rank correlation coefficients. This weight matrix
     will only take into account phase synchronized signal and ignore any amplitude
