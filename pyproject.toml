@@ -95,6 +95,7 @@ lint.ignore = [
     "ISC001",  # single-line-implicit-string-concatenation
     "N803",    # lowercase-argument
     "N806",    # lowercase-variable
+    "N815",    # mixedcase-attribute
     "PLC0415", # import-outside-top-level
     "PLR0912", # too-many-branches
     "PLR0913", # too-many-arguments
