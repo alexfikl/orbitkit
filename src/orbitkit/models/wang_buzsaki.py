@@ -60,7 +60,7 @@ class WangBuzsaki:
         \frac{\mathrm{d} n}{\mathrm{d} t} & =
             \phi (\alpha_n(V) (1 - n) - \beta_n(V) (n)), \\
         \frac{\mathrm{d} s}{\mathrm{d} t} & =
-            \alpha \alpha(V) (1 - s) - \beta(V) s.
+            \alpha F_{\text{pre}}(V) (1 - s) - \beta s.
         \end{aligned}
     """
 

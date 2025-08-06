@@ -38,6 +38,7 @@ dependencies = [
     "numpy>=2.1",
     "rich>=10",
     "scipy>=1.14",
+    "symengine>=0.14",
 ]
 urls.Repository = "https://github.com/alexfikl/orbitkit"
 
@@ -133,6 +134,7 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
+    "symengine.*",
     "igraph.*",
     "leidenalg.*",
     "mpl_toolkits.*",
