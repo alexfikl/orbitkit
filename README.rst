@@ -22,6 +22,12 @@ dynamical systems, but they're usually a lot bigger. For some Python examples, s
   systems (based on one-dimensional time series).
 * `pydse <https://github.com/blue-yonder/pydse>`__: A package for dynamic system
   estimation of time series.
+* `pyclustering <https://github.com/annoviko/pyclustering>`__: a library for
+  studying oscillatory networks.
+* `netrd <https://github.com/netsiphd/netrd>`__: a library for simulated dynamics
+  on networks, graph reconstruction from time series, and other graph utilities.
+* `neurolib <https://github.com/neurolib-dev/neurolib>`__: easy whole-brain
+  modeling for computational neuroscientists.
 
 However, there are many others in various programming languages.
 `DynamicalSystems.jl <https://github.com/JuliaDynamics/DynamicalSystems.jl>`__
