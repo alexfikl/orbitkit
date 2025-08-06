@@ -93,6 +93,7 @@ lint.ignore = [
     "A005",    # shadowing-builtin-module
     "E402",    # module-import-not-at-top-of-file
     "ISC001",  # single-line-implicit-string-concatenation
+    "N803",    # lowercase-argument
     "N806",    # lowercase-variable
     "PLC0415", # import-outside-top-level
     "PLR0912", # too-many-branches
