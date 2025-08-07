@@ -195,7 +195,12 @@ def set_plotting_defaults(
         },
         "savefig": {"format": savefig_format},
         "text": {"usetex": use_tex},
-        "legend": {"fontsize": 20},
+        "legend": {
+            "fontsize": 20,
+            "frameon": True,
+            "fancybox": False,
+            "edgecolor": "black",
+        },
         "lines": {"linewidth": 2, "markersize": 10},
         "axes": {
             "labelsize": 28,

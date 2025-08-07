@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+import numpy as np
+
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -47,7 +49,8 @@ class WangRinzel:
         C \frac{\mathrm{d} V_i}{\mathrm{d} t} & =
             - g_{\text{pir}} m^3_\infty(V_i) h_i (V_i - V_{\text{pir}})
             - g_{\text{L}} (V_i - V_{\text{L}})
-            - g_{\text{syn}} s_\infty(V_i) (V_i - V_{\text{syn}}), \\
+            - g_{\text{syn}} (V_i - V_{\text{syn}})
+                \sum_{j = 0, j \ne i}^N A_{ij} s_\infty(V_j), \\
         \frac{\mathrm{d} h_i}{\mathrm{d} t} & =
             \frac{\phi}{\tau_h(V_i)} (h_\infty(V_i) - h_i).
         \end{aligned}
@@ -62,8 +65,11 @@ class WangRinzel:
         `DOI <https://doi.org/10.1162/neco.1992.4.1.84>`__.
     """
 
+    A: Array
+    """A connection matrix for the synaptic current."""
     param: WangRinzelParameter
     """Parameers for the Wang-Rinzel model."""
+
     minf: RateFunction
     r""":math:`m_\infty` activation function used in the membrane potential equation."""
     sinf: RateFunction
@@ -74,7 +80,14 @@ class WangRinzel:
     r""":math:`\tau_h = h_\infty / \beta_h` activation function used in the
     :math:`h` equation."""
 
-    def __call__(self, t: float, V: Array, h: Array) -> tuple[Array, Array]:
+    @property
+    def n(self) -> int:
+        return self.A.shape[0]
+
+    def I_app(self, t: float) -> float:  # noqa: N802,PLR6301
+        return 0.0
+
+    def __call__(self, t: float, V: Array, h: Array) -> Array:
         param = self.param
 
         # compute activation functions
@@ -93,14 +106,16 @@ class WangRinzel:
 
         # compute synaptic current
         g_syn, V_syn = param.g_syn, param.V_syn
-        I_syn = -g_syn * sinf * (V - V_syn)
+        I_syn = -g_syn * (V - V_syn) * (self.A @ sinf)
 
         # put it all together and return the right-hand side
         C, phi = param.C, param.phi
-        return (
-            (I_PIR + I_L + I_syn) / C,
+        I_app = self.I_app(t)
+
+        return np.hstack([
+            (I_PIR + I_L + I_syn + I_app) / C,
             phi / tauh * (hinf - h),
-        )
+        ])
 
 
 # {{{ parameters from literature
@@ -121,6 +136,8 @@ _WANG_RINZEL_1992_PARAMETERS = WangRinzelParameter(
 )
 
 _WANG_RINZEL_1992_MODEL = WangRinzel(
+    # NOTE: Wang1992 uses a simple 2D system of 4 equation
+    A=np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64),
     param=_WANG_RINZEL_1992_PARAMETERS,
     minf=SigmoidRate(1.0, -65.0, 7.8),
     sinf=SigmoidRate(1.0, -44.0, 2.0),
@@ -154,6 +171,14 @@ WANG_RINZEL_MODEL = {
         sinf=SigmoidRate(1.0, -35.0, 0.005),
     ),
 }
+
+
+def get_registered_parameters() -> tuple[str, ...]:
+    return tuple(WANG_RINZEL_MODEL)
+
+
+def make_model_from_name(name: str) -> WangRinzel:
+    return WANG_RINZEL_MODEL[name]
 
 
 # }}}

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Protocol, TypeVar
 
 import numpy as np
-import symengine as sp
+import sympy as sp
 
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
@@ -91,12 +91,16 @@ class Expm1Rate:
         return self.amplitude / (1.0 - expV)
 
 
+def make_variable(name: str) -> sp.Symbol:
+    return sp.Symbol(name, real=True)
+
+
 def make_sym_vector(name: str, dim: int) -> Array:
     result = np.empty((dim,), dtype=object)
+
+    var = sp.IndexedBase(name, shape=(dim,), real=True)
     for i in range(dim):
-        # TODO: ideally this would use something like sympy.IndexedBase, but
-        # symengine does not have that yet. Not clear if this works well enough..
-        result[i] = sp.Symbol(f"{name}{i}")
+        result[i] = var[i]
 
     return result
 
@@ -108,3 +112,43 @@ def make_sym_function(name: str, dim: int) -> Array:
         result[i] = sp.Function(name)(i)
 
     return result
+
+
+class lambdify:  # noqa: N801
+    """A wrapper around :func:`sympy.lambdify` that works for the models.
+
+    This creates a callable wrapper that takes :math:`(t, y)` as inputs and returns
+    an array of the same size as :math:`y`. This is meant to be used with
+    integrators such as those from :mod:`scipy`.
+    """
+
+    nargs: int
+    func: Callable[..., Array]
+
+    def __init__(
+        self,
+        exprs: Array,
+        *args: sp.Symbol,
+        backend: str = "lambda",
+    ) -> None:
+        self.nargs = len(args)
+        self.func = sp.lambdify(
+            (sp.Symbol("t"), *args),
+            exprs,
+            modules="numpy",
+        )
+
+    def __call__(self, t: float, y: Array) -> Array:
+        if y.size % self.nargs != 0:
+            raise ValueError("inputs do not match required arguments")
+
+        # get size of each variable
+        n = y.size // self.nargs
+
+        # make sure all the entries are that size
+        ts = np.full((n,), t, dtype=y.dtype)
+        ys = np.array_split(y, self.nargs)
+        assert all(y.shape == (n,) for y in ys)
+
+        # evaluate
+        return self.func(ts, *ys)
