@@ -28,6 +28,9 @@ url = "https://github.com/alexfikl/orbitkit"
 def add_dataclass_annotation(app, name, obj, options, bases):
     from dataclasses import is_dataclass
 
+    if not options.get("show-inheritance", False):
+        return
+
     if is_dataclass(obj):
         # NOTE: this needs to be a string because `dataclass` is a function, not
         # a class, so Sphinx gets confused when it tries to insert it into the docs
