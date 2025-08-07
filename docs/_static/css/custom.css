@@ -1,4 +1,4 @@
-dl .py.attribute, .py.property, .std.option {
+dl .py.attribute, .py.property, .py.method .std.option {
   margin-bottom: 1rem !important;
 }
 

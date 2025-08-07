@@ -6,7 +6,9 @@ ORBITKIT: Utilities for Dynamical Systems
     :hidden:
     :caption: Contents
 
-    reference
+    api
+    models
+    literature
 
 .. warning::
 

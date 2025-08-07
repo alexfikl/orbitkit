@@ -11,12 +11,15 @@ import numpy as np
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
-from .common import RateFunction
+from .symbolic import RateFunction
 
 log = module_logger(__name__)
 
 
-class WangBuzsakiParameter(NamedTuple):
+@dataclass(frozen=True)
+class WangBuzsakiParameter:
+    """Parameters for the Wang-Buzsáki model from [Wang1996]_."""
+
     C: float
     """Membrane capacitance (micro F/cm^2)."""
     g_Na: float
@@ -62,6 +65,12 @@ class WangBuzsaki:
         \frac{\mathrm{d} s}{\mathrm{d} t} & =
             \alpha F_{\text{pre}}(V) (1 - s) - \beta s.
         \end{aligned}
+
+    .. [Wang1996] X.-J. Wang, G. Buzsáki,
+        *Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal
+        Network Model*,
+        The Journal of Neuroscience, Vol. 16, pp. 6402--6413, 1996,
+        `DOI <https://doi.org/10.1523/jneurosci.16-20-06402.1996>`__.
     """
 
     param: WangBuzsakiParameter

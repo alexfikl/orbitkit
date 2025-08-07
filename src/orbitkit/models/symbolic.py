@@ -27,9 +27,13 @@ def vectorize(func: Callable[[T], T], x: T) -> T:
 
 
 class RateFunction(Protocol):
-    """A generic rate function used in many neuron models."""
+    """A callable protocol for rate functions used in many neuron models.
 
-    def __call__(self, V: Array) -> Array: ...
+    .. automethod:: __call__
+    """
+
+    def __call__(self, V: Array) -> Array:
+        """Evaluate the rate function for the given membrane potential."""
 
 
 @dataclass(frozen=True)
@@ -56,7 +60,7 @@ class SigmoidRate:
     .. math::
 
         f(V; A, \theta, \sigma) =
-            \frac{A}{1 + \exp\left(-\frac{V - \theta}{\sigma}\right)}.
+            \frac{A}{1 + \exp\left(-\frac{(V - \theta)}{\sigma}\right)}.
     """
 
     amplitude: float
@@ -75,7 +79,7 @@ class Expm1Rate:
     .. math::
 
         f(V; A, \theta, \sigma) =
-            \frac{A}{1 - \exp\left(-\frac{V - \theta}{\sigma}\right)}.
+            \frac{A}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}.
     """
 
     amplitude: float

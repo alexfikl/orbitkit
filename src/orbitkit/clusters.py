@@ -93,9 +93,9 @@ def find_clusters_from_weights(
 ) -> tuple[Array, ...]:
     """Determine clusters based on the weight matrix *w*.
 
-    The clusters are determined using the Leiden algorithm. The weight matrix is
-    assumed to determine a weighted directed graph on which the algorithm will be
-    applied.
+    The clusters are determined using the Leiden algorithm (see [Traag2019]_).
+    The weight matrix is assumed to determine a weighted directed graph on which
+    the algorithm will be applied.
     """
     try:
         import leidenalg

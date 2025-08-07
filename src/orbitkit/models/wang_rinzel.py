@@ -8,13 +8,15 @@ from dataclasses import dataclass, replace
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
-from .common import ExponentialRate, RateFunction, SigmoidRate
+from .symbolic import ExponentialRate, RateFunction, SigmoidRate
 
 log = module_logger(__name__)
 
 
 @dataclass(frozen=True)
 class WangRinzelParameter:
+    """Parameters for the Wang-Rinzel model from [Wang1992]_."""
+
     C: float
     """Membrane capacitance (micro F/cm^2)."""
     g_PIR: float
