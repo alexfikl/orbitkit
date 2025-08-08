@@ -30,8 +30,8 @@ t = sym.var("t")
 V = sym.make_sym_vector("V", model.n)
 h = sym.make_sym_vector("h", model.n)
 
-sym_model = model(t, V, h)
-source = sym.lambdify(sym_model, V, h)
+sym_model, _ = model.symbolize()
+source = model.lambdify()
 log.info("Eq1: %s", sym_model[0])
 log.info("Eq2: %s", sym_model[1])
 log.info("Eq3: %s", sym_model[2])
@@ -44,7 +44,7 @@ log.info("Eq4: %s", sym_model[3])
 
 
 def figure3a_source(t: float, y: Array) -> Array:
-    # NOTE: Figure3a clamps the voltage V0 t some value. We fake that here by
+    # NOTE: Figure3a clamps the voltage V0 to some value. We fake that here by
     # removing the right-hand side completely in the interval [380, 580].
     dy = source(t, y)
     if 380.0 < t < 580.0:
@@ -82,7 +82,7 @@ elif figname == "Figure3a":
     # an impact on how closely the results resemble the paper figure.
     V0 = np.array([-74.0, -33.0])
     h0 = np.array([0.91, 0.91])
-    wang_rinzel_source = figure3a_source  # type: ignore[assignment]
+    wang_rinzel_source = figure3a_source
 elif figname == "Figure3c":
     tspan = (0.0, 500.0)
     tmin_for_plot = 100.0
@@ -91,7 +91,7 @@ elif figname == "Figure3c":
     # NOTE: (V0, h0) is taken from Figure 3c and need to match the fixed point.
     V0 = np.array([-34.3, -50.5])
     h0 = np.array([0.0141, 0.0587])
-    wang_rinzel_source = figure3c_source  # type: ignore[assignment]
+    wang_rinzel_source = figure3c_source
 else:
     raise ValueError(f"Unknown model parameters: '{figname}'")
 

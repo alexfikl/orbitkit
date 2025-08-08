@@ -118,7 +118,8 @@ def make_sym_function(name: str, dim: int) -> Array:
 
 
 class lambdify:  # noqa: N801
-    """A wrapper around :func:`sympy.lambdify` that works for the models.
+    """A wrapper around :func:`~sympy.utilities.lambdify.lambdify` that works
+    for the models.
 
     This creates a callable wrapper that takes :math:`(t, y)` as inputs and returns
     an array of the same size as :math:`y`. This is meant to be used with

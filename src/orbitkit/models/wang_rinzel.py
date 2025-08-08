@@ -3,16 +3,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 import sympy as sp
 
+import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
-
-from .symbolic import ExponentialRate, RateFunction, SigmoidRate
-from .symbolic import make_variable as var
 
 log = module_logger(__name__)
 
@@ -72,13 +71,13 @@ class WangRinzel:
     param: WangRinzelParameter
     """Parameers for the Wang-Rinzel model."""
 
-    minf: RateFunction
+    minf: sym.RateFunction
     r""":math:`m_\infty` activation function used in the membrane potential equation."""
-    sinf: RateFunction
+    sinf: sym.RateFunction
     r""":math:`s_\infty` activation function used in the membrane potential equation."""
-    hinf: RateFunction
+    hinf: sym.RateFunction
     r""":math:`h_\infty` activation function used in the :math:`h` equation."""
-    betah: RateFunction
+    betah: sym.RateFunction
     r""":math:`\tau_h = h_\infty / \beta_h` activation function used in the
     :math:`h` equation."""
 
@@ -86,8 +85,16 @@ class WangRinzel:
     def n(self) -> int:
         return self.A.shape[0]
 
-    def I_app(self, t: float) -> float:  # noqa: N802,PLR6301
-        return 0.0
+    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
+        t = sym.var("t")
+        V = sym.make_sym_vector("V", self.n)
+        h = sym.make_sym_vector("h", self.n)
+
+        return self(t, V, h), (V, h)
+
+    def lambdify(self) -> Callable[[float, Array], Array]:
+        model, args = self.symbolize()
+        return sym.lambdify(model, *args)
 
     def __call__(self, t: float, V: Array, h: Array) -> Array:
         param = self.param
@@ -112,10 +119,8 @@ class WangRinzel:
 
         # put it all together and return the right-hand side
         C, phi = param.C, param.phi
-        I_app = self.I_app(t)
-
         return np.hstack([
-            -(I_PIR + I_L + I_syn + I_app) / C,
+            -(I_PIR + I_L + I_syn) / C,
             phi / tauh * (hinf - h),
         ])
 
@@ -141,10 +146,10 @@ def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
             V_threshold=-40.0,
             phi=3.0,
         ),
-        minf=SigmoidRate(1.0, -65.0, 7.8),
-        sinf=SigmoidRate(1.0, theta_syn, 2.0),
-        hinf=SigmoidRate(1.0, -81.0, -11.0),
-        betah=ExponentialRate(1.0, -162.3, 17.8),
+        minf=sym.SigmoidRate(1.0, -65.0, 7.8),
+        sinf=sym.SigmoidRate(1.0, theta_syn, 2.0),
+        hinf=sym.SigmoidRate(1.0, -81.0, -11.0),
+        betah=sym.ExponentialRate(1.0, -162.3, 17.8),
     )
 
 
@@ -152,15 +157,15 @@ WANG_RINZEL_MODEL = {
     "Symbolic": WangRinzel(
         A=sp.Symbol("A"),
         param=WangRinzelParameter(
-            C=var("C"),
-            g_PIR=var("g_PIR"),
-            g_L=var("g_L"),
-            g_syn=var("g_syn"),
-            V_PIR=var("V_PIR"),
-            V_L=var("V_L"),
-            V_syn=var("V_syn"),
+            C=sym.var("C"),
+            g_PIR=sym.var("g_PIR"),
+            g_L=sym.var("g_L"),
+            g_syn=sym.var("g_syn"),
+            V_PIR=sym.var("V_PIR"),
+            V_L=sym.var("V_L"),
+            V_syn=sym.var("V_syn"),
             V_threshold=-40.0,
-            phi=var("phi"),
+            phi=sym.var("phi"),
         ),
         minf=sp.Function("m_infty"),
         sinf=sp.Function("s_infty"),
