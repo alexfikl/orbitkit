@@ -85,16 +85,12 @@ class WangRinzel(sym.Model):
 
     @property
     def n(self) -> int:
-        return self.A.shape[0]
+        return 0 if isinstance(self.A, sp.Symbol) else self.A.shape[0]
 
     def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
         t = sym.var("t")
-        if isinstance(self.A, sp.Symbol):
-            V = sym.var("V")
-            h = sym.var("h")
-        else:
-            V = sym.make_sym_vector("V", self.n)
-            h = sym.make_sym_vector("h", self.n)
+        V = sym.make_sym_vector("V", self.n)
+        h = sym.make_sym_vector("h", self.n)
 
         return self(t, V, h), (t, V, h)
 
@@ -158,14 +154,9 @@ class WangRinzelExt(WangRinzel):
 
     def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
         t = sym.var("t")
-        if isinstance(self.A, sp.Symbol):
-            V = sym.var("V")
-            h = sym.var("h")
-            s = sym.var("s")
-        else:
-            V = sym.make_sym_vector("V", self.n)
-            h = sym.make_sym_vector("h", self.n)
-            s = sym.make_sym_vector("s", self.n)
+        V = sym.make_sym_vector("V", self.n)
+        h = sym.make_sym_vector("h", self.n)
+        s = sym.make_sym_vector("s", self.n)
 
         return self(t, V, h, s), (t, V, h, s)
 

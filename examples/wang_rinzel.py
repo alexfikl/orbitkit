@@ -22,7 +22,7 @@ sym_source, _ = model.symbolize()
 
 log.info("Model (symbolic):")
 for expr in sym_source:
-    sp.pprint(expr)
+    sp.pprint(expr, use_unicode=False)
 
 figname = "Figure4a"
 model = make_model_from_name(f"WangRinzel1992{figname}")

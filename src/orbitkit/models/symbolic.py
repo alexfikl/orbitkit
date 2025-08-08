@@ -31,7 +31,10 @@ def make_variable(name: str) -> sp.Symbol:
 var = make_variable
 
 
-def make_sym_vector(name: str, dim: int) -> Array:
+def make_sym_vector(name: str, dim: int) -> sp.Symbol | Array:
+    if dim == 0:
+        return make_variable(name)
+
     result = np.empty((dim,), dtype=object)
 
     x = sp.IndexedBase(name, shape=(dim,), real=True)
