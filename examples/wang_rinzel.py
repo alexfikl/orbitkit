@@ -20,6 +20,8 @@ rng = np.random.default_rng(seed=None)
 
 model = make_model_from_name("Symbolic")
 sym_source = model(sym.var("t"), sym.var("V"), sym.var("h"))
+
+log.info("Model (symbolic):")
 for expr in sym_source:
     sp.pprint(expr)
 
@@ -32,10 +34,12 @@ h = sym.make_sym_vector("h", model.n)
 
 sym_model, _ = model.symbolize()
 source = model.lambdify()
-log.info("Eq1: %s", sym_model[0])
-log.info("Eq2: %s", sym_model[1])
-log.info("Eq3: %s", sym_model[2])
-log.info("Eq4: %s", sym_model[3])
+
+# NOTE: printing this is not very helpful
+# log.info("Eq1: %s", sym_model[0])
+# log.info("Eq2: %s", sym_model[1])
+# log.info("Eq3: %s", sym_model[2])
+# log.info("Eq4: %s", sym_model[3])
 
 # }}}
 
@@ -95,10 +99,12 @@ elif figname == "Figure3c":
 else:
     raise ValueError(f"Unknown model parameters: '{figname}'")
 
-
 log.info("tspan: %s", tspan)
 log.info("V0:    %s", V0)
 log.info("h0:    %s", h0)
+log.info("param: %s", figname)
+log.info(model.param)
+
 # }}}
 
 
