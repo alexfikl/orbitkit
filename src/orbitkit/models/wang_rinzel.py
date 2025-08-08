@@ -15,6 +15,9 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
+# {{{
+
+
 @dataclass(frozen=True)
 class WangRinzelParameter:
     """Parameters for the Wang-Rinzel model from [WangRinzel1992]_."""
@@ -36,7 +39,7 @@ class WangRinzelParameter:
     V_threshold: float
     """Threshold membrane potential (mV)."""
     phi: float
-    """Scaling factor for the kinetics of :math:`h` (1/s)."""
+    """Scaling factor for the kinetics of :math:`h` (Hz)."""
 
 
 @dataclass(frozen=True)
@@ -68,7 +71,7 @@ class WangRinzel(sym.Model):
     A: Array
     """A connection matrix for the synaptic current."""
     param: WangRinzelParameter
-    """Parameers for the Wang-Rinzel model."""
+    """Parameters for the Wang-Rinzel model."""
 
     minf: sym.RateFunction
     r""":math:`m_\infty` activation function used in the membrane potential equation."""
@@ -86,8 +89,12 @@ class WangRinzel(sym.Model):
 
     def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
         t = sym.var("t")
-        V = sym.make_sym_vector("V", self.n)
-        h = sym.make_sym_vector("h", self.n)
+        if isinstance(self.A, sp.Symbol):
+            V = sym.var("V")
+            h = sym.var("h")
+        else:
+            V = sym.make_sym_vector("V", self.n)
+            h = sym.make_sym_vector("h", self.n)
 
         return self(t, V, h), (t, V, h)
 
@@ -120,6 +127,82 @@ class WangRinzel(sym.Model):
         ])
 
 
+# }}}
+
+
+# {{{
+
+
+@dataclass(frozen=True)
+class WangRinzelExtParameter(WangRinzelParameter):
+    """Parameters for the extended Wang-Rinzel model from [WangRinzel1992]_."""
+
+    k_r: float
+    """Channel closing rate (Hz)."""
+
+
+@dataclass(frozen=True)
+class WangRinzelExt(WangRinzel):
+    r"""Right-hand side of the extended Wang-Rinzel model from [WangRinzel1992]_.
+
+    The extended model has an additional equation for the synaptic variables
+    :math:`s`. It is given by:
+
+    .. math::
+
+        \frac{\mathrm{d} s_i}{\mathrm{d} t} = s_\infty(V_i) (1 - s_i) - k_r s_i.
+    """
+
+    param: WangRinzelExtParameter
+    """Parameters for the extended Wang-Rinzel model."""
+
+    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
+        t = sym.var("t")
+        if isinstance(self.A, sp.Symbol):
+            V = sym.var("V")
+            h = sym.var("h")
+            s = sym.var("s")
+        else:
+            V = sym.make_sym_vector("V", self.n)
+            h = sym.make_sym_vector("h", self.n)
+            s = sym.make_sym_vector("s", self.n)
+
+        return self(t, V, h, s), (t, V, h, s)
+
+    def __call__(self, t: float, V: Array, h: Array, s: Array) -> Array:  # type: ignore[override]
+        # FIXME: this is very copy-pasted from the simpler model
+        param = self.param
+
+        # compute activation functions
+        minf = self.minf(V)
+        sinf = self.sinf(V)
+        hinf = self.hinf(V)
+        tauh = hinf / self.betah(V)
+
+        # compute PIR current
+        g_PIR, V_PIR = param.g_PIR, param.V_PIR
+        I_PIR = g_PIR * minf**3 * h * (V - V_PIR)
+
+        # compute leak current
+        g_L, V_L = param.g_L, param.V_L
+        I_L = g_L * (V - V_L)
+
+        # compute synaptic current
+        g_syn, V_syn = param.g_syn, param.V_syn
+        I_syn = g_syn * (V - V_syn) * np.dot(self.A, s)
+
+        # put it all together and return the right-hand side
+        C, phi, k_r = param.C, param.phi, param.k_r
+        return np.hstack([
+            -(I_PIR + I_L + I_syn) / C,
+            phi / tauh * (hinf - h),
+            sinf * (1 - s) - k_r * s,
+        ])
+
+
+# }}}
+
+
 # {{{ parameters from literature
 
 
@@ -149,9 +232,9 @@ def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
 
 
 WANG_RINZEL_MODEL = {
-    "Symbolic": WangRinzel(
+    "Symbolic": WangRinzelExt(
         A=sp.Symbol("A"),
-        param=WangRinzelParameter(
+        param=WangRinzelExtParameter(
             C=sym.var("C"),
             g_PIR=sym.var("g_PIR"),
             g_L=sym.var("g_L"),
@@ -161,6 +244,7 @@ WANG_RINZEL_MODEL = {
             V_syn=sym.var("V_syn"),
             V_threshold=-40.0,
             phi=sym.var("phi"),
+            k_r=sym.var("k_r"),
         ),
         minf=sp.Function("m_infty"),
         sinf=sp.Function("s_infty"),
@@ -174,7 +258,25 @@ WANG_RINZEL_MODEL = {
     "WangRinzel1992Figure3a": _make_wang_rinzel_1992_model(1.0, -44.0),
     "WangRinzel1992Figure3c": _make_wang_rinzel_1992_model(1.5, -44.0),
     # NOTE: Figure 4 uses an extended system with an explicit equation for s
-    # "WangRinzel1992Figure4a": None,
+    "WangRinzel1992Figure4a": WangRinzelExt(
+        A=np.array([[0, 1], [1, 0]], dtype=np.int32),
+        param=WangRinzelExtParameter(
+            C=1.0,
+            g_PIR=0.5,
+            g_L=0.05,
+            g_syn=0.2,
+            V_PIR=120.0,
+            V_L=-60.0,
+            V_syn=-80.0,
+            V_threshold=-40.0,
+            phi=2.0,
+            k_r=0.005,
+        ),
+        minf=sym.SigmoidRate(1.0, -65.0, 7.8),
+        sinf=sym.SigmoidRate(1.0, -35.0, 2.0),
+        hinf=sym.SigmoidRate(1.0, -81.0, -11.0),
+        betah=sym.ExponentialRate(1.0, -162.3, 17.8),
+    ),
 }
 
 

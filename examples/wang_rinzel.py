@@ -8,7 +8,6 @@ import pathlib
 import numpy as np
 import sympy as sp
 
-import orbitkit.models.symbolic as sym
 from orbitkit.models.wang_rinzel import make_model_from_name
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
@@ -19,18 +18,14 @@ rng = np.random.default_rng(seed=None)
 # {{{ create right-hand side
 
 model = make_model_from_name("Symbolic")
-sym_source = model(sym.var("t"), sym.var("V"), sym.var("h"))
+sym_source, _ = model.symbolize()
 
 log.info("Model (symbolic):")
 for expr in sym_source:
     sp.pprint(expr)
 
-figname = "Figure3c"
+figname = "Figure4a"
 model = make_model_from_name(f"WangRinzel1992{figname}")
-
-t = sym.var("t")
-V = sym.make_sym_vector("V", model.n)
-h = sym.make_sym_vector("h", model.n)
 
 sym_model, _ = model.symbolize()
 source = model.lambdify()
@@ -68,6 +63,21 @@ def figure3c_source(t: float, y: Array) -> Array:
     return dy
 
 
+def figure4a_source(t: float, y: Array) -> Array:
+    # NOTE: Figure4a has two burst of additional current pumped into the system.
+    # This is nicely described in the caption, so should work.
+    dy = source(t, y)
+    if 300.0 < t < 350.0:
+        dy[0] += 1.0 / model.param.C
+        dy[1] += 1.0 / model.param.C
+
+    if 1100.0 < t < 1150.0:
+        dy[0] += 1.0 / model.param.C
+        dy[1] -= 1.0 / model.param.C
+
+    return dy
+
+
 if figname == "Figure1a":
     tspan = (0.0, 500.0)
     tmin_for_plot = 250.0
@@ -76,6 +86,8 @@ if figname == "Figure1a":
     # NOTE: V0 is guessed from Figure 1a *very* roughly
     V0 = np.array([-44.0, -67.0])
     h0 = rng.uniform(0.0, 1.0, size=model.n)
+    y0 = np.hstack([V0, h0])
+
     wang_rinzel_source = source
 elif figname == "Figure3a":
     tspan = (0.0, 900.0)
@@ -86,6 +98,8 @@ elif figname == "Figure3a":
     # an impact on how closely the results resemble the paper figure.
     V0 = np.array([-74.0, -33.0])
     h0 = np.array([0.91, 0.91])
+    y0 = np.hstack([V0, h0])
+
     wang_rinzel_source = figure3a_source
 elif figname == "Figure3c":
     tspan = (0.0, 500.0)
@@ -95,7 +109,21 @@ elif figname == "Figure3c":
     # NOTE: (V0, h0) is taken from Figure 3c and need to match the fixed point.
     V0 = np.array([-34.3, -50.5])
     h0 = np.array([0.0141, 0.0587])
+    y0 = np.hstack([V0, h0])
+
     wang_rinzel_source = figure3c_source
+elif figname == "Figure4a":
+    tspan = (0.0, 2000.0)
+    tmin_for_plot = 0.0
+    ylim = (-90.0, 0.0)
+
+    # NOTE: V0 is guessed from Figured 4a *very* roughly
+    V0 = np.array([-58.0, -78.0])
+    h0 = rng.uniform(0.0, 1.0, size=model.n)
+    s0 = np.array([1.0, 0.0])
+    y0 = np.hstack([V0, h0, s0])
+
+    wang_rinzel_source = figure4a_source
 else:
     raise ValueError(f"Unknown model parameters: '{figname}'")
 
@@ -112,7 +140,6 @@ log.info(model.param)
 
 from scipy.integrate import solve_ivp
 
-y0 = np.hstack([V0, h0])
 result = solve_ivp(
     wang_rinzel_source,
     tspan,
@@ -138,7 +165,7 @@ dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
 with figure(
-    dirname / f"wang_rinzel_{figname.lower()}",
+    dirname / f"wang_rinzel_{figname.lower()}_v",
     figsize=(10, 5),
     overwrite=True,
 ) as fig:
@@ -154,5 +181,25 @@ with figure(
     ax.set_xlim(tmin_for_plot, tspan[1])
     ax.set_ylim(ylim)
     ax.legend(loc="upper right")
+
+from orbitkit.models.wang_rinzel import WangRinzelExt
+
+if isinstance(model, WangRinzelExt):
+    with figure(
+        dirname / f"wang_rinzel_{figname.lower()}_s",
+        figsize=(10, 2.5),
+        overwrite=True,
+    ) as fig:
+        ax = fig.gca()
+
+        mask = result.t > tmin_for_plot
+        ax.plot(result.t[mask], result.y[-2, mask], label="$s_1$")
+        ax.plot(result.t[mask], result.y[-1, mask], label="$s_2$")
+
+        ax.set_xlabel("$t$ (ms)")
+        ax.set_ylabel("$s$")
+        ax.set_xlim(tmin_for_plot, tspan[1])
+        ax.set_ylim((0, 1))
+        ax.legend(loc="lower left")
 
 # }}}
