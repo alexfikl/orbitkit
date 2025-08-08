@@ -95,12 +95,15 @@ def make_variable(name: str) -> sp.Symbol:
     return sp.Symbol(name, real=True)
 
 
+var = make_variable
+
+
 def make_sym_vector(name: str, dim: int) -> Array:
     result = np.empty((dim,), dtype=object)
 
-    var = sp.IndexedBase(name, shape=(dim,), real=True)
+    x = sp.IndexedBase(name, shape=(dim,), real=True)
     for i in range(dim):
-        result[i] = var[i]
+        result[i] = x[i]
 
     return result
 
@@ -122,7 +125,8 @@ class lambdify:  # noqa: N801
     integrators such as those from :mod:`scipy`.
     """
 
-    nargs: int
+    exprs: Array
+    args: tuple[sp.Symbol, ...]
     func: Callable[..., Array]
 
     def __init__(
@@ -131,12 +135,18 @@ class lambdify:  # noqa: N801
         *args: sp.Symbol,
         backend: str = "lambda",
     ) -> None:
-        self.nargs = len(args)
+        self.exprs = exprs
+        self.args = args
+
         self.func = sp.lambdify(
             (sp.Symbol("t"), *args),
             exprs,
             modules="numpy",
         )
+
+    @property
+    def nargs(self) -> int:
+        return len(self.args)
 
     def __call__(self, t: float, y: Array) -> Array:
         if y.size % self.nargs != 0:
