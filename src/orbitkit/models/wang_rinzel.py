@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -41,7 +40,7 @@ class WangRinzelParameter:
 
 
 @dataclass(frozen=True)
-class WangRinzel:
+class WangRinzel(sym.Model):
     r"""Right-hand side of the Wang-Rinzel model from [WangRinzel1992]_.
 
     .. math::
@@ -90,11 +89,7 @@ class WangRinzel:
         V = sym.make_sym_vector("V", self.n)
         h = sym.make_sym_vector("h", self.n)
 
-        return self(t, V, h), (V, h)
-
-    def lambdify(self) -> Callable[[float, Array], Array]:
-        model, args = self.symbolize()
-        return sym.lambdify(model, *args)
+        return self(t, V, h), (t, V, h)
 
     def __call__(self, t: float, V: Array, h: Array) -> Array:
         param = self.param

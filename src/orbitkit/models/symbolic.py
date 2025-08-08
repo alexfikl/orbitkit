@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, TypeVar
@@ -17,6 +18,113 @@ log = module_logger(__name__)
 
 
 T = TypeVar("T")
+
+# {{{ symbolic
+
+Variable = int | float | sp.Expr
+
+
+def make_variable(name: str) -> sp.Symbol:
+    return sp.Symbol(name, real=True)
+
+
+var = make_variable
+
+
+def make_sym_vector(name: str, dim: int) -> Array:
+    result = np.empty((dim,), dtype=object)
+
+    x = sp.IndexedBase(name, shape=(dim,), real=True)
+    for i in range(dim):
+        result[i] = x[i]
+
+    return result
+
+
+def make_sym_function(name: str, dim: int) -> Array:
+    # NOTE: this corresponds to how jitcode works, so we have a little helper
+    result = np.empty((dim,), dtype=object)
+    for i in range(dim):
+        result[i] = sp.Function(name)(i)
+
+    return result
+
+
+class lambdify:  # noqa: N801
+    """A wrapper around :func:`~sympy.utilities.lambdify.lambdify` that works
+    for the models.
+
+    This creates a callable wrapper that takes :math:`(t, y)` as inputs and returns
+    an array of the same size as :math:`y`. This is meant to be used with
+    integrators such as those from :mod:`scipy`.
+    """
+
+    exprs: Array
+    args: tuple[sp.Symbol, ...]
+    func: Callable[..., Array]
+
+    def __init__(
+        self,
+        exprs: Array,
+        *args: sp.Symbol,
+        backend: str = "lambda",
+    ) -> None:
+        self.exprs = exprs
+        self.args = args
+
+        self.func = sp.lambdify(args, exprs, modules="numpy")
+
+    @property
+    def nargs(self) -> int:
+        return len(self.args)
+
+    def __call__(self, t: float, y: Array) -> Array:
+        d = self.nargs - 1
+        if y.size % d != 0:
+            raise ValueError("inputs do not match required arguments")
+
+        # get size of each variable
+        n = y.size // d
+
+        # make sure all the entries are that size
+        ts = np.full((n,), t, dtype=y.dtype)
+        ys = np.array_split(y, d)
+        assert all(y.shape == (n,) for y in ys)
+
+        # evaluate
+        return self.func(ts, *ys)
+
+
+# }}}
+
+
+# {{{ models
+
+
+@dataclass(frozen=True)
+class Model(ABC):
+    @abstractmethod
+    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
+        """
+        :returns: a tuple of ``(exprs, *args)``, where *exprs* is an object
+            array of symbolic expressions that describe the model and *args*
+            are the state variables (usually including time).
+        """
+
+    def lambdify(self) -> Callable[[float, Array], Array]:
+        """Create a callable that is usable by :func:`scipy.integrate.solve_ivp`
+        or other similar integrators.
+
+        This uses :meth:`~orbitkit.models.symbolic.Model.symbolize` and
+        :class:`lambdify` to create a :mod:`numpy` compatible callable.
+        """
+        model, args = self.symbolize()
+        return lambdify(model, *args)
+
+
+# }}}
+
+# {{{ rate functions
 
 
 def vectorize(func: Callable[[T], T], x: T) -> T:
@@ -91,75 +199,4 @@ class Expm1Rate:
         return self.amplitude / (1.0 - expV)
 
 
-def make_variable(name: str) -> sp.Symbol:
-    return sp.Symbol(name, real=True)
-
-
-var = make_variable
-
-
-def make_sym_vector(name: str, dim: int) -> Array:
-    result = np.empty((dim,), dtype=object)
-
-    x = sp.IndexedBase(name, shape=(dim,), real=True)
-    for i in range(dim):
-        result[i] = x[i]
-
-    return result
-
-
-def make_sym_function(name: str, dim: int) -> Array:
-    # NOTE: this corresponds to how jitcode works, so we have a little helper
-    result = np.empty((dim,), dtype=object)
-    for i in range(dim):
-        result[i] = sp.Function(name)(i)
-
-    return result
-
-
-class lambdify:  # noqa: N801
-    """A wrapper around :func:`~sympy.utilities.lambdify.lambdify` that works
-    for the models.
-
-    This creates a callable wrapper that takes :math:`(t, y)` as inputs and returns
-    an array of the same size as :math:`y`. This is meant to be used with
-    integrators such as those from :mod:`scipy`.
-    """
-
-    exprs: Array
-    args: tuple[sp.Symbol, ...]
-    func: Callable[..., Array]
-
-    def __init__(
-        self,
-        exprs: Array,
-        *args: sp.Symbol,
-        backend: str = "lambda",
-    ) -> None:
-        self.exprs = exprs
-        self.args = args
-
-        self.func = sp.lambdify(
-            (sp.Symbol("t"), *args),
-            exprs,
-            modules="numpy",
-        )
-
-    @property
-    def nargs(self) -> int:
-        return len(self.args)
-
-    def __call__(self, t: float, y: Array) -> Array:
-        if y.size % self.nargs != 0:
-            raise ValueError("inputs do not match required arguments")
-
-        # get size of each variable
-        n = y.size // self.nargs
-
-        # make sure all the entries are that size
-        ts = np.full((n,), t, dtype=y.dtype)
-        ys = np.array_split(y, self.nargs)
-        assert all(y.shape == (n,) for y in ys)
-
-        # evaluate
-        return self.func(ts, *ys)
+# }}}
