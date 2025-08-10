@@ -83,6 +83,16 @@ class WangRinzel(sym.Model):
     r""":math:`\tau_h = h_\infty / \beta_h` activation function used in the
     :math:`h` equation."""
 
+    if __debug__:
+
+        def __post_init__(self) -> None:
+            assert isinstance(self.param, WangRinzelParameter)
+
+            if isinstance(self.A, np.ndarray) and (
+                self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]
+            ):
+                raise ValueError(f"adjacency matrix 'A' not square: {self.A.shape}")
+
     @property
     def n(self) -> int:
         return 0 if isinstance(self.A, sp.Symbol) else self.A.shape[0]

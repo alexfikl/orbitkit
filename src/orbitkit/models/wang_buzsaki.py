@@ -57,17 +57,17 @@ class WangBuzsaki(sym.Model):
     .. math::
 
         \begin{aligned}
-        C \frac{\mathrm{d} V}{\mathrm{d} t} & =
-            - g_{\text{Na}} m_\infty^2(V) h (V - E_{\text{Na}})
-            - g_{\text{K}} n^4 (V - E_{\text{K}})
-            - g_{\text{L}} (V - E_{\text{L}})
-            - g_{\text{syn}} s (V - E_{\text{syn}}), \\
-        \frac{\mathrm{d} h}{\mathrm{d} t} & =
-            \phi (\alpha_h(V) (1 - h) - \beta_h(V) h), \\
-        \frac{\mathrm{d} n}{\mathrm{d} t} & =
-            \phi (\alpha_n(V) (1 - n) - \beta_n(V) (n)), \\
-        \frac{\mathrm{d} s}{\mathrm{d} t} & =
-            \alpha F_{\text{pre}}(V) (1 - s) - \beta s.
+        C \frac{\mathrm{d} V_i}{\mathrm{d} t} & =
+            - g_{\text{Na}} m_\infty^2(V_i) h_i (V_i - E_{\text{Na}})
+            - g_{\text{K}} n_i^4 (V_i - E_{\text{K}})
+            - g_{\text{L}} (V_i - E_{\text{L}})
+            - g_{\text{syn}} (V_i - E_{\text{syn}}) \sum_{j \ne i} A_{ij} s_j, \\
+        \frac{\mathrm{d} h_i}{\mathrm{d} t} & =
+            \phi (\alpha_h(V_i) (1 - h_i) - \beta_h(V_i) h_i), \\
+        \frac{\mathrm{d} n_i}{\mathrm{d} t} & =
+            \phi (\alpha_n(V_i) (1 - n_i) - \beta_n(V_i) n_i), \\
+        \frac{\mathrm{d} s_i}{\mathrm{d} t} & =
+            \alpha F_{\text{pre}}(V_i) (1 - s_i) - \beta s_i.
         \end{aligned}
 
     .. [Wang1996] X.-J. Wang, G. Buzsáki,
@@ -78,16 +78,38 @@ class WangBuzsaki(sym.Model):
     """
 
     A: Array
-    """A connection matrix for the synaptic current."""
+    """An adjacency matrix for the synaptic current."""
     param: WangBuzsakiParameter
     """Parameters for the Wang-Buzsáki model."""
 
     fpre: sym.RateFunction
     """Normalized concentration of the post-synaptic transmitter-receptor complex."""
     alpha: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
-    """Rate functions (closed to open) for the Wang-Buzsáki model."""
+    r"""Rate functions (closed to open) for the Wang-Buzsáki model:
+    :math:`(\alpha_m, \alpha_h, \alpha_n)`.
+    """
     beta: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
-    """Rate functions (open to closed) for the Wang-Buzsáki model."""
+    r"""Rate functions (open to closed) for the Wang-Buzsáki model:
+    :math:(\beta_m, \beta_h, \beta_n).
+    """
+
+    if __debug__:
+
+        def __post_init__(self) -> None:
+            assert isinstance(self.param, WangBuzsakiParameter)
+            assert isinstance(self.alpha, tuple)
+            assert isinstance(self.beta, tuple)
+
+            if len(self.alpha) != 3:
+                raise ValueError("must provide exactly 3 'alpha[i]' rate functions")
+
+            if len(self.beta) != 3:
+                raise ValueError("must provide exactly 3 'beta[i]' rate functions")
+
+            if isinstance(self.A, np.ndarray) and (
+                self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]
+            ):
+                raise ValueError(f"adjacency matrix 'A' not square: {self.A.shape}")
 
     @property
     def n(self) -> int:
@@ -157,8 +179,8 @@ class LinearExpm1:
 
     .. math::
 
-        f(V; A, \theta, \sigma) =
-            \frac{a V + b)}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}
+        f(V; a, b, \theta, \sigma) =
+            \frac{a V + b}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}
     """
 
     a: float
