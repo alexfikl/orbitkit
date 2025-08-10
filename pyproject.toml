@@ -141,3 +141,6 @@ module = [
     "sympy.*",
 ]
 ignore_missing_imports = true
+
+[tool.typos.default.extend-words]
+inh = "inh"
