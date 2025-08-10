@@ -6,13 +6,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+import sympy as sp
 
+import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
-from .symbolic import RateFunction
-
 log = module_logger(__name__)
+
+
+# {{{ Wang-Buzsáki Model
 
 
 @dataclass(frozen=True)
@@ -29,14 +32,16 @@ class WangBuzsakiParameter:
     """Maximum conductance of the leak current (mS/cm^2)."""
     g_syn: float
     """Maximum synaptic conductance (mS/cm^2)."""
-    V_Na: float
+    E_Na: float
     r"""Reversal potential for the :math:`\mathrm{N}^{+}` ion channel (mV)."""
-    V_K: float
+    E_K: float
     r"""Reversal potential for the :math:`\mathrm{K}^{+}` ion channel (mV)."""
-    V_L: float
+    E_L: float
     r"""Reversal potential for the leak current (mV)."""
-    V_syn: float
+    E_syn: float
     """Reversal potential for the synaptic current (mV)."""
+    V_threshold: float
+    """Threshold membrane potential (mV)."""
     phi: float
     """Scaling factor for the kinetics of :math:`h` (Hz)."""
     alpha: float
@@ -46,17 +51,17 @@ class WangBuzsakiParameter:
 
 
 @dataclass(frozen=True)
-class WangBuzsaki:
+class WangBuzsaki(sym.Model):
     r"""Right-hand side of the Wang-Buzsáki model from [Wang1996]_.
 
     .. math::
 
         \begin{aligned}
         C \frac{\mathrm{d} V}{\mathrm{d} t} & =
-            - g_{\text{Na}} m_\infty^2(V) h (V - V_{\text{Na}})
-            - g_{\text{K}} n^4 (V - V_{\text{K}})
+            - g_{\text{Na}} m_\infty^2(V) h (V - E_{\text{Na}})
+            - g_{\text{K}} n^4 (V - E_{\text{K}})
             - g_{\text{L}} (V - E_{\text{L}})
-            - g_{\text{syn}} s (V - V_{\text{syn}}), \\
+            - g_{\text{syn}} s (V - E_{\text{syn}}), \\
         \frac{\mathrm{d} h}{\mathrm{d} t} & =
             \phi (\alpha_h(V) (1 - h) - \beta_h(V) h), \\
         \frac{\mathrm{d} n}{\mathrm{d} t} & =
@@ -72,51 +77,154 @@ class WangBuzsaki:
         `DOI <https://doi.org/10.1523/jneurosci.16-20-06402.1996>`__.
     """
 
+    A: Array
+    """A connection matrix for the synaptic current."""
     param: WangBuzsakiParameter
     """Parameters for the Wang-Buzsáki model."""
 
-    minf: RateFunction
-    """Steady state for the :math:`m` variable."""
-    fpre: RateFunction
+    fpre: sym.RateFunction
     """Normalized concentration of the post-synaptic transmitter-receptor complex."""
-    alpha: tuple[RateFunction, RateFunction]
+    alpha: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
     """Rate functions (closed to open) for the Wang-Buzsáki model."""
-    beta: tuple[RateFunction, RateFunction]
+    beta: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
     """Rate functions (open to closed) for the Wang-Buzsáki model."""
 
-    def I_app(self, t: float) -> float:  # noqa: N802,PLR6301
-        return 0.0
+    @property
+    def n(self) -> int:
+        return 0 if isinstance(self.A, sp.Symbol) else self.A.shape[0]
+
+    @property
+    def M_syn(self) -> Array:  # noqa: N802
+        return (  # type: ignore[no-any-return]
+            sp.Symbol("M_syn")
+            if isinstance(self.A, sp.Symbol)
+            else np.sum(self.A, axis=1)
+        )
+
+    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
+        t = sym.var("t")
+        V = sym.make_sym_vector("V", self.n)
+        h = sym.make_sym_vector("h", self.n)
+        n = sym.make_sym_vector("n", self.n)
+        s = sym.make_sym_vector("s", self.n)
+
+        return self(t, V, h, n, s), (t, V, h, n, s)
 
     def __call__(self, t: float, V: Array, h: Array, n: Array, s: Array) -> Array:
         param = self.param
 
         # compute rate functions
-        minf = self.minf(V)
+        alpha_m, beta_m = self.alpha[0](V), self.beta[0](V)
+        alpha_h, beta_h = self.alpha[1](V), self.beta[1](V)
+        alpha_n, beta_n = self.alpha[2](V), self.beta[2](V)
         fpre = self.fpre(V)
-        alpha_h, beta_h = self.alpha[0](V), self.beta[0](V)
-        alpha_n, beta_n = self.alpha[1](V), self.beta[1](V)
+        minf = alpha_m / (alpha_m + beta_m)
 
         # compute Na^+ current
-        g_Na, V_Na = param.g_Na, param.V_Na
-        I_Na = g_Na * minf**2 * h * (V - V_Na)
+        g_Na, E_Na = param.g_Na, param.E_Na
+        I_Na = g_Na * minf**3 * h * (V - E_Na)
 
         # compute K^+ current
-        g_K, V_K = param.g_K, param.V_K
-        I_K = g_K * n**4 * (V - V_K)
+        g_K, E_K = param.g_K, param.E_K
+        I_K = g_K * n**4 * (V - E_K)
 
         # compute leak current
-        g_L, V_L = param.g_L, param.V_L
-        I_L = g_L * (V - V_L)
+        g_L, E_L = param.g_L, param.E_L
+        I_L = g_L * (V - E_L)
 
         # compute synaptic current
-        g_syn, V_syn = param.g_syn, param.V_syn
-        I_syn = g_syn * (V - V_syn)
+        g_syn, E_syn = param.g_syn, param.E_syn
+        I_syn = g_syn * (V - E_syn) * np.dot(self.A, s) / self.M_syn
 
         # put it all together
         C, phi, alpha, beta = param.C, param.phi, param.alpha, param.beta
         return np.hstack([
-            -(I_Na + I_K + I_L + I_syn + self.I_app(t)) / C,
+            -(I_Na + I_K + I_L + I_syn) / C,
             phi * (alpha_h * (1 - h) - beta_h * h),
             phi * (alpha_n * (1 - n) - beta_n * n),
             alpha * fpre * (1 - s) - beta * s,
         ])
+
+
+# }}}
+
+# {{{ Parameters from literature
+
+
+@dataclass(frozen=True)
+class LinearExpm1:
+    r"""A linear exponential rate function.
+
+    .. math::
+
+        f(V; A, \theta, \sigma) =
+            \frac{a V + b)}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}
+    """
+
+    a: float
+    b: float
+    theta: float
+    sigma: float
+
+    def __call__(self, V: Array) -> Array:
+        expV = sym.vectorize(sp.exp, -(V - self.theta) / self.sigma)
+        return (self.a * V + self.b) / (1.0 - expV)
+
+
+def _make_wang_buzsaki_1996_model(phi: float = 5.0) -> WangBuzsaki:
+    return WangBuzsaki(
+        A=np.array([[0, 1], [1, 0]]),
+        param=WangBuzsakiParameter(
+            C=1.0,
+            g_Na=35.0,
+            g_K=9.0,
+            g_L=0.1,
+            g_syn=0.1,
+            E_Na=55.0,
+            E_K=-90.0,
+            E_L=-65.0,
+            E_syn=-75.0,
+            V_threshold=-52.0,
+            phi=phi,
+            alpha=12.0,
+            beta=0.1,
+        ),
+        alpha=(
+            # alpha_m, alpha_h, alpha_n
+            LinearExpm1(0.1, 3.5, -35.0, 10.0),
+            sym.ExponentialRate(0.07, -58.0, 20.0),
+            LinearExpm1(0.01, 0.34, -34.0, 10.0),
+        ),
+        beta=(
+            # beta_m, beta_h, beta_n
+            sym.ExponentialRate(4.0, -60.0, 18.0),
+            sym.SigmoidRate(1.0, -28.0, 10.0),
+            sym.ExponentialRate(0.125, -44.0, 80.0),
+        ),
+        fpre=sym.SigmoidRate(1.0, 0.0, 2.0),
+    )
+
+
+WANG_BUZSAKI_MODEL = {
+    "Symbolic": WangBuzsaki(
+        A=sym.var("A"),
+        param=sym.ds_symbolic(WangBuzsakiParameter),
+        alpha=(sp.Function("alpha_m"), sp.Function("alpha_h"), sp.Function("alpha_n")),
+        beta=(sp.Function("beta_m"), sp.Function("beta_h"), sp.Function("beta_n")),
+        fpre=sp.Function("F_pre"),
+    ),
+    "WangBuzsaki1996Figure3a": _make_wang_buzsaki_1996_model(5.0),
+    "WangBuzsaki1996Figure3b": _make_wang_buzsaki_1996_model(10 / 3),
+    "WangBuzsaki1996Figure3c": _make_wang_buzsaki_1996_model(2.0),
+}
+
+
+def get_registered_parameters() -> tuple[str, ...]:
+    return tuple(WANG_BUZSAKI_MODEL)
+
+
+def make_model_from_name(name: str) -> WangBuzsaki:
+    return WANG_BUZSAKI_MODEL[name]
+
+
+# }}}
