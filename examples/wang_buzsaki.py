@@ -72,7 +72,7 @@ def wang_buzsaki_source(t: float, y: Array) -> Array:
 
 
 tspan = (0.0, 500.0)
-tmin_for_plot = 0.0
+tmin_for_plot = 300.0
 ylim = (-80.0, 40.0)
 
 V0 = rng.uniform(-70.0, -50.0, size=model.n)
@@ -101,10 +101,9 @@ result = solve_ivp(
     wang_buzsaki_source,
     tspan,
     y0,
+    # NOTE: the paper mentions using an RK4 method with dt=0.05ms
     method="RK45",
-    atol=1.0e-8,
-    rtol=1.0e-10,
-    max_step=0.1,
+    max_step=0.05,
 )
 
 # }}}
@@ -127,6 +126,7 @@ with figure(dirname / f"wang_buzsaki_{figname.lower()}", overwrite=True) as fig:
     mask = result.t > tmin_for_plot
     ax.plot(result.t[mask], result.y[: model.n, mask].T)
     ax.axhline(model.param.V_threshold, color="k", ls="--")
+    ax.axhline(model.param.E_syn, color="k", ls=":")
 
     ax.set_xlabel("$t$ (ms)")
     ax.set_ylabel("$V$ (mV)")
