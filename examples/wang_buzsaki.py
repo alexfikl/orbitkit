@@ -115,10 +115,12 @@ try:
 except ImportError:
     raise SystemExit(0) from None
 
-from orbitkit.utils import figure, rastergram, set_plotting_defaults
+from orbitkit.utils import set_plotting_defaults
 
 dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
+
+from orbitkit.visualization import figure, rastergram
 
 with figure(dirname / f"wang_buzsaki_{figname.lower()}", overwrite=True) as fig:
     ax = fig.gca()

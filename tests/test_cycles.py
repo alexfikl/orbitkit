@@ -47,7 +47,7 @@ def test_cycles_welch_psd(method: str) -> None:
     if not ENABLE_VISUAL:
         return
 
-    from orbitkit.utils import figure
+    from orbitkit.visualization import figure
 
     with figure(TEST_DIRECTORY / f"test_cycles_{method}_psd", normalize=True) as fig:
         ax = fig.gca()
