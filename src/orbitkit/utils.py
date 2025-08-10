@@ -8,11 +8,15 @@ import os
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from orbitkit.typing import Array, PathLike, T
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as mp
+
 
 # {{{ environment
 
@@ -404,6 +408,51 @@ def imshow(ax: Any, x: Array) -> Any:
     ax.tick_params(which="minor", bottom=False, left=False)
 
     return im
+
+
+def rastergram(
+    ax: mp.Axes,  # type: ignore[name-defined]
+    t: Array,
+    y: Array,
+    *,
+    height: float | None = None,
+    distance: float | None = None,
+    markersize: float = 0.5,
+) -> None:
+    """Plot the rastergram for the given signal.
+
+    This is a simple wrapper around :func:`matplotlib.pyplot.eventplot`.
+
+    :arg height: required height of the peaks (see :func:`scipy.signal.find_peaks`).
+    :arg distance: required minimal horizontal distance between the peaks
+        (see :func:`scipy.signal.find_peaks`).
+    """
+    # {{{ find peaks
+
+    from scipy.signal import find_peaks
+
+    peaks = []
+    for i in range(y.shape[0]):
+        peaks_i, _ = find_peaks(y[i], height=height, distance=distance)
+        peaks.append(t[peaks_i])
+
+    # }}}
+
+    # {{{ estimate linewidths and linelengths
+
+    fig = ax.get_figure()
+    figwidth, figheight = fig.get_size_inches()
+    _, _, wfrac, _ = ax.get_position().bounds
+
+    xmin, xmax = t[0], t[-1]
+    ymin, ymax = -0.5, y.shape[0] - 0.5
+
+    frac = figheight / figwidth / wfrac
+    width = frac * markersize * (xmax - xmin) / (ymax - ymin)
+
+    # }}}
+
+    ax.eventplot(peaks, linelengths=markersize, linewidths=width, color="black")
 
 
 # }}}
