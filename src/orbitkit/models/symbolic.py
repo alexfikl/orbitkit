@@ -5,19 +5,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Protocol, TypeVar
 
 import numpy as np
 import sympy as sp
 
-from orbitkit.typing import Array
+from orbitkit.typing import Array, DataclassInstance
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
 T = TypeVar("T")
+DataclassInstanceT = TypeVar("DataclassInstanceT", bound=DataclassInstance)
 
 # {{{ symbolic
 
@@ -51,6 +52,10 @@ def make_sym_function(name: str, dim: int) -> Array:
         result[i] = sp.Function(name)(i)
 
     return result
+
+
+def ds_symbolic(cls: type[DataclassInstanceT]) -> DataclassInstanceT:
+    return cls(**{f.name: var(f.name) for f in fields(cls)})
 
 
 class lambdify:  # noqa: N801
