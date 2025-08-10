@@ -4,7 +4,8 @@
 from __future__ import annotations
 
 import os
-from typing import Any, TypeAlias, TypeVar
+from dataclasses import Field
+from typing import Any, ClassVar, Protocol, TypeAlias, TypeVar
 
 import numpy as np
 
@@ -22,3 +23,10 @@ Scalar: TypeAlias = int | float | np.number[Any]
 """Scalar type alias (generally a value convertible to a :class:`float`)."""
 ScalarLike: TypeAlias = Scalar | np.ndarray[tuple[int], np.dtype[np.generic]]
 """A scalar-like value, which may include array of shape ``()``."""
+
+
+class DataclassInstance(Protocol):
+    """Dataclass protocol from
+    `typeshed <https://github.com/python/typeshed/blob/770724013de34af6f75fa444cdbb76d187b41875/stdlib/_typeshed/__init__.pyi#L329-L334>`__."""
+
+    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
