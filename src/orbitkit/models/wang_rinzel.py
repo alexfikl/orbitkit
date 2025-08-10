@@ -15,7 +15,7 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
-# {{{
+# {{{ Wang-Rinzel Model
 
 
 @dataclass(frozen=True)
@@ -126,7 +126,7 @@ class WangRinzel(sym.Model):
 # }}}
 
 
-# {{{
+# {{{ Extended Wang-Rinzel Model
 
 
 @dataclass(frozen=True)
@@ -194,7 +194,7 @@ class WangRinzelExt(WangRinzel):
 # }}}
 
 
-# {{{ parameters from literature
+# {{{ Parameters from literature
 
 
 def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
