@@ -18,7 +18,7 @@ rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
-# NOTE: crete a 100x100 all-to-all adjacency matrix for the model
+# NOTE: create a nxn all-to-all adjacency matrix for the model
 n = 100
 A = np.ones(n, dtype=np.int32) - np.eye(n, dtype=np.int32)
 

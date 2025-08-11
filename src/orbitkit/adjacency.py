@@ -175,16 +175,25 @@ def generate_adjacency_lattice(
 def generate_adjacency_erdos_renyi(
     n: int,
     *,
-    p: float = 0.25,
+    p: float | None = None,
+    k: int | None = None,
     dtype: Any = None,
     symmetric: bool = True,
     rng: np.random.Generator | None = None,
 ) -> Array:
     r"""Generate a random Erdős-Rényi :math:`n \times n` adjacency matrix.
 
-    :arg p: probability of an edge between two nodes.
+    :arg p: probability of an edge between two nodes (defaults to *0.25*).
+    :arg k: average number of edges for each node (i.e. the degree). If *p* is
+        not given, it is computed as :math:`p = k / (n - 1)`.
     :arg symmetric: if *True*, the adjacency matrix will be symmetric.
     """
+    if p is not None and k is not None:
+        raise ValueError("cannot pass both 'p' and 'k'")
+
+    if p is None:
+        p = 0.25 if k is None else (k / (n - 1))
+
     if dtype is None:
         dtype = np.int32
 
