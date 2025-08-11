@@ -81,13 +81,24 @@ def ds_symbolic(
 
         if callable(attr):
             kwargs[f.name] = sp.Function(f.name)
+        elif isinstance(attr, tuple):
+            kwargs[f.name] = tuple(
+                sp.Function(f"{f.name}_{i}")
+                if callable(attr[i])
+                else sp.Symbol(f"{f.name}_{i}", real=True)
+                for i in range(len(attr))
+            )
         else:
             kwargs[f.name] = sp.Symbol(f.name, real=True)
 
     return replace(obj, **kwargs)
 
 
-class lambdify:  # noqa: N801
+def lambdify(
+    exprs: Array,
+    *args: sp.Symbol,
+    modules: str = "numpy",
+) -> Callable[[float, Array], Array]:
     """A wrapper around :func:`~sympy.utilities.lambdify.lambdify` that works
     for the models.
 
@@ -96,30 +107,11 @@ class lambdify:  # noqa: N801
     integrators such as those from :mod:`scipy`.
     """
 
-    exprs: Array
-    args: tuple[sp.Symbol, ...]
-    func: Callable[..., Array]
+    func = sp.lambdify(args, exprs, modules=modules)
+    nargs = len(args)
 
-    def __init__(
-        self,
-        exprs: Array,
-        *args: sp.Symbol,
-        modules: str = "numpy",
-    ) -> None:
-        self.exprs = exprs
-        self.args = args
-
-        self.func = sp.lambdify(args, exprs, modules=modules)
-
-    @property
-    def nargs(self) -> int:
-        return len(self.args)
-
-    def __call__(self, t: float, y: Array) -> Array:
-        # FIXME: This shouldn't be necessary since we have control over how the
-        # expressions get built at the end of the day. Just make one big vector..
-
-        d = self.nargs - 1
+    def wrapper(t: float, y: Array) -> Array:
+        d = nargs - 1
         if y.size % d != 0:
             raise ValueError("inputs do not match required arguments")
 
@@ -129,10 +121,11 @@ class lambdify:  # noqa: N801
         # make sure all the entries are that size
         ts = np.full((n,), t, dtype=y.dtype)
         ys = np.array_split(y, d)
-        assert all(y.shape == (n,) for y in ys)
 
         # evaluate
-        return self.func(ts, *ys)
+        return func(ts, *ys)  # type: ignore[no-any-return]
+
+    return wrapper
 
 
 # }}}
