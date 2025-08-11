@@ -247,7 +247,7 @@ def rastergram(
     *,
     height: float | None = None,
     distance: float | None = None,
-    markerheight: float = 0.5,
+    markerheight: float | None = 0.5,
     markerwidth: float | None = None,
 ) -> None:
     """Plot the rastergram for the given signal.
@@ -271,7 +271,7 @@ def rastergram(
 
     # {{{ estimate linewidths and linelengths
 
-    if markerwidth is None:
+    if markerwidth is None and markerwidth is not None:
         fig = ax.get_figure()
         figwidth, figheight = fig.get_size_inches()
         _, _, wfrac, _ = ax.get_position().bounds
