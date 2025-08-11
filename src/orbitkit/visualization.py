@@ -247,7 +247,8 @@ def rastergram(
     *,
     height: float | None = None,
     distance: float | None = None,
-    markersize: float = 0.5,
+    markerheight: float = 0.5,
+    markerwidth: float | None = None,
 ) -> None:
     """Plot the rastergram for the given signal.
 
@@ -270,16 +271,17 @@ def rastergram(
 
     # {{{ estimate linewidths and linelengths
 
-    fig = ax.get_figure()
-    figwidth, figheight = fig.get_size_inches()
-    _, _, wfrac, _ = ax.get_position().bounds
+    if markerwidth is None:
+        fig = ax.get_figure()
+        figwidth, figheight = fig.get_size_inches()
+        _, _, wfrac, _ = ax.get_position().bounds
 
-    xmin, xmax = t[0], t[-1]
-    ymin, ymax = -0.5, y.shape[0] - 0.5
+        xmin, xmax = t[0], t[-1]
+        ymin, ymax = -0.5, y.shape[0] - 0.5
 
-    frac = figheight / figwidth / wfrac
-    width = frac * markersize * (xmax - xmin) / (ymax - ymin)
+        frac = figheight / figwidth / wfrac
+        markerwidth = frac * markerheight * (xmax - xmin) / (ymax - ymin)
 
     # }}}
 
-    ax.eventplot(peaks, linelengths=markersize, linewidths=width, color="black")
+    ax.eventplot(peaks, linelengths=markerheight, linewidths=markerwidth, color="black")
