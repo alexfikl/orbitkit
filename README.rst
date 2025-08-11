@@ -28,6 +28,8 @@ dynamical systems, but they're usually a lot bigger. For some Python examples, s
   on networks, graph reconstruction from time series, and other graph utilities.
 * `neurolib <https://github.com/neurolib-dev/neurolib>`__: easy whole-brain
   modeling for computational neuroscientists.
+* `BrainPy <https://github.com/brainpy/BrainPy>`__: flexible framework for
+  computational neuroscience with a extensive analysis functionality.
 
 However, there are many others in various programming languages.
 `DynamicalSystems.jl <https://github.com/JuliaDynamics/DynamicalSystems.jl>`__
