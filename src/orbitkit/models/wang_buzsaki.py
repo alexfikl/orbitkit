@@ -123,10 +123,6 @@ class WangBuzsaki(sym.Model):
             else np.sum(self.A, axis=1)
         )
 
-    @property
-    def variables(self) -> tuple[str, ...]:
-        return ("V", "h", "n", "s")
-
     def hinf(self, V: Array) -> Array:
         alpha_h, beta_h = self.alpha[1](V), self.beta[1](V)
         return alpha_h / (alpha_h + beta_h)  # type: ignore[no-any-return]
@@ -138,6 +134,10 @@ class WangBuzsaki(sym.Model):
     def sinf(self, V: Array) -> Array:
         fpre, alpha, beta = self.fpre(V), self.param.alpha, self.param.beta
         return alpha * fpre / (alpha * fpre + beta)
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("V", "h", "n", "s")
 
     def evaluate(self, t: float, *args: Array) -> Array:
         V, h, n, s = args

@@ -131,8 +131,8 @@ class Pfeuty(sym.Model):
                     f"adjacency matrix 'Agap' not square: {self.Agap.shape}"
                 )
 
-            if self.Ainh.shape != self.Agap.shape:
-                raise ValueError("adjancency matrices have different shapes")
+            if isinstance(self.Ainh, np.ndarray) and self.Ainh.shape != self.Agap.shape:
+                raise ValueError("adjacency matrices have different shapes")
 
     @property
     def n(self) -> int:
@@ -165,19 +165,24 @@ class Pfeuty(sym.Model):
             else np.mean(np.sum(self.Agap, axis=1))
         )
 
-    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
-        t = sym.var("t")
-        Vs = sym.make_sym_vector("Vs", self.n)
-        Vd = sym.make_sym_vector("Vd", self.n)
-        h = sym.make_sym_vector("h", self.n)
-        n = sym.make_sym_vector("n", self.n)
-        s = sym.make_sym_vector("s", self.n)
+    def hinf(self, V: Array) -> Array:
+        alpha_h, beta_h = self.alpha[1](V), self.beta[1](V)
+        return alpha_h / (alpha_h + beta_h)  # type: ignore[no-any-return]
 
-        return self(t, Vs, Vd, h, n, s), (t, Vs, Vd, h, n, s)
+    def ninf(self, V: Array) -> Array:
+        alpha_n, beta_n = self.alpha[2](V), self.beta[2](V)
+        return alpha_n / (alpha_n + beta_n)  # type: ignore[no-any-return]
 
-    def __call__(
-        self, t: float, Vs: Array, Vd: Array, h: Array, n: Array, s: Array
-    ) -> Array:
+    def sinf(self, V: Array) -> Array:
+        alpha, tau_inh = self.alpha_s(V), self.param.tau_inh
+        return alpha / (alpha + 1.0 / tau_inh)
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("Vs", "Vd", "h", "n", "s")
+
+    def evaluate(self, t: float, *args: Array) -> Array:
+        Vs, Vd, h, n, s = args
         param = self.param
 
         # compute rate functions
@@ -230,7 +235,48 @@ class Pfeuty(sym.Model):
 
 # {{{ parameters from literature
 
-PFEUTY_MODEL = {}
+
+def _make_pfeuty_2007_model(g_inh: float) -> Pfeuty:
+    return Pfeuty(
+        Ainh=np.array([[0, 1], [1, 0]]),
+        Agap=np.array([[0, 1], [1, 0]]),
+        param=PfeutyParameter(
+            C=1.0,
+            g_Na=35.0,
+            g_K=9.0,
+            g_L=0.1,
+            g_c=0.3,
+            g_inh=g_inh,
+            g_gap=0.0,
+            V_Na=55.0,
+            V_K=-75.0,
+            V_L=-65.0,
+            V_inh=-75.0,
+            # NOTE: this uses the same threshold as Wang-Buzsaki, because Pfeuty
+            # does not mention one explicitly and the model is inspired by that
+            V_threshold=-52.0,
+            tau_inh=3.0,
+        ),
+        alpha_s=sym.TanhRate(50.0, 0.0, 4.0),
+        alpha=(
+            # alpha_m, alpha_h, alpha_n
+            sym.LinearExpm1Rate(0.1, 3.5, -35.0, 10.0),
+            sym.ExponentialRate(0.21, -58.0, 20.0),
+            sym.LinearExpm1Rate(0.03, 0.03 * 34.0, -34.0, 10.0),
+        ),
+        beta=(
+            # beta_m, beta_h, beta_n
+            sym.ExponentialRate(4.0, -60.0, 18.0),
+            sym.SigmoidRate(3.0, -28.0, 10.0),
+            sym.ExponentialRate(0.375, -44.0, 80.0),
+        ),
+    )
+
+
+PFEUTY_MODEL = {
+    "Pfeuty2007Figure2cl": _make_pfeuty_2007_model(0.005),
+    "Pfeuty2007Figure2cr": _make_pfeuty_2007_model(0.1),
+}
 
 
 def get_registered_parameters() -> tuple[str, ...]:
