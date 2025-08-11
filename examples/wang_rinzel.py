@@ -6,7 +6,6 @@ from __future__ import annotations
 import pathlib
 
 import numpy as np
-import sympy as sp
 
 from orbitkit.models.wang_rinzel import make_model_from_name
 from orbitkit.typing import Array
@@ -17,24 +16,14 @@ rng = np.random.default_rng(seed=None)
 
 # {{{ create right-hand side
 
-model = make_model_from_name("Symbolic")
-sym_source, _ = model.symbolize()
-
-log.info("Model (symbolic):")
-for expr in sym_source:
-    sp.pprint(expr, use_unicode=False)
-
 figname = "Figure4a"
 model = make_model_from_name(f"WangRinzel1992{figname}")
+source = model.lambdify(model.n)
 
-sym_model, _ = model.symbolize()
-source = model.lambdify()
-
-# NOTE: printing this is not very helpful
-# log.info("Eq1: %s", sym_model[0])
-# log.info("Eq2: %s", sym_model[1])
-# log.info("Eq3: %s", sym_model[2])
-# log.info("Eq4: %s", sym_model[3])
+log.info("Model: %s", type(model))
+log.info("Size:  %d", model.n)
+for i, eq in enumerate(model.pretty()):
+    log.info("Eq%d:\n%s", i, eq)
 
 # }}}
 

@@ -97,14 +97,12 @@ class WangRinzel(sym.Model):
     def n(self) -> int:
         return 0 if isinstance(self.A, sp.Symbol) else self.A.shape[0]
 
-    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
-        t = sym.var("t")
-        V = sym.make_sym_vector("V", self.n)
-        h = sym.make_sym_vector("h", self.n)
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("V", "h")
 
-        return self(t, V, h), (t, V, h)
-
-    def __call__(self, t: float, V: Array, h: Array) -> Array:
+    def evaluate(self, t: float, *args: Array) -> Array:
+        V, h = args
         param = self.param
 
         # compute activation functions
@@ -162,16 +160,13 @@ class WangRinzelExt(WangRinzel):
     param: WangRinzelExtParameter
     """Parameters for the extended Wang-Rinzel model."""
 
-    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
-        t = sym.var("t")
-        V = sym.make_sym_vector("V", self.n)
-        h = sym.make_sym_vector("h", self.n)
-        s = sym.make_sym_vector("s", self.n)
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("V", "h", "s")
 
-        return self(t, V, h, s), (t, V, h, s)
-
-    def __call__(self, t: float, V: Array, h: Array, s: Array) -> Array:  # type: ignore[override]
+    def evaluate(self, t: float, *args: Array) -> Array:
         # FIXME: this is very copy-pasted from the simpler model
+        V, h, s = args
         param = self.param
 
         # compute activation functions
@@ -233,25 +228,6 @@ def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
 
 
 WANG_RINZEL_MODEL = {
-    "Symbolic": WangRinzelExt(
-        A=sp.Symbol("A"),
-        param=WangRinzelExtParameter(
-            C=sym.var("C"),
-            g_PIR=sym.var("g_PIR"),
-            g_L=sym.var("g_L"),
-            g_syn=sym.var("g_syn"),
-            V_PIR=sym.var("V_PIR"),
-            V_L=sym.var("V_L"),
-            V_syn=sym.var("V_syn"),
-            V_threshold=-40.0,
-            phi=sym.var("phi"),
-            k_r=sym.var("k_r"),
-        ),
-        minf=sp.Function("m_infty"),
-        sinf=sp.Function("s_infty"),
-        hinf=sp.Function("h_infty"),
-        betah=sp.Function("beta_h"),
-    ),
     "WangRinzel1992Figure1a": _make_wang_rinzel_1992_model(0.3, -44.0),
     # NOTE: Figure 2 uses g_PIR = 0.3 (like Figure 1) and g_syn = 1.0 (like Figure 3)
     # "WangRinzel1992Figure2a": None,

@@ -18,43 +18,24 @@ rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
-model = make_model_from_name("Symbolic")
-for expr in model.symbolize()[0]:
-    sp.pprint(expr, use_unicode=True)
+# NOTE: crete a 100x100 all-to-all adjacency matrix for the model
+n = 100
+A = np.ones(n, dtype=np.int32) - np.eye(n, dtype=np.int32)
 
 figname = "Figure3c"
-model = make_model_from_name(f"WangBuzsaki1996{figname}")
-
-n = 100
-model = replace(
-    model,
-    A=np.ones(n, dtype=np.int32) - np.eye(n, dtype=np.int32),
-)
-
-sym_model, _ = model.symbolize()
-source = model.lambdify()
+model = replace(make_model_from_name(f"WangBuzsaki1996{figname}"), A=A)
+source = model.lambdify(n)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
+for i, eq in enumerate(model.pretty()):
+    log.info("Eq%d:\n%s", i, eq)
 
 # NOTE: lambdify rate functions to get the steady state for the gating variables
 V = sp.var("V")
-alpha, beta = model.param.alpha, model.param.beta
-hinf = sp.lambdify(
-    (V,),
-    model.alpha[1](V) / (model.alpha[1](V) + model.beta[1](V)),
-    modules="numpy",
-)
-ninf = sp.lambdify(
-    (V,),
-    model.alpha[2](V) / (model.alpha[2](V) + model.beta[2](V)),
-    modules="numpy",
-)
-sinf = sp.lambdify(
-    (V,),
-    alpha * model.fpre(V) / (alpha * model.fpre(V) + beta),
-    modules="numpy",
-)
+hinf = sp.lambdify((V,), model.hinf(V), modules="numpy")
+ninf = sp.lambdify((V,), model.ninf(V), modules="numpy")
+sinf = sp.lambdify((V,), model.sinf(V), modules="numpy")
 
 # }}}
 

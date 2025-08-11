@@ -123,16 +123,24 @@ class WangBuzsaki(sym.Model):
             else np.sum(self.A, axis=1)
         )
 
-    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
-        t = sym.var("t")
-        V = sym.make_sym_vector("V", self.n)
-        h = sym.make_sym_vector("h", self.n)
-        n = sym.make_sym_vector("n", self.n)
-        s = sym.make_sym_vector("s", self.n)
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("V", "h", "n", "s")
 
-        return self(t, V, h, n, s), (t, V, h, n, s)
+    def hinf(self, V: Array) -> Array:
+        alpha_h, beta_h = self.alpha[1](V), self.beta[1](V)
+        return alpha_h / (alpha_h + beta_h)  # type: ignore[no-any-return]
 
-    def __call__(self, t: float, V: Array, h: Array, n: Array, s: Array) -> Array:
+    def ninf(self, V: Array) -> Array:
+        alpha_n, beta_n = self.alpha[2](V), self.beta[2](V)
+        return alpha_n / (alpha_n + beta_n)  # type: ignore[no-any-return]
+
+    def sinf(self, V: Array) -> Array:
+        fpre, alpha, beta = self.fpre(V), self.param.alpha, self.param.beta
+        return alpha * fpre / (alpha * fpre + beta)
+
+    def evaluate(self, t: float, *args: Array) -> Array:
+        V, h, n, s = args
         param = self.param
 
         # compute rate functions
@@ -173,26 +181,6 @@ class WangBuzsaki(sym.Model):
 # {{{ Parameters from literature
 
 
-@dataclass(frozen=True)
-class LinearExpm1:
-    r"""A linear exponential rate function.
-
-    .. math::
-
-        f(V; a, b, \theta, \sigma) =
-            \frac{a V + b}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}
-    """
-
-    a: float
-    b: float
-    theta: float
-    sigma: float
-
-    def __call__(self, V: Array) -> Array:
-        expV = sym.vectorize(sp.exp, -(V - self.theta) / self.sigma)
-        return (self.a * V + self.b) / (1.0 - expV)
-
-
 def _make_wang_buzsaki_1996_model(phi: float = 5.0) -> WangBuzsaki:
     return WangBuzsaki(
         A=np.array([[0, 1], [1, 0]]),
@@ -213,9 +201,9 @@ def _make_wang_buzsaki_1996_model(phi: float = 5.0) -> WangBuzsaki:
         ),
         alpha=(
             # alpha_m, alpha_h, alpha_n
-            LinearExpm1(0.1, 3.5, -35.0, 10.0),
+            sym.LinearExpm1Rate(0.1, 3.5, -35.0, 10.0),
             sym.ExponentialRate(0.07, -58.0, 20.0),
-            LinearExpm1(0.01, 0.34, -34.0, 10.0),
+            sym.LinearExpm1Rate(0.01, 0.34, -34.0, 10.0),
         ),
         beta=(
             # beta_m, beta_h, beta_n
@@ -228,13 +216,6 @@ def _make_wang_buzsaki_1996_model(phi: float = 5.0) -> WangBuzsaki:
 
 
 WANG_BUZSAKI_MODEL = {
-    "Symbolic": WangBuzsaki(
-        A=sym.var("A"),
-        param=sym.ds_symbolic(WangBuzsakiParameter),
-        alpha=(sp.Function("alpha_m"), sp.Function("alpha_h"), sp.Function("alpha_n")),
-        beta=(sp.Function("beta_m"), sp.Function("beta_h"), sp.Function("beta_n")),
-        fpre=sp.Function("F_pre"),
-    ),
     "WangBuzsaki1996Figure3a": _make_wang_buzsaki_1996_model(5.0),
     "WangBuzsaki1996Figure3b": _make_wang_buzsaki_1996_model(10 / 3),
     "WangBuzsaki1996Figure3c": _make_wang_buzsaki_1996_model(2.0),
