@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, fields
-from typing import Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 import numpy as np
 import sympy as sp
@@ -54,8 +54,37 @@ def make_sym_function(name: str, dim: int) -> Array:
     return result
 
 
-def ds_symbolic(cls: type[DataclassInstanceT]) -> DataclassInstanceT:
-    return cls(**{f.name: var(f.name) for f in fields(cls)})
+def ds_symbolic(
+    obj: DataclassInstanceT,
+    *,
+    rec: bool = False,
+    rattrs: set[str] | None = None,
+) -> DataclassInstanceT:
+    """Fill in all the attributes of *cls* with symbolic variables.
+
+    :arg rec: if *True*, automatically recurse into all child dataclasses.
+    :arg attrs: a set of attribute names that will be recursed into regardless
+        of the value of the *rec* flag.
+    """
+    from dataclasses import is_dataclass, replace
+
+    if rattrs is None:
+        rattrs = set()
+
+    kwargs: dict[str, Any] = {}
+    for f in fields(obj):
+        attr = getattr(obj, f.name)
+        if (rec or f.name in rattrs) and is_dataclass(attr):
+            assert not isinstance(attr, type)
+            kwargs[f.name] = ds_symbolic(attr, rec=rec, rattrs=rattrs)
+            continue
+
+        if callable(attr):
+            kwargs[f.name] = sp.Function(f.name)
+        else:
+            kwargs[f.name] = sp.Symbol(f.name, real=True)
+
+    return replace(obj, **kwargs)
 
 
 class lambdify:  # noqa: N801
@@ -75,18 +104,21 @@ class lambdify:  # noqa: N801
         self,
         exprs: Array,
         *args: sp.Symbol,
-        backend: str = "lambda",
+        modules: str = "numpy",
     ) -> None:
         self.exprs = exprs
         self.args = args
 
-        self.func = sp.lambdify(args, exprs, modules="numpy")
+        self.func = sp.lambdify(args, exprs, modules=modules)
 
     @property
     def nargs(self) -> int:
         return len(self.args)
 
     def __call__(self, t: float, y: Array) -> Array:
+        # FIXME: This shouldn't be necessary since we have control over how the
+        # expressions get built at the end of the day. Just make one big vector..
+
         d = self.nargs - 1
         if y.size % d != 0:
             raise ValueError("inputs do not match required arguments")
@@ -111,23 +143,53 @@ class lambdify:  # noqa: N801
 
 @dataclass(frozen=True)
 class Model(ABC):
+    @property
     @abstractmethod
-    def symbolize(self) -> tuple[Array, tuple[sp.Symbol, ...]]:
+    def variables(self) -> tuple[str, ...]:
         """
-        :returns: a tuple of ``(exprs, *args)``, where *exprs* is an object
-            array of symbolic expressions that describe the model and *args*
-            are the state variables (usually including time).
+        :returns: a tuple of all the state variables in the system.
         """
 
-    def lambdify(self) -> Callable[[float, Array], Array]:
+    @abstractmethod
+    def evaluate(self, t: float, *args: Array) -> Array:
+        """
+        :returns: an expression of the model evaluated at the given arguments.
+        """
+
+    def lambdify(self, n: int) -> Callable[[float, Array], Array]:
         """Create a callable that is usable by :func:`scipy.integrate.solve_ivp`
         or other similar integrators.
 
-        This uses :meth:`~orbitkit.models.symbolic.Model.symbolize` and
-        :class:`lambdify` to create a :mod:`numpy` compatible callable.
+        This uses :meth:`variables` and :class:`lambdify` to create a
+        :mod:`numpy` compatible callable.
         """
-        model, args = self.symbolize()
-        return lambdify(model, *args)
+        t = sp.Symbol("t")
+        args = [make_sym_vector(name, n) for name in self.variables]
+        expr = self.evaluate(t, *args)
+
+        return lambdify(expr, t, *args)
+
+    def symbolic(self, *, rec: bool = False) -> Array:
+        """Create a completely symbolic version of this model.
+
+        All the parameters in the model will be replaced with symbolic variables.
+        These will then be evaluated into a symbolic expression. The expression
+        will usually be a scalar expression for each state variables.
+        """
+        t = sp.Symbol("t")
+        args = [make_sym_vector(name, 0) for name in self.variables]
+
+        model = ds_symbolic(self, rec=rec, rattrs={"param"})
+        return model.evaluate(t, *args)
+
+    def pretty(self, *, use_unicode: bool = True) -> tuple[str, ...]:
+        result = []
+        for name, expr in zip(self.variables, self.symbolic(), strict=True):
+            t = sp.Symbol("t")
+            dy = sp.Derivative(sp.Function(name)(t), t)
+            result.append(sp.pretty(sp.Eq(dy, expr), use_unicode=use_unicode))
+
+        return tuple(result)
 
 
 # }}}
@@ -161,12 +223,12 @@ class ExponentialRate:
         f(V; A, \theta, \sigma) = A \exp\left(-\frac{(V - \theta)}{\sigma}\right).
     """
 
-    amplitude: float
+    a: float
     theta: float
     sigma: float
 
     def __call__(self, V: Array) -> Array:
-        return self.amplitude * vectorize(sp.exp, -(V - self.theta) / self.sigma)
+        return self.a * vectorize(sp.exp, -(V - self.theta) / self.sigma)
 
 
 @dataclass(frozen=True)
@@ -179,13 +241,13 @@ class SigmoidRate:
             \frac{A}{1 + \exp\left(-\frac{(V - \theta)}{\sigma}\right)}.
     """
 
-    amplitude: float
+    a: float
     theta: float
     sigma: float
 
     def __call__(self, V: Array) -> Array:
         expV = vectorize(sp.exp, -(V - self.theta) / self.sigma)
-        return self.amplitude / (1.0 + expV)
+        return self.a / (1.0 + expV)
 
 
 @dataclass(frozen=True)
@@ -198,13 +260,52 @@ class Expm1Rate:
             \frac{A}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}.
     """
 
-    amplitude: float
+    a: float
     theta: float
     sigma: float
 
     def __call__(self, V: Array) -> Array:
         expV = vectorize(sp.exp, -(V - self.theta) / self.sigma)
-        return self.amplitude / (1.0 - expV)
+        return self.a / (1.0 - expV)
+
+
+@dataclass(frozen=True)
+class LinearExpm1Rate:
+    r"""A linear exponential rate function.
+
+    .. math::
+
+        f(V; a, b, \theta, \sigma) =
+            \frac{a V + b}{1 - \exp\left(-\frac{(V - \theta)}{\sigma}\right)}
+    """
+
+    a: float
+    b: float
+    theta: float
+    sigma: float
+
+    def __call__(self, V: Array) -> Array:
+        expV = vectorize(sp.exp, -(V - self.theta) / self.sigma)
+        return (self.a * V + self.b) / (1.0 - expV)
+
+
+@dataclass(frozen=True)
+class TanhRate:
+    r"""A :math:`tanh` based rate function.
+
+    .. math::
+
+        f(V; A, theta, sigma) =
+            A \left[1 + \tanh\left(\frac{V - \theta}{\sigma}\right)\right].
+    """
+
+    a: float
+    theta: float
+    sigma: float
+
+    def __call__(self, V: Array) -> Array:
+        tanhV = vectorize(sp.tanh, (V - self.theta) / self.sigma)
+        return self.a * (1.0 + tanhV)
 
 
 # }}}
