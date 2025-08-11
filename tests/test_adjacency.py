@@ -51,10 +51,10 @@ def test_erdos_renyi_degree(n: int, k: int, symmetric: bool) -> None:  # noqa: F
     degree = np.zeros(32)
     for i in range(degree.size):
         A = generate_adjacency_erdos_renyi(n, k=k, symmetric=symmetric, rng=rng)
-        E = np.sum(np.tril(A, k=0), axis=1)
+        E = np.sum(A, axis=1)
 
-        degree[i] = 2.0 * np.mean(E)
-        log.info("K %d Khat %.2f", k, 2.0 * np.mean(E))
+        degree[i] = np.mean(E)
+        log.info("K %d Khat %.2f", k, np.mean(E))
 
     mu = np.mean(degree)
     sigma = np.std(degree, ddof=1)
