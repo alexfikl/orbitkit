@@ -7,7 +7,7 @@ reproducing various papers.
 
 If you need these models (or similar), there are many (e.g. neuroscience
 focused) applications and libraries that are better suited and have more
-examples. However, if additions are very welcome, especially if they exhibit
+examples. However, additions are very welcome, especially if they exhibit
 some new and exciting behavior that trips up any of the implemented data
 analysis methods.
 
