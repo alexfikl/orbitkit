@@ -67,6 +67,62 @@ def test_erdos_renyi_degree(n: int, k: int, symmetric: bool) -> None:  # noqa: F
 # }}}
 
 
+# {{{ test_gap_junction_probability
+
+
+@pytest.mark.parametrize(
+    ("n", "m"),
+    [
+        (100, 2),
+        (100, 3),
+        (100, 4),
+        (100, 5),
+        (200, 6),
+        (300, 7),
+    ],
+)
+def test_gap_junction_probability(n: int, m: int) -> None:
+    from orbitkit.adjacency import (
+        _generate_random_gap_junction_clusters,  # noqa: PLC2701
+    )
+
+    rng = np.random.default_rng(seed=None)
+
+    avgsize = 9
+    maxsize = 21
+    maxiter = 512
+
+    cavg = np.empty(maxiter)
+    cmax = np.empty(maxiter)
+
+    for i in range(maxiter):
+        clusters = _generate_random_gap_junction_clusters(
+            rng,
+            n,
+            m,
+            alpha=1.0,
+            avgsize=avgsize,
+            maxsize=maxsize,
+            maxiter=maxiter,
+        )
+
+        assert np.sum(clusters) <= n, np.sum(clusters)
+        cavg[i] = np.mean(clusters)
+        cmax[i] = np.max(clusters)
+
+    mu = np.mean(cavg)
+
+    log.info(
+        "mean %d mean est %.2f max %d max est %.f", avgsize, mu, maxsize, np.max(cmax)
+    )
+
+    assert abs(avgsize - mu) < 0.5
+    assert np.max(cmax) <= maxsize
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 

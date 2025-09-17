@@ -14,13 +14,26 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
-def stringify_adjacency(mat: Array) -> str:
-    symbols = {0: " ◻ ", 1: " ◼ "}
+def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
+    if fmt == "box":
+        symbols = {0: " ◻ ", 1: " ◼ "}
 
-    return "\n".join(
-        "".join(symbols[int(mat[i, j] != 0)] for j in range(mat.shape[1]))
-        for i in range(mat.shape[0])
-    )
+        return "\n".join(
+            "".join(symbols[int(mat[i, j] != 0)] for j in range(mat.shape[1]))
+            for i in range(mat.shape[0])
+        )
+    elif fmt == "latex":
+        lines = []
+
+        lines.append(r"\begin{bmatrix}")
+        for i in range(mat.shape[0]):
+            lines.append(" & ".join(str(mij) for mij in mat[i]))
+            lines.append(r"\\")
+        lines.append(r"\end{bmatrix}")
+
+        return "\n".join(lines)
+    else:
+        raise ValueError(f"Unknown stringify format: '{fmt}'")
 
 
 # {{{ adjacency matrices
@@ -249,6 +262,147 @@ def generate_adjacency_strogatz_watts(
             choices = [c for c in range(n) if c not in forbidden]
             jnew = rng.choice(choices)
             result[i, jnew] = result[jnew, i] = 1
+
+    return result
+
+
+def _generate_random_gap_junction_clusters(
+    rng: np.random.Generator,
+    n: int,
+    m: int,
+    *,
+    alpha: float,
+    avgsize: int,
+    maxsize: int,
+    maxiter: int,
+) -> Array:
+    x = np.array([n // m] * m, dtype=np.int64)
+
+    # FIXME: this seems like it'll have mean *mean* only if n > mean * m?
+    smax = min(n - 1, avgsize * m)
+    for _ in range(maxiter):
+        # generate candidates
+        p = rng.dirichlet((alpha,) * m)
+        x = np.rint(p * smax).astype(x.dtype)
+
+        # ensure they sum up to smax
+        extra = smax - np.sum(x)
+        if extra != 0:
+            idx = rng.choice(m, size=abs(extra), replace=True)
+            x[idx] += np.sign(extra)
+
+        # check that the maximum size is respected
+        if np.max(x) <= maxsize and np.min(x) >= 1:
+            break
+
+    return x
+
+
+def _make_adjacency_from_groups(
+    groups: Array,
+    gaps: int | Array,
+    *,
+    dtype: Any = None,
+) -> tuple[Array, Array, Array]:
+    if dtype is None:
+        dtype = np.int32
+
+    if isinstance(gaps, int):
+        gaps = np.array([gaps] * groups.size)
+
+    n = int(np.sum(groups) + np.sum(gaps))
+    if groups.shape != gaps.shape:
+        raise ValueError(
+            "Cluster sizes and gap sizes must have the same shape: "
+            f"got {groups.shape} and {gaps.shape}"
+        )
+
+    i = 0
+    result = np.zeros((n, n), dtype=dtype)
+
+    for m, g in zip(groups, gaps, strict=True):
+        result[i : i + m, i : i + m] = 1.0
+        i += m + g
+
+    return result, groups, gaps
+
+
+def generate_adjacency_gap_junctions(
+    n: int,
+    m: int,
+    *,
+    dtype: Any = None,
+    alpha: float = 1.0,
+    avgsize: int = 9,
+    maxsize: int = 21,
+    maxiter: int = 512,
+    rng: np.random.Generator | None = None,
+) -> Array:
+    r"""Generate an adjacency matrix for gap junctions in a neuron network.
+
+    A neuron network with gap junctions is generally represented as a set of
+    unconnected all-to-all subnetworks. The defaults in this function are chosen
+    for the TRN (Thalamic Reticular Nucleus) based on the work from [Lee2014]_.
+    There we have that
+
+    * from a study of 9 rats: a cluster has :math:`9 \pm 2.5` neurons with a
+      range of :math:`\{1, \dots, 24\}`
+    * from a study of 33 mice: a cluster has :math:`8.7 \pm 0.9` neurons with a
+      range of :math:`\{1, \dots, 21\}`.
+
+    Note that other brain regions have very different distributions, so better
+    values should be chosen if a realistic application is desired.
+
+    .. [Lee2014] S.-C. Lee, S. L. Patrick, K. A. Richardson, B. W. Connors,
+        *Two Functionally Distinct Networks of Gap Junction-Coupled Inhibitory
+        Neurons in the Thalamic Reticular Nucleus*,
+        The Journal of Neuroscience, Vol. 34, pp. 13170--13182, 2014,
+        `doi:10.1523/jneurosci.0562-14.2014 <https://doi.org/10.1523/jneurosci.0562-14.2014>`__.
+
+    :arg n: the number of nodes in the network.
+    :arg m: the desired number of gap junction clusters. This should be such that
+        :mth:`n > m \times \text{avgsize}` to allow clusters of the desired size
+        distribution. If this is not the case, the average cluster size of the
+        generated network will be smaller.
+    :arg alpha: parameter in the Dirichlet distribution used to generate gap
+        junction clusters.
+    :arg avgsize: desired mean for the gap junction cluster size. Note that this
+        function always generates clusters with mean exactly *avgsize*.
+    :arg maxsize: maximum size of a gap junction cluster. Note that it is not
+        guaranteed that a cluster with this maximum size will exist in the network.
+    :arg maxiter: the gap junction clusters are generated by an iterative algorithm.
+        This defines the maximum number of iterations that can be used.
+    """
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if avgsize > maxsize:
+        raise ValueError(
+            f"'avgsize' cannot be larger than 'maxsize': {avgsize} > {maxsize}"
+        )
+
+    # generate gap junction clusters
+    groups = _generate_random_gap_junction_clusters(
+        rng,
+        n,
+        m,
+        alpha=alpha,
+        avgsize=avgsize,
+        maxsize=maxsize,
+        maxiter=maxiter,
+    )
+    leftover = n - np.sum(groups)
+
+    # generate random gaps
+    cuts = rng.choice(np.arange(1, leftover), size=m - 1, replace=False)
+    pts = np.concatenate(([0], np.sort(cuts), [leftover]))
+    gaps = np.diff(pts)
+    assert (np.sum(groups) + np.sum(gaps)) == n
+
+    # create adjacency matrix
+    result, _, _ = _make_adjacency_from_groups(groups, gaps, dtype=dtype)
+    assert result[0].shape == (n, n)
 
     return result
 
