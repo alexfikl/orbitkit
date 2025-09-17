@@ -14,6 +14,65 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
+def compute_graph_density(mat: Array) -> float:
+    """Compute the density of the adjacency matrix *mat*.
+
+    The density is defined as the number of edges in the graph divided by the
+    maximum possible number of edges for the given node count. It is always a
+    number in :math:`[0, 1]`.
+
+    :arg mat: a binary adjacency matrix.
+    """
+    if mat.ndim != 2:
+        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
+
+    if mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
+
+    n, _ = mat.shape
+    if n == 1:
+        return 0.0
+
+    # NOTE: this subtracts the diagonal so that we can handle graphs with self-loops
+    edges = np.sum(mat) - np.sum(np.diag(mat))
+    max_edges = n * (n - 1)
+
+    return float(edges / max_edges)
+
+
+def compute_graph_triangles(mat: Array) -> int:
+    r"""Compute number of triangles in the graph with adjacency matrix *mat*.
+
+    The number of triangles in a graph is given by the simple formula
+
+    .. math::
+
+        \frac{\text{trace}(A^3)}{6}
+
+    :arg mat: a binary adjacency matrix.
+    """
+    if mat.ndim != 2:
+        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
+
+    if mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
+
+    n, _ = mat.shape
+    if n <= 2:
+        return 0
+
+    # NOTE: this computes something like
+    #   tr(O^3) = tr(A^3) - 3 * sum A_{ii} * (A^2)_{ii} + 2 sum A_{ii}^3
+    #   O = A - D
+    # so that we can handle matrices with self-loops as well.
+    d = np.diag(mat)
+    mat2 = mat @ mat
+    trmat3 = np.trace(mat2 @ mat)
+    trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
+
+    return int(trmat3) // 6
+
+
 def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
     if fmt == "box":
         symbols = {0: " ◻ ", 1: " ◼ "}
@@ -44,7 +103,10 @@ def generate_adjacency_all(n: int, *, dtype: Any = None) -> Array:
     if dtype is None:
         dtype = np.int32
 
-    return np.ones((n, n), dtype=dtype)
+    result = np.ones((n, n), dtype=dtype)
+    np.fill_diagonal(result, 0)
+
+    return result
 
 
 def generate_adjacency_feed_forward(n: int, *, dtype: Any = None) -> Array:
@@ -53,7 +115,7 @@ def generate_adjacency_feed_forward(n: int, *, dtype: Any = None) -> Array:
         dtype = np.int32
 
     result = np.ones((n, n), dtype=dtype)
-    return np.tril(result, k=0)
+    return np.tril(result, k=-1)
 
 
 def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
@@ -65,6 +127,9 @@ def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     if dtype is None:
         dtype = np.int32
 
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
     if not 0 <= k < n:
         raise ValueError(f"Number of neighbors 'm' is invalid: '{k}' (not in [0, {n})")
 
@@ -73,6 +138,9 @@ def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     result = np.zeros((n, n), dtype=dtype)
 
     for i in range(-k, k + 1):
+        if i == 0:
+            continue
+
         result += np.roll(eye, i, axis=1)
 
     return result
@@ -87,6 +155,9 @@ def generate_adjacency_bus(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     if dtype is None:
         dtype = np.int32
 
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
     if not 0 <= k < n:
         raise ValueError(f"Number of neighbors 'm' is invalid: '{k}' (not in [0, {n}])")
 
@@ -95,6 +166,9 @@ def generate_adjacency_bus(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     result = np.zeros((n, n), dtype=dtype)
 
     for i in range(-k, k + 1):
+        if i == 0:
+            continue
+
         result += np.diag(ones[abs(i) :], k=i)
 
     return result
