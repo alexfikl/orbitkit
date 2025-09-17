@@ -24,6 +24,7 @@ set_plotting_defaults()
 @pytest.mark.parametrize(("n", "p"), [(100, 0.25), (500, 0.05), (300, 0.95)])
 @pytest.mark.parametrize("symmetric", [True, False])
 def test_erdos_renyi_probability(n: int, p: float, symmetric: bool) -> None:  # noqa: FBT001
+    """Check that the generated matrix has the desired probability distribution."""
     from orbitkit.adjacency import generate_adjacency_erdos_renyi
 
     rng = np.random.default_rng(seed=42)
@@ -44,6 +45,7 @@ def test_erdos_renyi_probability(n: int, p: float, symmetric: bool) -> None:  # 
 @pytest.mark.parametrize(("n", "k"), [(100, 25), (500, 10), (300, 200)])
 @pytest.mark.parametrize("symmetric", [True, False])
 def test_erdos_renyi_degree(n: int, k: int, symmetric: bool) -> None:  # noqa: FBT001
+    """Check that the generated matrix has the desired node degree."""
     from orbitkit.adjacency import generate_adjacency_erdos_renyi
 
     rng = np.random.default_rng(seed=42)
@@ -82,6 +84,7 @@ def test_erdos_renyi_degree(n: int, k: int, symmetric: bool) -> None:  # noqa: F
     ],
 )
 def test_gap_junction_probability(n: int, m: int) -> None:
+    """Check that the cluster sizes have the desired statistics."""
     from orbitkit.adjacency import (
         _generate_random_gap_junction_clusters,  # noqa: PLC2701
     )
@@ -118,6 +121,108 @@ def test_gap_junction_probability(n: int, m: int) -> None:
 
     assert abs(avgsize - mu) < 0.5
     assert np.max(cmax) <= maxsize
+
+
+# }}}
+
+
+# {{{ test_generate_adjacency
+
+
+def test_generate_adjacency_feed_forward() -> None:
+    from orbitkit.adjacency import generate_adjacency_feed_forward
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_feed_forward(n, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    assert np.all(np.triu(mat) == 0)
+
+
+@pytest.mark.parametrize("k", [0, 1, 2, 3])
+def test_generate_adjacency_ring(k: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_ring
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_ring(n, k=k, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    assert np.array_equal(mat, mat.T)
+
+    # check degree
+    degree = np.sum(mat, axis=1)
+    assert np.all(degree == (0 if k == 0 else (2 * k)))
+
+    # check circulant
+    for i in range(n):
+        assert np.array_equal(mat[i], np.roll(mat[0], i))
+
+
+def test_generate_adjacency_ring_invalid() -> None:
+    from orbitkit.adjacency import compute_graph_triangles, generate_adjacency_ring
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    with pytest.raises(ValueError, match="invalid"):
+        generate_adjacency_ring(n, k=-1, dtype=dtype)
+
+    with pytest.raises(ValueError, match="invalid"):
+        generate_adjacency_ring(n, k=n, dtype=dtype)
+
+    with pytest.raises(ValueError, match="negative"):
+        generate_adjacency_ring(-n, dtype=dtype)
+
+    mat = generate_adjacency_ring(n, k=1)
+    assert compute_graph_triangles(mat) == 0
+
+
+@pytest.mark.parametrize("k", [0, 1, 2, 3])
+def test_generate_adjacency_bus(k: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_bus
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_bus(n, k=k, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+
+    # check symmetry
+    assert np.array_equal(mat, mat.T)
+
+    # check degree
+    # FIXME: this could be made more exact, we know the actual degrees
+    degree = np.sum(mat, axis=1)
+    assert np.all(degree <= (0 if k == 0 else (2 * k)))
+
+
+def test_generate_adjacency_bus_invalid() -> None:
+    from orbitkit.adjacency import compute_graph_triangles, generate_adjacency_bus
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    with pytest.raises(ValueError, match="invalid"):
+        generate_adjacency_bus(n, k=-1, dtype=dtype)
+
+    with pytest.raises(ValueError, match="invalid"):
+        generate_adjacency_bus(n, k=n, dtype=dtype)
+
+    with pytest.raises(ValueError, match="negative"):
+        generate_adjacency_bus(-n, dtype=dtype)
+
+    mat = generate_adjacency_bus(n, k=1)
+    assert compute_graph_triangles(mat) == 0
 
 
 # }}}
