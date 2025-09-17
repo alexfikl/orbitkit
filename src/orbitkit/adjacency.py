@@ -14,6 +14,9 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
+# {{{ utils
+
+
 def compute_graph_density(mat: Array) -> float:
     """Compute the density of the adjacency matrix *mat*.
 
@@ -94,6 +97,8 @@ def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
     else:
         raise ValueError(f"Unknown stringify format: '{fmt}'")
 
+
+# }}}
 
 # {{{ adjacency matrices
 
