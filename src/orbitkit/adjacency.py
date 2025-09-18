@@ -135,6 +135,9 @@ def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
 
+    if n == 1:
+        return np.zeros((n, n), dtype=dtype)
+
     if not 0 <= k < n:
         raise ValueError(f"Number of neighbors 'm' is invalid: '{k}' (not in [0, {n})")
 
@@ -163,6 +166,9 @@ def generate_adjacency_bus(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
 
+    if n == 1:
+        return np.zeros((n, n), dtype=dtype)
+
     if not 0 <= k < n:
         raise ValueError(f"Number of neighbors 'm' is invalid: '{k}' (not in [0, {n}])")
 
@@ -187,24 +193,55 @@ def generate_adjacency_star(n: int, *, dtype: Any = None) -> Array:
     if dtype is None:
         dtype = np.int32
 
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
     result = np.zeros((n, n), dtype=dtype)
     result[0, 1:] = 1
     result[1:, 0] = 1
 
-    np.fill_diagonal(result, 1)
     return result
 
 
 def generate_adjacency_star_tree(
-    n: int, *, nhubs: int | None = None, dtype: Any = None
+    n: int,
+    *,
+    nhubs: int | None = None,
+    dtype: Any = None,
 ) -> Array:
-    """Generate a star of stars network with :math:`n` nodes."""
+    """Generate a star of stars network with :math:`n` nodes.
+
+    In this setup, the network will have:
+    * a central hub node.
+    * *nhubs* nodes connected to the central node.
+    * the remaining nodes will be equally distributed across the sub-hub nodes.
+
+    :arg nhubs: number of hubs connected to the central hub node. By default,
+        this depends on *n*.
+    """
 
     if nhubs is None:
-        nhubs = n // 5
+        nhubs = max(n // 5, 1)
 
     if dtype is None:
         dtype = np.int32
+
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
+    if n == 0 or nhubs == 1:
+        return generate_adjacency_star(n, dtype=dtype)
+
+    if nhubs < 0:
+        raise ValueError(f"negative number of hubs is now allowed: '{nhubs}'")
+
+    if nhubs == 0:
+        raise ValueError("zero hubs are not allowed")
+
+    if n < nhubs + 1:
+        raise ValueError(
+            f"number of nodes must be higher than number of hubs: {n} < {nhubs}"
+        )
 
     # NOTE: the way this is going to be constructed is
     # - 1 central node
@@ -223,8 +260,19 @@ def generate_adjacency_star_tree(
         leaves = np.s_[partitions[m] : partitions[m + 1]]
         result[m + 1, leaves] = result[leaves, m + 1] = 1
 
-    np.fill_diagonal(result, 1)
     return result
+
+
+def _find_equal_factors(n: int) -> tuple[int, int]:
+    if n == 0:
+        return 0, 0
+
+    m = int(np.sqrt(n)) + 1
+    while n % m != 0:
+        m -= 1
+
+    assert m > 0
+    return n // m, m
 
 
 def generate_adjacency_lattice(
@@ -247,14 +295,14 @@ def generate_adjacency_lattice(
     if dtype is None:
         dtype = np.int32
 
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
     if m is None:
-        m = int(np.sqrt(n)) + 1
-        while n % m != 0:
-            m -= 1
+        n, m = _find_equal_factors(n)
 
-        assert n % m == 0
-
-        n //= m
+    if m < 0:
+        raise ValueError(f"'m' cannot be non-positive: '{m}'")
 
     Im = np.eye(m, dtype=dtype)
     Tm = generate_adjacency_bus(m, dtype=dtype)
