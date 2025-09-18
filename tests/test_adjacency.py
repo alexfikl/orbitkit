@@ -126,7 +126,7 @@ def test_gap_junction_probability(n: int, m: int) -> None:
 # }}}
 
 
-# {{{ test_generate_adjacency
+# {{{ test_generate_adjacency_feed_forward
 
 
 def test_generate_adjacency_feed_forward() -> None:
@@ -141,6 +141,16 @@ def test_generate_adjacency_feed_forward() -> None:
     assert np.all(np.diag(mat) == 0)
 
     assert np.all(np.triu(mat) == 0)
+
+    mat = generate_adjacency_feed_forward(1, dtype=dtype)
+    assert mat.shape == (1, 1)
+    assert np.all(mat == 0)
+
+
+# }}}
+
+
+# {{{ test_generate_adjacency_ring
 
 
 @pytest.mark.parametrize("k", [0, 1, 2, 3])
@@ -166,8 +176,12 @@ def test_generate_adjacency_ring(k: int) -> None:
     for i in range(n):
         assert np.array_equal(mat[i], np.roll(mat[0], i))
 
+    # check that it ignores k
+    mat = generate_adjacency_ring(1, k=k, dtype=dtype)
+    assert mat.shape == (1, 1)
 
-def test_generate_adjacency_ring_invalid() -> None:
+
+def test_generate_adjacency_ring_edge_cases() -> None:
     from orbitkit.adjacency import compute_graph_triangles, generate_adjacency_ring
 
     n = 100
@@ -186,6 +200,12 @@ def test_generate_adjacency_ring_invalid() -> None:
     assert compute_graph_triangles(mat) == 0
 
 
+# }}}
+
+
+# {{{ test_generate_adjacency_bus
+
+
 @pytest.mark.parametrize("k", [0, 1, 2, 3])
 def test_generate_adjacency_bus(k: int) -> None:
     from orbitkit.adjacency import generate_adjacency_bus
@@ -196,6 +216,7 @@ def test_generate_adjacency_bus(k: int) -> None:
     mat = generate_adjacency_bus(n, k=k, dtype=dtype)
     assert mat.shape == (n, n)
     assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
 
     # check symmetry
     assert np.array_equal(mat, mat.T)
@@ -205,8 +226,12 @@ def test_generate_adjacency_bus(k: int) -> None:
     degree = np.sum(mat, axis=1)
     assert np.all(degree <= (0 if k == 0 else (2 * k)))
 
+    # check that it ignores k
+    mat = generate_adjacency_bus(1, k=k, dtype=dtype)
+    assert mat.shape == (1, 1)
 
-def test_generate_adjacency_bus_invalid() -> None:
+
+def test_generate_adjacency_bus_edge_cases() -> None:
     from orbitkit.adjacency import compute_graph_triangles, generate_adjacency_bus
 
     n = 100
@@ -223,6 +248,115 @@ def test_generate_adjacency_bus_invalid() -> None:
 
     mat = generate_adjacency_bus(n, k=1)
     assert compute_graph_triangles(mat) == 0
+
+
+# }}}
+
+
+# {{{ test_generate_adjacency_star
+
+
+def test_generate_adjacency_star() -> None:
+    from orbitkit.adjacency import generate_adjacency_star
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_star(n, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    assert np.array_equal(mat, mat.T)
+
+    # check degree
+    degree = np.sum(mat, axis=1)
+    assert degree[0] == n - 1
+    assert np.all(degree[1:] == 1)
+
+    # check edges
+    edges = np.sum(mat) // 2
+    assert edges == n - 1
+
+    # check single node
+    mat = generate_adjacency_star(1, dtype=dtype)
+    assert mat.shape == (1, 1)
+
+
+def test_generate_adjacency_star_tree() -> None:
+    from orbitkit.adjacency import generate_adjacency_star_tree
+
+    n = 100
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_star_tree(n, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    assert np.array_equal(mat, mat.T)
+
+    # check single node
+    mat = generate_adjacency_star_tree(1, dtype=dtype)
+    assert mat.shape == (1, 1)
+
+    # check edge cases
+    with pytest.raises(ValueError, match="negative"):
+        mat = generate_adjacency_star_tree(-1, dtype=dtype)
+
+    with pytest.raises(ValueError, match="negative"):
+        mat = generate_adjacency_star_tree(n, nhubs=-4, dtype=dtype)
+
+    with pytest.raises(ValueError, match="higher"):
+        mat = generate_adjacency_star_tree(5, nhubs=7, dtype=dtype)
+
+
+# }}}
+
+
+# {{{ test_generate_adjacency_lattice
+
+
+@pytest.mark.parametrize("n", [32, 49, 64, 95])
+def test_generate_adjacency_lattice(n: int) -> None:
+    from orbitkit.adjacency import (
+        _find_equal_factors,  # noqa: PLC2701
+        generate_adjacency_lattice,
+    )
+
+    m, p = _find_equal_factors(n)
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_lattice(n, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    assert np.array_equal(mat, mat.T)
+
+    # check edge count
+    assert np.sum(mat) // 2 == (m * (p - 1) + (m - 1) * p)
+
+
+@pytest.mark.parametrize(("n", "m"), [(15, 3), (15, 1), (1, 15), (7, 7)])
+def test_generate_adjacency_lattice_both(n: int, m: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_lattice
+
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_lattice(n, m, dtype=dtype)
+    assert mat.shape == (n * m, n * m)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    assert np.array_equal(mat, mat.T)
+
+    # check edge count
+    assert np.sum(mat) // 2 == (n * (m - 1) + (n - 1) * m)
 
 
 # }}}
