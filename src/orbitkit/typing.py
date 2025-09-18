@@ -30,3 +30,7 @@ class DataclassInstance(Protocol):
     `typeshed <https://github.com/python/typeshed/blob/770724013de34af6f75fa444cdbb76d187b41875/stdlib/_typeshed/__init__.pyi#L329-L334>`__."""
 
     __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
+
+
+DataclassInstanceT = TypeVar("DataclassInstanceT", bound=DataclassInstance)
+"""An invariant :class:`~typing.TypeVar` bound to :class:`DataclassInstance`."""

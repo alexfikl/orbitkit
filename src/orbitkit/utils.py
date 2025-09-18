@@ -539,10 +539,12 @@ class TicTocTimer:
     t_sqr: float = field(default=0.0, init=False)
 
     def tic(self) -> None:
+        """Start the timer."""
         self.t_wall = 0.0
         self.t_wall_start = time.perf_counter()
 
     def toc(self) -> float:
+        """Stop the timer and update internal statistics."""
         self.t_wall = time.perf_counter() - self.t_wall_start
 
         # statistics

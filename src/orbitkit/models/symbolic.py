@@ -11,14 +11,13 @@ from typing import Any, Protocol, TypeVar
 import numpy as np
 import sympy as sp
 
-from orbitkit.typing import Array, DataclassInstance
+from orbitkit.typing import Array, DataclassInstanceT
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
 T = TypeVar("T")
-DataclassInstanceT = TypeVar("DataclassInstanceT", bound=DataclassInstance)
 
 # {{{ symbolic
 

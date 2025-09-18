@@ -502,7 +502,7 @@ def generate_adjacency_gap_junctions(
 
     :arg n: the number of nodes in the network.
     :arg m: the desired number of gap junction clusters. This should be such that
-        :mth:`n > m \times \text{avgsize}` to allow clusters of the desired size
+        :math:`n > m \times \text{avgsize}` to allow clusters of the desired size
         distribution. If this is not the case, the average cluster size of the
         generated network will be smaller.
     :arg alpha: parameter in the Dirichlet distribution used to generate gap

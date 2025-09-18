@@ -172,6 +172,10 @@ autodoc_default_options = {
 
 # {{{ links
 
+nitpick_ignore_regex = [
+    ["py:class", r"optype.*"],
+]
+
 intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable", None),
