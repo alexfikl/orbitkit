@@ -287,7 +287,7 @@ class TanhRate:
 
     .. math::
 
-        f(V; A, theta, sigma) =
+        f(V; A, \theta, \sigma) =
             A \left[1 + \tanh\left(\frac{V - \theta}{\sigma}\right)\right].
     """
 
