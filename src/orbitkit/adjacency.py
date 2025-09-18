@@ -328,8 +328,17 @@ def generate_adjacency_erdos_renyi(
         not given, it is computed as :math:`p = k / (n - 1)`.
     :arg symmetric: if *True*, the adjacency matrix will be symmetric.
     """
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
     if p is not None and k is not None:
         raise ValueError("cannot pass both 'p' and 'k'")
+
+    if p is not None and not 0.0 <= p <= 1.0:
+        raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
+
+    if k is not None and not 0 <= k < n:
+        raise ValueError(f"cannot have more edges 'k' than nodes 'n': {k} > {n}")
 
     if p is None:
         p = 0.25 if k is None else (k / (n - 1))
@@ -341,14 +350,16 @@ def generate_adjacency_erdos_renyi(
         rng = np.random.default_rng()
 
     if symmetric:
-        rows, cols = np.tril_indices(n)
+        rows, cols = np.tril_indices(n, k=-1)
         mask = rng.random(size=rows.size) < p
 
         result = np.zeros((n, n), dtype=dtype)
         result[rows[mask], cols[mask]] = 1
         result[cols[mask], rows[mask]] = 1
     else:
+        # NOTE: setting the diagonal to zero should not change the statistics
         result = (rng.random(size=(n, n)) < p).astype(dtype)
+        np.fill_diagonal(result, 0)
 
     return result
 
@@ -366,6 +377,8 @@ def generate_adjacency_strogatz_watts(
     :arg k: number of neighboring nodes.
     :arg p: rewiring probability.
     """
+    if not 0.0 <= p <= 1.0:
+        raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
 
     if dtype is None:
         dtype = np.int32
@@ -376,6 +389,7 @@ def generate_adjacency_strogatz_watts(
     result = generate_adjacency_ring(n, k=k, dtype=dtype)
     for i in range(n):
         forbidden = {(i + j) % n for j in range(-k, k + 1)}
+        choices = np.array([c for c in range(n) if c not in forbidden])
 
         for j in range(1, k + 1):
             if not rng.random() < p:
@@ -386,7 +400,6 @@ def generate_adjacency_strogatz_watts(
             result[i, jold] = result[jold, i] = 0
 
             # rewire to a new edge
-            choices = [c for c in range(n) if c not in forbidden]
             jnew = rng.choice(choices)
             result[i, jnew] = result[jnew, i] = 1
 
@@ -451,6 +464,7 @@ def _make_adjacency_from_groups(
         result[i : i + m, i : i + m] = 1.0
         i += m + g
 
+    np.fill_diagonal(result, 0)
     return result, groups, gaps
 
 
@@ -501,6 +515,12 @@ def generate_adjacency_gap_junctions(
         This defines the maximum number of iterations that can be used.
     """
 
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
+    if m < 0:
+        raise ValueError(f"negative cluster counts are now allowed: '{m}'")
+
     if rng is None:
         rng = np.random.default_rng()
 
@@ -508,6 +528,9 @@ def generate_adjacency_gap_junctions(
         raise ValueError(
             f"'avgsize' cannot be larger than 'maxsize': {avgsize} > {maxsize}"
         )
+
+    if m == 0 or n <= 1:
+        return np.zeros((n, n), dtype=dtype)
 
     # generate gap junction clusters
     groups = _generate_random_gap_junction_clusters(
@@ -529,7 +552,7 @@ def generate_adjacency_gap_junctions(
 
     # create adjacency matrix
     result, _, _ = _make_adjacency_from_groups(groups, gaps, dtype=dtype)
-    assert result[0].shape == (n, n)
+    assert result.shape == (n, n)
 
     return result
 
