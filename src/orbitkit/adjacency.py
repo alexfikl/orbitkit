@@ -699,7 +699,7 @@ def generate_symmetric_random_equal_row_sum(
         # NOTE: Symmetric Sinkhorn--Knopp algorithm could oscillate between two
         # sequences, need to bring the two sequences together (See for example
         # "Algorithms For The Equilibration Of Matrices And Their Application
-        # To Limited-memory Quasi-newton Methods")
+        # To Limited-memory Quasi-Newton Methods")
         c = (c + r) / 2.0
 
         converged = bool(la.norm(c - cprev, ord=2) < atol)
