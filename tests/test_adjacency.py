@@ -469,6 +469,7 @@ def test_generate_adjacency_gap_junctions(n: int, m: int) -> None:
     # check symmetry
     assert np.array_equal(mat, mat.T)
 
+
 # }}}
 
 
