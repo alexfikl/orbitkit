@@ -23,7 +23,7 @@ def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
     .. [Pfeuty2007] B. Pfeuty,
         *Inhibition Potentiates the Synchronizing Action of Electrical Synapses*,
         Frontiers in Computational Neuroscience, Vol. 1, 2007,
-        `DOI <https://doi.org/10.3389/neuro.10.008.2007>`__.
+        `doi:10.3389/neuro.10.008.2007 <https://doi.org/10.3389/neuro.10.008.2007>`__.
 
     :arg V: an array of shape ``(nnodes, ntimesteps)`` for which to compute the
         synchrony measure.

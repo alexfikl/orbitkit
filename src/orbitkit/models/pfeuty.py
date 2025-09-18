@@ -83,7 +83,7 @@ class Pfeuty(sym.Model):
     .. [Pfeuty2007] B. Pfeuty,
         *Inhibition Potentiates the Synchronizing Action of Electrical Synapses*,
         Frontiers in Computational Neuroscience, Vol. 1, 2007,
-        `DOI <https://doi.org/10.3389/neuro.10.008.2007>`__.
+        `doi:10.3389/neuro.10.008.2007 <https://doi.org/10.3389/neuro.10.008.2007>`__.
     """
 
     Ainh: Array

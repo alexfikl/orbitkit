@@ -74,7 +74,7 @@ class WangBuzsaki(sym.Model):
         *Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal
         Network Model*,
         The Journal of Neuroscience, Vol. 16, pp. 6402--6413, 1996,
-        `DOI <https://doi.org/10.1523/jneurosci.16-20-06402.1996>`__.
+        `doi:10.1523/jneurosci.16-20-06402.1996 <https://doi.org/10.1523/jneurosci.16-20-06402.1996>`__.
     """
 
     A: Array

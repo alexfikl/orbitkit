@@ -61,11 +61,10 @@ class WangRinzel(sym.Model):
     where the parameters are described in :class:`WangRinzelParameter`. The
     specific activation functions used in [WangRinzel1992]_ are standard sigmoid
     functions.
-
-    .. [WangRinzel1992] X.-J. Wang, J. Rinzel,
+    .. [Wang1992] X.-J. Wang, J. Rinzel,
         *Alternating and Synchronous Rhythms in Reciprocally Inhibitory Model Neurons*,
         Neural Computation, Vol. 4, pp. 84--97, 1992,
-        `DOI <https://doi.org/10.1162/neco.1992.4.1.84>`__.
+        `doi:10.1162/neco.1992.4.1.84 <https://doi.org/10.1162/neco.1992.4.1.84>`__.
     """
 
     A: Array
