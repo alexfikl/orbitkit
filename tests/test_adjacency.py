@@ -473,6 +473,91 @@ def test_generate_adjacency_gap_junctions(n: int, m: int) -> None:
 # }}}
 
 
+# {{{ test_generate_adjacency_fractal
+
+
+@pytest.mark.parametrize(
+    ("base", "nlevels"),
+    [
+        ("101", 1),
+        ("101", 3),
+        ("110011", 2),
+        ("101110", 3),
+    ],
+)
+def test_expand_pattern(base: str, nlevels: int) -> None:
+    from orbitkit.adjacency import _expand_pattern  # noqa: PLC2701
+
+    dtype = np.dtype(np.uint8)
+    pattern = _expand_pattern(base, nlevels, dtype=dtype)
+
+    assert pattern.shape == (len(base) ** nlevels,)
+    assert pattern.sum() == base.count("1") ** nlevels
+
+
+@pytest.mark.parametrize("nlevels", [0, 1, 4])
+def test_generate_adjacency_fractal(nlevels: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_fractal
+
+    dtype = np.dtype(np.uint8)
+    n = 3**nlevels
+
+    mat = generate_adjacency_fractal("000", nlevels=nlevels, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+    assert np.sum(mat) == 0
+
+    mat = generate_adjacency_fractal("111", nlevels=nlevels, dtype=dtype)
+    assert np.all(np.diag(mat) == 0)
+    assert np.all(np.sum(mat, axis=1) == n - 1)
+
+    mat = generate_adjacency_fractal("101", nlevels=nlevels, dtype=dtype)
+    assert np.all(np.diag(mat) == 0)
+
+    if not ENABLE_VISUAL:
+        return
+
+    if n <= 1:
+        return
+
+    import networkx as nx  # type: ignore[import-untyped]
+    import nxviz as nv  # type: ignore[import-untyped]
+
+    # NOTE: only plot the first row
+    mat[0, 0] = 1
+    mat[1:, :] = 0
+    G = nx.from_numpy_array(mat)
+
+    for i, b in enumerate(mat[0, :]):
+        G.nodes[i]["group"] = f"{b}"
+
+    from orbitkit.visualization import figure
+
+    with figure(
+        TEST_DIRECTORY / f"test_generate_adjacency_fractal_{nlevels}",
+        normalize=True,
+    ) as fig:
+        ax = fig.gca()
+
+        import matplotlib.pyplot as mp
+
+        colors = mp.rcParams["axes.prop_cycle"].by_key()["color"]
+        palette = {f"{b}": colors[b] for b in (0, 1)}
+
+        nv.circos(
+            G,
+            node_color_by="group",
+            node_palette=palette,
+        )
+
+        pattern = "".join(str(b) for b in mat[0, :])
+        ax.set_title(pattern)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 

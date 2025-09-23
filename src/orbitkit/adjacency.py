@@ -484,13 +484,6 @@ def generate_adjacency_gap_junctions(
     A neuron network with gap junctions is generally represented as a set of
     unconnected all-to-all subnetworks. The defaults in this function are chosen
     for the TRN (Thalamic Reticular Nucleus) based on the work from [Lee2014]_.
-    There we have that
-
-    * from a study of 9 rats: a cluster has :math:`9 \pm 2.5` neurons with a
-      range of :math:`\{1, \dots, 24\}`
-    * from a study of 33 mice: a cluster has :math:`8.7 \pm 0.9` neurons with a
-      range of :math:`\{1, \dots, 21\}`.
-
     Note that other brain regions have very different distributions, so better
     values should be chosen if a realistic application is desired.
 
@@ -520,6 +513,9 @@ def generate_adjacency_gap_junctions(
 
     if m < 0:
         raise ValueError(f"negative cluster counts are now allowed: '{m}'")
+
+    if dtype is None:
+        dtype = np.int32
 
     if rng is None:
         rng = np.random.default_rng()
@@ -555,6 +551,65 @@ def generate_adjacency_gap_junctions(
     assert result.shape == (n, n)
 
     return result
+
+
+def _expand_pattern(base: str, nlevels: int, dtype: Any = None) -> Array:
+    zeros = "0" * len(base)
+    pattern = base
+    for _ in range(nlevels - 1):
+        pattern = "".join([(base if i == "1" else zeros) for i in pattern])
+
+    # transform pattern to 0/1 array
+    return np.frombuffer(pattern.encode(), dtype=dtype) - ord("0")
+
+
+def generate_adjacency_fractal(
+    base: str,
+    *,
+    nlevels: int = 4,
+    dtype: Any = None,
+) -> Array:
+    """Generate a Cantor set-like connectivity based on the *base* pattern.
+
+    This function generates the network described in [Omelchenko2015]. It takes
+    a base pattern (e.g. ``"11011"``) and performs a recursive Cantor set
+    construction, where each "1" is replaced by the base pattern and each "0"
+    is replaced by a zero pattern the same length as the base pattern. This
+    results in a networks of size ``len(base) ** nlevels`` after all the
+    subdivisions.
+
+    The resulting pattern is then used to construct a circulant adjancency
+    matrix that can be conveniently arranged in non-standard ring-structure.
+
+    .. [Omelchenko2015] I. Omelchenko, A. Provata, J. Hizanidis, E. Schöll, P. Hövel,
+        *Robustness of Chimera States for Coupled FitzHugh-Nagumo Oscillators*,
+        Physical Review E, Vol. 91, pp. 22917--22917, 2015,
+        `doi:10.1103/physreve.91.022917 <https://doi.org/10.1103/physreve.91.022917>`__.
+
+    :arg nlevels: number of levels the pattern is subdivided.
+    """
+
+    if not set(base) <= {"0", "1"}:
+        raise ValueError(f"'base' pattern must be binary only: '{base}'")
+
+    if nlevels < 0:
+        raise ValueError(f"'nlevels' must be non-negative: {nlevels}")
+
+    if dtype is None:
+        dtype = np.int32
+
+    if nlevels == 0:
+        # FIXME: what size do we actually expect here? this chose was mostly
+        # made to fit match `len(base) ** 0`
+        return np.zeros((1, 1), dtype=dtype)
+
+    from scipy.linalg import circulant
+
+    x = _expand_pattern(base, nlevels, dtype=dtype)
+    mat = circulant(x).T
+    np.fill_diagonal(mat, 0)
+
+    return mat  # type: ignore[no-any-return]
 
 
 # }}}
