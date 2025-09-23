@@ -515,44 +515,44 @@ def test_generate_adjacency_fractal(nlevels: int) -> None:
     mat = generate_adjacency_fractal("101", nlevels=nlevels, dtype=dtype)
     assert np.all(np.diag(mat) == 0)
 
-    if not ENABLE_VISUAL:
-        return
+    # if not ENABLE_VISUAL:
+    #     return
 
-    if n <= 1:
-        return
+    # if n <= 1:
+    #     return
 
-    import networkx as nx  # type: ignore[import-untyped]
-    import nxviz as nv  # type: ignore[import-untyped]
+    # import networkx as nx
+    # import nxviz as nv
 
-    # NOTE: only plot the first row
-    mat[0, 0] = 1
-    mat[1:, :] = 0
-    G = nx.from_numpy_array(mat)
+    # # NOTE: only plot the first row
+    # mat[0, 0] = 1
+    # mat[1:, :] = 0
+    # G = nx.from_numpy_array(mat)
 
-    for i, b in enumerate(mat[0, :]):
-        G.nodes[i]["group"] = f"{b}"
+    # for i, b in enumerate(mat[0, :]):
+    #     G.nodes[i]["group"] = f"{b}"
 
-    from orbitkit.visualization import figure
+    # from orbitkit.visualization import figure
 
-    with figure(
-        TEST_DIRECTORY / f"test_generate_adjacency_fractal_{nlevels}",
-        normalize=True,
-    ) as fig:
-        ax = fig.gca()
+    # with figure(
+    #     TEST_DIRECTORY / f"test_generate_adjacency_fractal_{nlevels}",
+    #     normalize=True,
+    # ) as fig:
+    #     ax = fig.gca()
 
-        import matplotlib.pyplot as mp
+    #     import matplotlib.pyplot as mp
 
-        colors = mp.rcParams["axes.prop_cycle"].by_key()["color"]
-        palette = {f"{b}": colors[b] for b in (0, 1)}
+    #     colors = mp.rcParams["axes.prop_cycle"].by_key()["color"]
+    #     palette = {f"{b}": colors[b] for b in (0, 1)}
 
-        nv.circos(
-            G,
-            node_color_by="group",
-            node_palette=palette,
-        )
+    #     nv.circos(
+    #         G,
+    #         node_color_by="group",
+    #         node_palette=palette,
+    #     )
 
-        pattern = "".join(str(b) for b in mat[0, :])
-        ax.set_title(pattern)
+    #     pattern = "".join(str(b) for b in mat[0, :])
+    #     ax.set_title(pattern)
 
 
 # }}}
