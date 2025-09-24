@@ -62,7 +62,7 @@ def ds_symbolic(
     """Fill in all the attributes of *cls* with symbolic variables.
 
     :arg rec: if *True*, automatically recurse into all child dataclasses.
-    :arg attrs: a set of attribute names that will be recursed into regardless
+    :arg rattrs: a set of attribute names that will be recursed into regardless
         of the value of the *rec* flag.
     """
     from dataclasses import is_dataclass, replace
@@ -87,6 +87,13 @@ def ds_symbolic(
                 else sp.Symbol(f"{f.name}_{i}", real=True)
                 for i in range(len(attr))
             )
+        elif isinstance(attr, np.ndarray):
+            arr = np.empty(attr.shape, dtype=object)
+            for idx in np.ndindex(attr.shape):
+                sidx = "".join(str(i) for i in idx)
+                arr[idx] = sp.Symbol(f"{f.name}_{sidx}")
+
+            kwargs[f.name] = arr
         else:
             kwargs[f.name] = sp.Symbol(f.name, real=True)
 
@@ -148,15 +155,30 @@ class Model(ABC):
         :returns: an expression of the model evaluated at the given arguments.
         """
 
-    def lambdify(self, n: int) -> Callable[[float, Array], Array]:
+    def lambdify(self, n: int | tuple[int, ...]) -> Callable[[float, Array], Array]:
         """Create a callable that is usable by :func:`scipy.integrate.solve_ivp`
         or other similar integrators.
 
         This uses :meth:`variables` and :class:`lambdify` to create a
         :mod:`numpy` compatible callable.
         """
+        x = self.variables
+        if isinstance(n, int):
+            n = (n,) * len(x)
+
+        if len(x) != len(n):
+            raise ValueError(
+                f"number of variables does not match sizes: variables {x} for sizes {n}"
+            )
+
+        if not all(n[0] == n_i for n_i in n[1:]):
+            raise NotImplementedError(f"only uniform sizes are supported: {n}")
+
         t = sp.Symbol("t")
-        args = [make_sym_vector(name, n) for name in self.variables]
+        args = [
+            make_sym_vector(name, n_i)
+            for n_i, name in zip(n, self.variables, strict=True)
+        ]
         expr = self.evaluate(t, *args)
 
         return lambdify(expr, t, *args)
