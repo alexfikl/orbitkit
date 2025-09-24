@@ -96,3 +96,63 @@ def kuramoto_order_parameter_link(V: Array, *, mat: Array) -> Array:
 def kuramoto_order_parameter_universal(V: Array, *, mat: Array) -> Array:
     # http://dx.doi.org/10.1063/1.4995963
     raise NotImplementedError
+
+
+def kemeth_spatial_correlation_measure(
+    V: Array,
+    *,
+    atol: float | None = None,
+    rtol: float = 1.0e-2,
+) -> Array:
+    r"""Compute the :math:`g_0` correlation measure from [Kemeth2016]_.
+
+    The correlation measure is computed using Equation (4) from [Kemeth2016]_.
+    In our notation, *atol* takes the places of :math:`\delta` as the desired
+    threshold. If *atol* is not given, then *rtol* is used to compute it
+    using :math:`\epsilon_{\text{rel}} D_m`, where :math:`D_m` is the maximum
+    pairwise distance.
+
+    In practice, the correlation is given by
+
+    .. math::
+
+        g_0 = \sqrt{
+            \frac{\#\{(i, j) \mid i < j, D_{ij} < \epsilon_{\text{abs}}\}}{\binom{n}{2}}
+            }
+
+    .. [Kemeth2016]
+        F. P. Kemeth, S. W. Haugland, L. Schmidt, I. G. Kevrekidis, K. Krischer,
+        *A Classification Scheme for Chimera States*,
+        Chaos: An Interdisciplinary Journal of Nonlinear Science, Vol. 26, 2016,
+        `doi:10.1063/1.4959804 <https://doi.org/10.1063/1.4959804>`__.
+    """
+    if V.ndim == 1:
+        V = V.reshape(-1, 1)
+
+    if V.ndim != 2:
+        raise ValueError(f"only 2d time series are supported: {V.shape}")
+
+    if not 0.0 < rtol <= 1.0:
+        raise ValueError(f"'rtol' must be in (0, 1]: {rtol}")
+
+    if atol is not None and atol <= 0.0:
+        raise ValueError(f"'atol' must be non-negative: {atol}")
+
+    d, n = V.shape
+    if d < 2:
+        return np.full(V.shape[1], 1.0, dtype=V.real.dtype)
+
+    # compute pairwise distances at each time step
+    dists = np.abs(V[:, None, :] - V[None, :, :])
+    # select only distances for i < j
+    dists = dists[np.triu_indices(n, k=1)]
+
+    dmax = np.max(dists)
+    if atol is None:
+        atol = max(rtol * dmax, np.finfo(V.dtype).eps)
+
+    g0 = np.empty(n, dtype=dists.dtype)
+    for i in range(n):
+        g0[i] = np.sqrt(np.mean(dists[:, i] < atol))
+
+    return g0
