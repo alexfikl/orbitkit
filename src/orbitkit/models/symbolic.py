@@ -100,6 +100,16 @@ def ds_symbolic(
     return replace(obj, **kwargs)
 
 
+# }}}
+
+
+# {{{ lambdify
+
+
+def _lambdifysinsum(theta0: Array, theta1: Array, alpha: float) -> Array:
+    return np.sum(np.sin(theta1[None, :] - theta0[:, None] - alpha), axis=1)  # type: ignore[no-any-return]
+
+
 def lambdify(
     exprs: Array,
     *args: sp.Symbol,
@@ -113,8 +123,14 @@ def lambdify(
     integrators such as those from :mod:`scipy`.
     """
 
-    func = sp.lambdify(args, exprs, modules=modules)
+    lambdify_module = {
+        "_lambdifysinsum": _lambdifysinsum,
+    }
+    func = sp.lambdify(args, tuple(exprs), modules=[lambdify_module, modules])
     nargs = len(args)
+
+    # import inspect
+    # log.info("Source:\n%s", inspect.getsource(func))
 
     def wrapper(t: float, y: Array) -> Array:
         d = nargs - 1
@@ -129,7 +145,7 @@ def lambdify(
         ys = np.array_split(y, d)
 
         # evaluate
-        return func(ts, *ys)  # type: ignore[no-any-return]
+        return np.hstack(func(ts, *ys))
 
     return wrapper
 
@@ -174,9 +190,9 @@ class Model(ABC):
         if not all(n[0] == n_i for n_i in n[1:]):
             raise NotImplementedError(f"only uniform sizes are supported: {n}")
 
-        t = sp.Symbol("t")
+        t = sp.Symbol("t", real=True)
         args = [
-            make_sym_vector(name, n_i)
+            sp.MatrixSymbol(name, n_i, 1)
             for n_i, name in zip(n, self.variables, strict=True)
         ]
         expr = self.evaluate(t, *args)
@@ -191,7 +207,7 @@ class Model(ABC):
         will usually be a scalar expression for each state variables.
         """
         t = sp.Symbol("t")
-        args = [make_sym_vector(name, 0) for name in self.variables]
+        args = [sp.MatrixSymbol(name, 8, 1) for i, name in enumerate(self.variables)]
 
         model = ds_symbolic(self, rec=rec, rattrs={"param"})
         return model.evaluate(t, *args)

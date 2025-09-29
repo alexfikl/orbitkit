@@ -62,6 +62,10 @@ class KuramotoAbrams(sym.Model):
     def variables(self) -> tuple[str, ...]:
         return tuple(f"theta{i}" for i in range(self.K.shape[0]))
 
+    @classmethod
+    def shift(cls, theta: Array) -> Array:
+        return np.angle(np.exp(1j * theta))
+
     def evaluate(self, t: float, *args: Array) -> Array:
         thetas = args
         K = self.K
@@ -73,44 +77,15 @@ class KuramotoAbrams(sym.Model):
             )
 
         omega, alpha = self.omega, self.alpha
-        if isinstance(thetas[0], np.ndarray):
-            return np.hstack([
-                omega
-                + sum(
-                    K[a, b]
-                    / theta_b.size
-                    * sum(
-                        sym.vectorize(sp.sin, theta_j - theta_a - alpha)
-                        for theta_j in theta_b
-                    )
-                    for b, theta_b in enumerate(thetas)
-                )
-                for a, theta_a in enumerate(thetas)
-            ])
-        else:
-            # FIXME: this is mostly for pretty printing the symbolic expressions.
-            # It would be nice to have a more general expression that just works
-            # in both cases like for the other models..
-            j = sp.Idx("j")
-            n = [sp.Symbol(f"n{i}") for i in range(len(thetas))]
-
-            # FIXME: sympy does not print the loop index if each theta is a
-            # separate IndexedBase. Not clear why that would be..
-            theta = sp.IndexedBase("theta")
-
-            return np.hstack([
-                omega
-                + sum(
-                    K[a, b]
-                    / n[b]
-                    * sp.Sum(
-                        sp.sin(theta[b, j] - theta[a] - alpha),
-                        (j, 0, n[b] - 1),
-                    )
-                    for b, theta_b in enumerate(thetas)
-                )
-                for a, theta_a in enumerate(thetas)
-            ])
+        sinsum = sp.Function("_lambdifysinsum")
+        return np.hstack([
+            omega
+            + sum(
+                K[a, b] / theta_b.shape[0] * sinsum(theta_a, theta_b, alpha)
+                for b, theta_b in enumerate(thetas)
+            )
+            for a, theta_a in enumerate(thetas)
+        ])
 
 
 def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:

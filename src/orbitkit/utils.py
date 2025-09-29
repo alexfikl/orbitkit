@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -572,6 +572,62 @@ class TicTocTimer:
     def short(self) -> str:
         """A shorter string for the last :meth:`tic`-:meth:`toc` cycle."""
         return f"wall {self.t_wall:.5f}s"
+
+
+# }}}
+
+
+# {{{ timeit
+
+
+@dataclass(frozen=True)
+class TimingResult:
+    """Statistics for a set of runs (see :func:`timeit`)."""
+
+    walltime: float
+    """Minimum walltime for a set of runs."""
+    mean: float
+    """Mean walltime for a set of runs."""
+    std: float
+    """Standard derivation for a set of runs."""
+
+    @classmethod
+    def from_results(cls, results: list[float]) -> TimingResult:
+        """Gather statistics from a set of runs."""
+        rs = np.array(results)
+
+        return TimingResult(
+            walltime=np.min(rs),
+            mean=np.mean(rs),
+            std=np.std(rs, ddof=1),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.mean:.5f}s ± {self.std:.3f}"
+
+
+def timeit(
+    stmt: Callable[[], Any],
+    *,
+    repeat: int = 1000,
+    number: int = 10,
+    skip: int = 0,
+) -> TimingResult:
+    """Run *stmt* using :func:`timeit.repeat`.
+
+    :arg repeat: number of times to call :func:`timeit.timeit` (inside of
+        :func:`timeit.repeat`).
+    :arg number: number of times to run the *stmt* in each call to
+        :func:`timeit.timeit`.
+    :arg skip: number of leading calls from *repeat* to skip, e.g. to
+        avoid measuring an initial cache hit.
+    :returns: a :class:`TimingResult` with statistics about the runs.
+    """
+
+    import timeit as _timeit
+
+    r = _timeit.repeat(stmt=stmt, repeat=repeat + 1, number=number)
+    return TimingResult.from_results(r[skip:])
 
 
 # }}}
