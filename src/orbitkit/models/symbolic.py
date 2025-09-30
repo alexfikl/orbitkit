@@ -248,6 +248,10 @@ class StringifyMapper(StringifyMapperBase[Any]):
         return f"({aggregate}).reshape{expr.shape}"
 
 
+def stringify(expr: Expression) -> str:
+    return StringifyMapper()(expr)
+
+
 # }}}
 
 # {{{ model
@@ -267,7 +271,10 @@ class Model(ABC):
         """
 
     def symbolify(
-        self, n: int | tuple[int, ...]
+        self,
+        n: int | tuple[int, ...],
+        *,
+        full: bool = False,
     ) -> tuple[tuple[prim.Variable, ...], tuple[Expression, ...]]:
         r"""Evaluate model on symbolic arguments for a specific size *n*.
 
@@ -295,7 +302,11 @@ class Model(ABC):
         t = prim.Variable("t")
         args = [MatrixSymbol(name, (n_i,)) for n_i, name in zip(n, x, strict=True)]
 
-        return (t, *args), self.evaluate(t, *args)
+        model = self
+        if full:
+            model = ds_symbolic(model, rec=False, rattrs={"params"})
+
+        return (t, *args), model.evaluate(t, *args)
 
 
 # }}}

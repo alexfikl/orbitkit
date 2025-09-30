@@ -9,6 +9,7 @@ import numpy as np
 import pymbolic.primitives as prim
 import pytest
 
+from orbitkit.models.kuramoto import KuramotoAbrams
 from orbitkit.models.symbolic import Model
 from orbitkit.typing import Array
 from orbitkit.utils import get_environ_boolean, module_logger, set_plotting_defaults
@@ -24,13 +25,13 @@ set_plotting_defaults()
 # {{{ test_symbolify
 
 
-def get_model_from_module(module: str, model: str) -> Model:
-    if module == "kuramoto":
+def get_model_from_module(module_name: str, model_name: str) -> Model:
+    if module_name == "kuramoto":
         import orbitkit.models.kuramoto as module
     else:
-        raise ValueError(f"unknown module name: '{module}'")
+        raise ValueError(f"unknown module name: '{module_name}'")
 
-    return module.make_model_from_name(model)
+    return module.make_model_from_name(model_name)
 
 
 @pytest.mark.parametrize(
@@ -93,7 +94,7 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
 # {{{ test_codegen_numpy_kuramoto
 
 
-def kuramoto(model: Model, t: float, *thetas: Array) -> Array:
+def kuramoto(model: KuramotoAbrams, t: float, *thetas: Array) -> Array:
     return np.hstack([
         model.omega
         + sum(
@@ -116,6 +117,8 @@ def test_codegen_numpy_kuramoto(n: int) -> None:
     from orbitkit.models.targets import NumpyTarget
 
     model = get_model_from_module("kuramoto", "Abrams2008Figure2c")
+    assert isinstance(model, KuramotoAbrams)
+
     d = len(model.variables)
     target = NumpyTarget()
 

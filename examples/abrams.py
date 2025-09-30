@@ -8,48 +8,34 @@ import pathlib
 import numpy as np
 
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
+from orbitkit.models.symbolic import stringify
 from orbitkit.models.targets import NumpyTarget
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
+# FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
+# quite sure what that's about, but the general trends seem to be the same.
+
+# FIXME: this seems to be quite dependent on the random initial conditions, so
+# sometimes it syncs and sometimes there's a chimera -- need to try!
+
 # {{{ create right-hand side
 
-# NOTE: this seems to be quite dependent on the random initial conditions, so
-# sometimes it syncs and sometimes there's a chimera -- need to try!
-n = 32
-figname = "Figure2a"
+n = 64
+figname = "Figure2c"
 model = make_model_from_name(f"Abrams2008{figname}")
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", 2 * n)
 
-args, exprs = model.symbolify((n, n))
+args, exprs = model.symbolify((n, n), full=True)
 for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-    log.info("Eq%d:\n d%s/dt = %s", i, name, eq)
+    log.info("Eq%d:\n d%s/dt = %s", i, stringify(name), stringify(eq))
 
 target = NumpyTarget()
 source = target.lambdify(model, (n, n))
-
-# }}}
-
-
-# {{{ simulation parameters
-
-tspan = (0.0, 2000.0)
-tmin_for_plot = 0.0
-
-# NOTE: Figure2 says that the integration began from an initial condition close
-# to the chimera state. From Figure 1, it seems like this means something like this
-y0 = np.hstack([
-    rng.normal(0.0, 0.1, size=n),
-    rng.normal(0.0, 2.0, size=n),
-])
-
-log.info("tspan: %s", tspan)
-log.info("param: %s", figname)
-log.info(model)
 
 # }}}
 
@@ -58,15 +44,42 @@ log.info(model)
 
 from scipy.integrate import solve_ivp
 
-result = solve_ivp(
-    source,
-    tspan,
-    y0,
-    method="RK45",
-    # atol=1.0e-6,
-    # rtol=1.0e-8,
-    max_step=0.05,
-)
+tspan = (0.0, 1000.0)
+tmin_for_plot = 0.0
+
+log.info("tspan: %s", tspan)
+log.info("param: %s", figname)
+log.info(model)
+
+for k in range(32):
+    # NOTE: Figure2 says that the integration began from an initial condition close
+    # to the chimera state. From Figure 1, it seems like this means something like this
+    y0 = np.hstack([
+        rng.normal(0.0, 0.1, size=n),
+        rng.normal(0.0, 2.0, size=n),
+    ])
+
+    result = solve_ivp(
+        source,
+        tspan,
+        y0,
+        method="RK45",
+        # atol=1.0e-6,
+        # rtol=1.0e-8,
+        max_step=0.05,
+    )
+
+    # compute Kuramoto order parameter
+    theta = result.y[:n, -128:]
+    r0 = np.abs(np.mean(np.exp(1j * theta), axis=0))
+
+    theta = result.y[n:, -128:]
+    r1 = np.abs(np.mean(np.exp(1j * theta), axis=0))
+
+    if np.max(r0) < 1.0 or np.max(r1) < 1.0:
+        break
+
+    log.info("[%2d] Retrying... Got r0 %.8e r1 %.8e", k, np.max(r0), np.max(r1))
 
 # }}}
 
@@ -97,20 +110,18 @@ with figure(
 
     # compute Kuramoto order parameter
     theta = result.y[:n, mask]
-    r = np.abs(np.mean(np.exp(1j * theta), axis=0))
+    r0 = np.abs(np.mean(np.exp(1j * theta), axis=0))
 
-    # FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
-    # quite sure what that's about, but the general trends seem to be the same.
-    ax0.plot(result.t[mask], r, lw=2)
+    theta = result.y[n:, mask]
+    r1 = np.abs(np.mean(np.exp(1j * theta), axis=0))
+
+    ax0.plot(result.t[mask], r0, lw=6)
     ax0.set_xlabel("$t$")
     ax0.set_ylabel("$r^0$")
     ax0.set_xlim(tmin_for_plot, tspan[1])
     ax0.set_ylim(0.0, 1.0)
 
-    theta = result.y[n:, mask]
-    r = np.abs(np.mean(np.exp(1j * theta), axis=0))
-
-    ax1.plot(result.t[mask], r, lw=2)
+    ax1.plot(result.t[mask], r1, lw=6)
     ax1.set_xlabel("$t$")
     ax1.set_ylabel("$r^1$")
     ax1.set_xlim(tmin_for_plot, tspan[1])
