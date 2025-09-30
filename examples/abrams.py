@@ -7,25 +7,30 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.models.kuramoto import make_model_from_name
+from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
+from orbitkit.models.targets import NumpyTarget
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
-rng = np.random.default_rng(seed=45)
+rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
 # NOTE: this seems to be quite dependent on the random initial conditions, so
 # sometimes it syncs and sometimes there's a chimera -- need to try!
-n = 64
+n = 32
 figname = "Figure2a"
 model = make_model_from_name(f"Abrams2008{figname}")
-source = model.lambdify((n, n))
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", 2 * n)
-for i, eq in enumerate(model.pretty(use_unicode=True)):
-    log.info("Eq%d:\n%s", i, eq)
+
+args, exprs = model.symbolify((n, n))
+for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
+    log.info("Eq%d:\n d%s/dt = %s", i, name, eq)
+
+target = NumpyTarget()
+source = target.lambdify(model, (n, n))
 
 # }}}
 
@@ -79,9 +84,6 @@ set_plotting_defaults()
 
 from orbitkit.visualization import figure
 
-# compute Kuramoto order parameter for the sigma=2 population
-# FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
-# quite sure what that's about, but the general trends seem to be the same.
 mask = result.t > tmin_for_plot
 
 with figure(
@@ -93,9 +95,12 @@ with figure(
 ) as fig:
     ax0, ax1 = fig.axes
 
+    # compute Kuramoto order parameter
     theta = result.y[:n, mask]
     r = np.abs(np.mean(np.exp(1j * theta), axis=0))
 
+    # FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
+    # quite sure what that's about, but the general trends seem to be the same.
     ax0.plot(result.t[mask], r, lw=2)
     ax0.set_xlabel("$t$")
     ax0.set_ylabel("$r^0$")
@@ -120,13 +125,13 @@ with figure(
 ) as fig:
     ax0, ax1 = fig.axes
 
-    theta = model.shift(result.y[:n, -1])
+    theta = shift_kuramoto_angle(result.y[:n, -1])
     ax0.plot(np.arange(n), theta, "o")
     ax0.set_xlabel("$j$")
     ax0.set_ylabel(r"$\theta^0_j$")
     ax0.set_ylim([-np.pi, np.pi])
 
-    theta = model.shift(result.y[n:, -1])
+    theta = shift_kuramoto_angle(result.y[n:, -1])
     ax1.plot(np.arange(n, 2 * n), theta, "o")
     ax1.set_xlabel("$j$")
     ax1.set_ylabel(r"$\theta^1_j$")

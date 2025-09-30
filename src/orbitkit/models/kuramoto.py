@@ -6,13 +6,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import sympy as sp
+import pymbolic.primitives as prim
 
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
+
+
+def shift_kuramoto_angle(theta: Array) -> Array:
+    # FIXME: there's probably faster way to do this, but this is nice and clear
+    return np.angle(np.exp(1j * theta))
 
 
 @dataclass(frozen=True)
@@ -36,24 +41,22 @@ class KuramotoAbrams(sym.Model):
         `doi:10.1103/physrevlett.101.084103 <https://doi.org/10.1103/physrevlett.101.084103>`__.
     """
 
-    omega: float
+    omega: sym.Expression
     """Frequency of each oscillator in the Kuramoto model."""
-    alpha: float
+    alpha: sym.Expression
     """Phase lag for each oscillator in the Kuramoto model."""
-    K: Array
+    K: Array | sym.MatrixSymbol
     """Coupling matrix between the different populations."""
 
     if __debug__:
 
         def __post_init__(self) -> None:
-            if isinstance(self.K, np.ndarray) and (
-                self.K.ndim != 2 or self.K.shape[0] != self.K.shape[1]
-            ):
+            if self.K.ndim != 2 or self.K.shape[0] != self.K.shape[1]:
                 raise ValueError(f"coupling matrix 'K' must be square: {self.K.shape}")
 
-            from numbers import Number
+            from numbers import Real
 
-            if isinstance(self.omega, Number) and self.omega < 0:
+            if isinstance(self.omega, Real) and self.omega < 0:
                 raise ValueError(
                     f"frequency 'omega' must be non-negative: {self.omega}"
                 )
@@ -62,11 +65,9 @@ class KuramotoAbrams(sym.Model):
     def variables(self) -> tuple[str, ...]:
         return tuple(f"theta{i}" for i in range(self.K.shape[0]))
 
-    @classmethod
-    def shift(cls, theta: Array) -> Array:
-        return np.angle(np.exp(1j * theta))
-
-    def evaluate(self, t: float, *args: Array) -> Array:
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
         thetas = args
         K = self.K
 
@@ -76,16 +77,21 @@ class KuramotoAbrams(sym.Model):
                 f"matrix has shape {K.shape} for {len(thetas)} populations"
             )
 
-        omega, alpha = self.omega, self.alpha
-        sinsum = sp.Function("_lambdifysinsum")
-        return np.hstack([
-            omega
-            + sum(
-                K[a, b] / theta_b.shape[0] * sinsum(theta_a, theta_b, alpha)
-                for b, theta_b in enumerate(thetas)
-            )
+        return tuple(
+            prim.flattened_sum([
+                self.omega
+                + sum(
+                    K[a, b]
+                    / theta_b.shape[0]
+                    * sym.Contract(
+                        theta_b.reshape(-1, 1) - theta_a.reshape(1, -1) - self.alpha,
+                        axis=(0,),
+                    )
+                    for b, theta_b in enumerate(thetas)
+                )
+            ])
             for a, theta_a in enumerate(thetas)
-        ])
+        )
 
 
 def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:

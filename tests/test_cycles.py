@@ -18,6 +18,9 @@ log = module_logger(__name__)
 set_plotting_defaults()
 
 
+# {{{ test_cycles_welch_psd
+
+
 @pytest.mark.parametrize("method", ["welch", "lombscargle"])
 def test_cycles_welch_psd(method: str) -> None:
     rng = np.random.default_rng(seed=32)
@@ -62,6 +65,9 @@ def test_cycles_welch_psd(method: str) -> None:
         ax.plot(result.deltas)
         ax.set_xlabel("Window")
         ax.set_ylabel(r"$\Delta$")
+
+
+# }}}
 
 
 if __name__ == "__main__":
