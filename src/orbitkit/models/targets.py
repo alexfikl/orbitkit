@@ -27,6 +27,16 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     def handle_unsupported_expression(self, expr: object, enclosing_prec: int) -> str:
         raise NotImplementedError(f"{type(self)} cannot handle {type(expr)}: {expr}")
 
+    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
+        return f"{self.module}.{expr.name}"
+
+    def map_numpy_array(
+        self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], enclosing_prec: int
+    ) -> str:
+        # FIXME: this is quite hacky
+        ary = repr(expr).replace("dtype=", f"dtype={self.module}.")
+        return f"{self.module}.{ary}"
+
     def map_contract(self, expr: sym.Contract, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
         return f"{self.module}.sum({aggregate}, axis={expr.axis})"
@@ -34,6 +44,11 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     def map_reshape(self, expr: sym.Reshape, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
         return f"{self.module}.reshape({aggregate}, shape={expr.shape})"
+
+    def map_dot_product(self, expr: sym.DotProduct, enclosing_prec: int) -> str:
+        left = self.rec(expr.left, PREC_NONE)  # type: ignore[arg-type]
+        right = self.rec(expr.right, PREC_NONE)  # type: ignore[arg-type]
+        return f"{self.module}.dot({left}, {right})"
 
 
 @dataclass(frozen=True)
@@ -74,6 +89,8 @@ class NumpyTarget:
 
         code = self.generate_code(model, n)
         code = f"{funcname} = {code}"
+
+        log.info("Code:\n%s", code)
 
         exec(
             compile(code, filename, "exec"),

@@ -12,7 +12,7 @@ import pymbolic.primitives as prim
 from pymbolic.mapper.stringifier import PREC_NONE
 from pymbolic.mapper.stringifier import StringifyMapper as StringifyMapperBase
 
-from orbitkit.typing import DataclassInstanceT
+from orbitkit.typing import Array, DataclassInstanceT
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -81,6 +81,12 @@ class ExpressionNode(prim.ExpressionNode):
 class Contract(ExpressionNode):
     aggregate: Expression
     axis: tuple[int, ...]
+
+
+@prim.expr_dataclass()
+class DotProduct(ExpressionNode):
+    left: Array | Expression
+    right: Array | Expression
 
 
 @prim.expr_dataclass()
@@ -239,6 +245,11 @@ class StringifyMapper(StringifyMapperBase[Any]):
 
         return str(pretty_symbol(expr.name))
 
+    def map_numpy_array(  # noqa: PLR6301
+        self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], enclosing_prec: int
+    ) -> str:
+        return repr(expr)
+
     def map_contract(self, expr: Contract, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
         return f"sum({aggregate}, axis={expr.axis})"
@@ -246,6 +257,11 @@ class StringifyMapper(StringifyMapperBase[Any]):
     def map_reshape(self, expr: Reshape, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
         return f"({aggregate}).reshape{expr.shape}"
+
+    def map_dot_product(self, expr: DotProduct, enclosing_prec: int) -> str:
+        left = self.rec(expr.left, PREC_NONE)  # type: ignore[arg-type]
+        right = self.rec(expr.right, PREC_NONE)  # type: ignore[arg-type]
+        return f"dot({left}, {right})"
 
 
 def stringify(expr: Expression) -> str:
@@ -304,7 +320,7 @@ class Model(ABC):
 
         model = self
         if full:
-            model = ds_symbolic(model, rec=False, rattrs={"params"})
+            model = ds_symbolic(model, rec=False, rattrs={"param"})
 
         return (t, *args), model.evaluate(t, *args)
 

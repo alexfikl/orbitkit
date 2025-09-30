@@ -7,23 +7,29 @@ import pathlib
 
 import numpy as np
 
+from orbitkit.models.symbolic import stringify
+from orbitkit.models.targets import NumpyTarget
 from orbitkit.models.wang_rinzel import make_model_from_name
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
-rng = np.random.default_rng(seed=None)
+rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
 figname = "Figure4a"
 model = make_model_from_name(f"WangRinzel1992{figname}")
-source = model.lambdify(model.n)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
-for i, eq in enumerate(model.pretty()):
-    log.info("Eq%d:\n%s", i, eq)
+
+args, exprs = model.symbolify(model.n, full=False)
+for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
+    log.info("Eq%d:\n d%s/dt = %s", i, stringify(name), stringify(eq))
+
+target = NumpyTarget()
+source = target.lambdify(model, model.n)
 
 # }}}
 

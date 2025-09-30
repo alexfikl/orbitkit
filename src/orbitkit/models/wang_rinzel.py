@@ -6,7 +6,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import sympy as sp
 
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
@@ -68,10 +67,10 @@ class WangRinzel(sym.Model):
         `doi:10.1162/neco.1992.4.1.84 <https://doi.org/10.1162/neco.1992.4.1.84>`__.
     """
 
-    A: Array
-    """A connection matrix for the synaptic current."""
     param: WangRinzelParameter
     """Parameters for the Wang-Rinzel model."""
+    A: Array | sym.MatrixSymbol
+    """A connection matrix for the synaptic current."""
 
     minf: sym.RateFunction
     r""":math:`m_\infty` activation function used in the membrane potential equation."""
@@ -88,20 +87,20 @@ class WangRinzel(sym.Model):
         def __post_init__(self) -> None:
             assert isinstance(self.param, WangRinzelParameter)
 
-            if isinstance(self.A, np.ndarray) and (
-                self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]
-            ):
+            if self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]:
                 raise ValueError(f"adjacency matrix 'A' not square: {self.A.shape}")
 
     @property
     def n(self) -> int:
-        return 0 if isinstance(self.A, sp.Symbol) else self.A.shape[0]
+        return self.A.shape[0]
 
     @property
     def variables(self) -> tuple[str, ...]:
         return ("V", "h")
 
-    def evaluate(self, t: float, *args: Array) -> Array:
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
         V, h = args
         param = self.param
 
@@ -121,14 +120,14 @@ class WangRinzel(sym.Model):
 
         # compute synaptic current
         g_syn, V_syn = param.g_syn, param.V_syn
-        I_syn = g_syn * (V - V_syn) * np.dot(self.A, sinf)
+        I_syn = g_syn * (V - V_syn) * sym.DotProduct(self.A, sinf)
 
         # put it all together and return the right-hand side
         C, phi = param.C, param.phi
-        return np.hstack([
+        return (
             -(I_PIR + I_L + I_syn) / C,
             phi / tauh * (hinf - h),
-        ])
+        )
 
 
 # }}}
@@ -164,7 +163,9 @@ class WangRinzelExt(WangRinzel):
     def variables(self) -> tuple[str, ...]:
         return ("V", "h", "s")
 
-    def evaluate(self, t: float, *args: Array) -> Array:
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
         # FIXME: this is very copy-pasted from the simpler model
         V, h, s = args
         param = self.param
@@ -185,15 +186,15 @@ class WangRinzelExt(WangRinzel):
 
         # compute synaptic current
         g_syn, V_syn = param.g_syn, param.V_syn
-        I_syn = g_syn * (V - V_syn) * np.dot(self.A, s)
+        I_syn = g_syn * (V - V_syn) * sym.DotProduct(self.A, s)
 
         # put it all together and return the right-hand side
         C, phi, k_r = param.C, param.phi, param.k_r
-        return np.hstack([
+        return (
             -(I_PIR + I_L + I_syn) / C,
             phi / tauh * (hinf - h),
             sinf * (1 - s) - k_r * s,
-        ])
+        )
 
 
 # }}}
