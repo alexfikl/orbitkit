@@ -246,7 +246,8 @@ class StringifyMapper(StringifyMapperBase[Any]):
     def map_variable(self, expr: prim.Variable, enclosing_prec: int) -> str:  # noqa: PLR6301
         from sympy.printing.pretty.pretty_symbology import pretty_symbol
 
-        return str(pretty_symbol(expr.name))
+        result = pretty_symbol(expr.name)
+        return str(result)
 
     def map_numpy_array(  # noqa: PLR6301
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], enclosing_prec: int

@@ -26,7 +26,7 @@ class Code:
     name: str
     source: str
     inputs: tuple[sym.Variable, ...]
-    args: dict[str, Array]
+    args: tuple[Array, ...]
 
     def __str__(self) -> str:
         return self.source
@@ -104,14 +104,16 @@ class NumpyTarget:
 
         from pytools.py_codegen import PythonFunctionGenerator
 
+        y = sym.MatrixSymbol("y", (sum(n),))
+        args = sorted(to_numpy.array_arguments)
         cgen = PythonFunctionGenerator(
             self.funcname,
-            args=(inputs[0].name, "y", *to_numpy.array_arguments),
+            args=(inputs[0].name, y.name, *args),
         )
 
         i = 0
         for n_i, arg in zip(n, inputs[1:], strict=True):
-            cgen(f"{arg.name} = y[{i}:{i + n_i}]")
+            cgen(f"{arg.name} = {y.name}[{i}:{i + n_i}]")
             i += n_i
 
         cgen(f"return np.hstack([{expressions}])")
@@ -129,8 +131,8 @@ class NumpyTarget:
         return Code(
             name=type(model).__name__,
             source=source,
-            inputs=inputs,
-            args=to_numpy.array_arguments.copy(),
+            inputs=(inputs[0], y),
+            args=tuple(to_numpy.array_arguments[k] for k in args),
         )
 
     def generate_code(
@@ -158,7 +160,7 @@ class NumpyTarget:
 
             source = ast.unparse(ast.parse(source))
 
-        return Code(name=name, source=source, inputs=inputs, args={})
+        return Code(name=name, source=source, inputs=inputs, args=())
 
     def lambdify_model(
         self, model: sym.Model, n: int | tuple[int, ...]
@@ -199,7 +201,7 @@ class NumpyTarget:
         weakref.finalize(func, make_finalize(filename))
 
         def wrapper(*args: Array) -> Array:
-            return func(*args, **code.args)  # type: ignore[no-any-return]
+            return func(*args, *code.args)  # type: ignore[no-any-return]
 
         return wrapper
 

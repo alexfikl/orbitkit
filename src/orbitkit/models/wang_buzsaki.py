@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 import pymbolic.primitives as prim
@@ -113,7 +114,7 @@ class WangBuzsaki(sym.Model):
     def n(self) -> int:
         return self.A.shape[0]
 
-    @property
+    @cached_property
     def M_syn(self) -> Array | sym.MatrixSymbol:  # noqa: N802
         return (
             sym.MatrixSymbol("M_syn", (self.A.shape[0],))

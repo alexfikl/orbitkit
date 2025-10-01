@@ -7,34 +7,49 @@ import pathlib
 from dataclasses import replace
 
 import numpy as np
-import sympy as sp
 
 from orbitkit.adjacency import generate_adjacency_erdos_renyi
 from orbitkit.models.pfeuty import make_model_from_name
+from orbitkit.models.symbolic import stringify
+from orbitkit.models.targets import NumpyTarget
+from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
+# FIXME: This does not yet reproduce the results from Figure2C in [Pfeuty2007]_.
+# It's not clear what is wrong with the parameters / setup used here, but the
+# frequency of the neuron spikes does not seem to match what's in the paper.
+
+# FIXME: [Pfeuty2007]_ does not mention initial conditions. This uses something
+# similar to [WangBuzsaki1996]_, but it's not clear if that's a good idea. Might
+# be causing the matching issue above?
+
 # {{{ right-hand side
 
-# NOTE: create a nxn all-to-all adjacency matrix for the model
+# NOTE: create an nxn random adjacency matrix for the model
 n = 200
-Ainh = generate_adjacency_erdos_renyi(n, k=50, symmetric=False, rng=rng)
-Agap = generate_adjacency_erdos_renyi(n, k=10, symmetric=True, rng=rng)
+A_inh = generate_adjacency_erdos_renyi(n, k=50, symmetric=False, rng=rng)
+A_gap = generate_adjacency_erdos_renyi(n, k=10, symmetric=True, rng=rng)
 
 figname = "Figure2cl"
-model = replace(make_model_from_name(f"Pfeuty2007{figname}"), Ainh=Ainh, Agap=Agap)
+model = replace(make_model_from_name(f"Pfeuty2007{figname}"), A_inh=A_inh, A_gap=A_gap)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
-for i, eq in enumerate(model.pretty()):
-    log.info("Eq%d:\n%s", i, eq)
+
+args, exprs = model.symbolify(n, full=True)
+for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
+    log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
+
+target = NumpyTarget()
+source = target.lambdify_model(model, model.n)
 
 # NOTE: lambdify rate functions to get the steady state for the gating variables
-V = sp.var("V")
-hinf = sp.lambdify((V,), model.hinf(V), modules="numpy")
-ninf = sp.lambdify((V,), model.ninf(V), modules="numpy")
+V = args[1]
+hinf = target.lambdify(target.generate_code((V,), model.hinf(V)))
+ninf = target.lambdify(target.generate_code((V,), model.ninf(V)))
 
 # }}}
 
@@ -42,7 +57,7 @@ ninf = sp.lambdify((V,), model.ninf(V), modules="numpy")
 # {{{ simulation parameters
 
 tspan = (0.0, 1500.0)
-tmin_for_plot = 1000.0
+tmin_for_plot = 1250.0
 ylim = (-80.0, 40.0)
 
 Vs0 = model.param.V_L + rng.uniform(-3.0, 3.0, size=n)
@@ -60,32 +75,19 @@ log.info(model.param)
 # }}}
 
 
-# {{{ numbafy
-
-import numba
-
-from orbitkit.models.symbolic import make_sym_vector
-from orbitkit.typing import Array
-
-# jit compile lower level function
-t = sp.Symbol("t")
-args = [make_sym_vector(name, model.n) for name in model.variables]
-expr = model.evaluate(t, *args)
-
-source = sp.lambdify((t, *args), expr, modules="numpy")
-source = numba.njit(source)
+# {{{ add noise
 
 # set up exterior forcing current
 # NOTE: this depends on the number of neurons apparently, so it won't give the
 # same frequency if n is changed.
 C = model.param.C
-I_ext = {"Figure2cl": 4.5, "Figure2cr": 1.6}[figname]
+I_ext = {"Figure2cl": 15.0, "Figure2cr": 1.6}[figname]
 
-# set up noise current
-# NOTE: this is meant to act like some form of white noise. because we use an
-# adaptive RK method, we can't just add Gaussian to the right-hand side, but
-# instead we make a piecewise constant current with proper scaling that gets
-# added into the equaion -- this should have the current stochastic behavior
+# set up noise current NOTE: this is meant to act like some form of white
+# noise. Because we use an adaptive RK method, we can't just add random noise
+# to the right-hand side at every time step, but instead we make a piecewise
+# constant random current with proper scaling that gets added into the equation
+# -- this should have the correct stochastic behavior
 noise_mu = 0.0
 noise_sigma = {"Figure2cl": 0.1, "Figure2cr": 0.8}[figname]
 
@@ -100,25 +102,14 @@ eta = rng.standard_normal((n, noise_t.size))
 I_noise_bins = noise_sigma / np.sqrt(noise_dt) * eta
 
 
-@numba.njit  # type: ignore[misc]
-def source_with_noise(t: float, y: Array, I_noise: Array) -> Array:
-    Vs_i = y[:n]
-    Vd_i = y[n : 2 * n]
-    h_i = y[2 * n : 3 * n]
-    n_i = y[3 * n : 4 * n]
-    s_i = y[4 * n :]
-
-    dy = source(t, Vs_i, Vd_i, h_i, n_i, s_i)
-
-    dy[:n] += I_noise / C
-    dy[n : 2 * n] += I_ext / C
-
-    return dy  # type: ignore[no-any-return]
-
-
 def pfeuty_source(t: float, y: Array) -> Array:
     k = min(int(np.digitize(t, noise_t)), noise_t.size - 1)
-    return source_with_noise(t, y, I_noise_bins[:, k])  # type: ignore[no-any-return]
+
+    dy = source(t, y)
+    dy[:n] += I_noise_bins[:, k] / C
+    dy[n : 2 * n] += I_ext / C
+
+    return dy
 
 
 # }}}
@@ -137,7 +128,7 @@ result = solve_ivp(
     y0,
     # NOTE: the paper mentions using an RK2 method with dt=0.01ms
     method="RK23",
-    max_step=0.01,
+    max_step=noise_dt,
 )
 
 # }}}
@@ -154,18 +145,32 @@ from orbitkit.utils import set_plotting_defaults
 dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
+# get a nice mask for plotting
+mask = result.t > tmin_for_plot
+
+# find a neuron to plot that seems to have spiked the most
+from scipy.signal import find_peaks
+
+k = 0
+npeaks = 0
+for i in range(n):
+    peaks_i, _ = find_peaks(result.y[i, mask], height=0.9 * model.param.V_threshold)
+    if len(peaks_i) > npeaks:
+        npeaks = len(peaks_i)
+        k = i
+        log.info("Found neuron %d with %d spikes (?).", i, npeaks)
+
 from orbitkit.visualization import figure, rastergram
 
 with figure(dirname / f"pfeuty_{figname.lower()}", overwrite=True) as fig:
     ax = fig.gca()
 
-    mask = result.t > tmin_for_plot
-    ax.plot(result.t[mask], result.y[0, mask].T)
+    ax.plot(result.t[mask], result.y[k, mask].T)
     ax.axhline(model.param.V_threshold, color="k", ls="--")
     ax.axhline(model.param.V_inh, color="k", ls=":")
 
     ax.set_xlabel("$t$ (ms)")
-    ax.set_ylabel("$V$ (mV)")
+    ax.set_ylabel(f"$V_{{{k}}}$ (mV)")
     ax.set_xlim(tmin_for_plot, tspan[1])
     ax.set_ylim(ylim)
 
@@ -173,7 +178,6 @@ with figure(dirname / f"pfeuty_{figname.lower()}", overwrite=True) as fig:
 with figure(dirname / f"pfeuty_{figname.lower()}_average", overwrite=True) as fig:
     ax = fig.gca()
 
-    mask = result.t > tmin_for_plot
     ax.plot(result.t[mask], np.mean(result.y[: model.n, mask].T, axis=1))
     ax.axhline(model.param.V_threshold, color="k", ls="--")
     ax.axhline(model.param.V_inh, color="k", ls=":")
@@ -189,15 +193,16 @@ with figure(dirname / f"pfeuty_{figname.lower()}_rastergram", overwrite=True) as
 
     rastergram(
         ax,
-        result.t,
-        result.y[: model.n, :],
-        height=0.95 * model.param.V_threshold,
+        result.t[mask],
+        result.y[: model.n, mask],
+        height=0.9 * model.param.V_threshold,
+        markerheight=1.0,
     )
 
     ax.grid(visible=False, which="both")
     ax.set_xlabel("$t$ (ms)")
     ax.set_ylabel("Neuron")
-    ax.set_xlim(tspan[0], tspan[1])
+    ax.set_xlim(tmin_for_plot, tspan[1])
     ax.set_ylim((-0.5, model.n - 0.5))
 
 # }}}

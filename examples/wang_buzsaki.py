@@ -31,7 +31,7 @@ log.info("Size:  %d", model.n)
 
 args, exprs = model.symbolify(n, full=True)
 for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-    log.info("Eq%d:\n d%s/dt = %s", i, stringify(name), stringify(eq))
+    log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
 
 target = NumpyTarget()
 source = target.lambdify_model(model, model.n)
@@ -82,6 +82,9 @@ log.info(model.param)
 # {{{ evolve
 
 from scipy.integrate import solve_ivp
+
+if n > 32:
+    log.warning("Running with %d neurons will be quite slow. Patience..", n)
 
 result = solve_ivp(
     wang_buzsaki_source,

@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
-import sympy as sp
+import pymbolic.primitives as prim
 
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
@@ -86,12 +87,13 @@ class Pfeuty(sym.Model):
         `doi:10.3389/neuro.10.008.2007 <https://doi.org/10.3389/neuro.10.008.2007>`__.
     """
 
-    Ainh: Array
-    """An adjacency matrix for the inhibitory synaptic current."""
-    Agap: Array
-    """An adjacency matrix for the electric synaptic current."""
     param: PfeutyParameter
     """Parameters for the Wang-Buzsáki model."""
+
+    A_inh: Array | sym.MatrixSymbol
+    """An adjacency matrix for the inhibitory synaptic current."""
+    A_gap: Array | sym.MatrixSymbol
+    """An adjacency matrix for the electric synaptic current."""
 
     alpha_s: sym.RateFunction
     """Normalized concentration of the post-synaptic transmitter-receptor complex."""
@@ -117,63 +119,59 @@ class Pfeuty(sym.Model):
             if len(self.beta) != 3:
                 raise ValueError("must provide exactly 3 'beta[i]' rate functions")
 
-            if isinstance(self.Ainh, np.ndarray) and (
-                self.Ainh.ndim != 2 or self.Ainh.shape[0] != self.Ainh.shape[1]
-            ):
+            if self.A_inh.ndim != 2 or self.A_inh.shape[0] != self.A_inh.shape[1]:
                 raise ValueError(
-                    f"adjacency matrix 'Ainh' not square: {self.Ainh.shape}"
+                    f"adjacency matrix 'A_inh' not square: {self.A_inh.shape}"
                 )
 
-            if isinstance(self.Agap, np.ndarray) and (
-                self.Agap.ndim != 2 or self.Agap.shape[0] != self.Agap.shape[1]
-            ):
+            if self.A_gap.ndim != 2 or self.A_gap.shape[0] != self.A_gap.shape[1]:
                 raise ValueError(
-                    f"adjacency matrix 'Agap' not square: {self.Agap.shape}"
+                    f"adjacency matrix 'A_gap' not square: {self.A_gap.shape}"
                 )
 
-            if isinstance(self.Ainh, np.ndarray) and self.Ainh.shape != self.Agap.shape:
+            if self.A_inh.shape != self.A_gap.shape:
                 raise ValueError("adjacency matrices have different shapes")
 
     @property
     def n(self) -> int:
-        return 0 if isinstance(self.Ainh, sp.Symbol) else self.Ainh.shape[0]
+        return self.A_inh.shape[0]
 
-    @property
-    def M_gap(self) -> Array:  # noqa: N802
+    @cached_property
+    def M_gap(self) -> Array | sym.MatrixSymbol:  # noqa: N802
         """Degree of each of the nodes in the electric synaptic network."""
-        return (  # type: ignore[no-any-return]
-            sp.Symbol("M_gap")
-            if isinstance(self.Agap, sp.Symbol)
-            else np.sum(self.Agap, axis=1)
+        return (
+            sym.MatrixSymbol("M_gap", (self.n,))
+            if isinstance(self.A_gap, sym.MatrixSymbol)
+            else np.sum(self.A_gap, axis=1)
         )
 
     @property
-    def K_inh(self) -> Array:  # noqa: N802
+    def K_inh(self) -> float | sym.Variable:  # noqa: N802
         """Average degree of the nodes in the inhibitory synaptic network."""
-        return (  # type: ignore[no-any-return]
-            sp.Symbol("K_inh")
-            if isinstance(self.Ainh, sp.Symbol)
-            else np.mean(np.sum(self.Ainh, axis=1))
+        return (
+            sym.Variable("K_inh")
+            if isinstance(self.A_inh, sym.MatrixSymbol)
+            else np.mean(np.sum(self.A_inh, axis=1))
         )
 
     @property
-    def K_gap(self) -> Array:  # noqa: N802
+    def K_gap(self) -> float | sym.Variable:  # noqa: N802
         """Average degree of the nodes in the electric synaptic network."""
-        return (  # type: ignore[no-any-return]
-            sp.Symbol("K_gap")
-            if isinstance(self.Agap, sp.Symbol)
-            else np.mean(np.sum(self.Agap, axis=1))
+        return (
+            sym.Variable("K_gap")
+            if isinstance(self.A_gap, sym.MatrixSymbol)
+            else np.mean(np.sum(self.A_gap, axis=1))
         )
 
-    def hinf(self, V: Array) -> Array:
+    def hinf(self, V: sym.Expression) -> sym.Expression:
         alpha_h, beta_h = self.alpha[1](V), self.beta[1](V)
-        return alpha_h / (alpha_h + beta_h)  # type: ignore[no-any-return]
+        return alpha_h / (alpha_h + beta_h)
 
-    def ninf(self, V: Array) -> Array:
+    def ninf(self, V: sym.Expression) -> sym.Expression:
         alpha_n, beta_n = self.alpha[2](V), self.beta[2](V)
-        return alpha_n / (alpha_n + beta_n)  # type: ignore[no-any-return]
+        return alpha_n / (alpha_n + beta_n)
 
-    def sinf(self, V: Array) -> Array:
+    def sinf(self, V: sym.Expression) -> sym.Expression:
         alpha, tau_inh = self.alpha_s(V), self.param.tau_inh
         return alpha / (alpha + 1.0 / tau_inh)
 
@@ -181,7 +179,9 @@ class Pfeuty(sym.Model):
     def variables(self) -> tuple[str, ...]:
         return ("Vs", "Vd", "h", "n", "s")
 
-    def evaluate(self, t: float, *args: Array) -> Array:
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
         Vs, Vd, h, n, s = args
         param = self.param
 
@@ -212,22 +212,32 @@ class Pfeuty(sym.Model):
 
         # compute inhibitory synaptic current
         g_inh, V_inh = param.g_inh, param.V_inh
-        I_inh = self.K_inh * g_inh * (Vd - V_inh) * np.dot(self.Ainh, s)
+        I_inh = self.K_inh * g_inh * (Vd - V_inh) * sym.DotProduct(self.A_inh, s)
 
         # compute the electric synaptic current
+        # FIXME: if M_gap is an ndarray, its multiplication seems to take precedence
+        # and make the whole thing not lazy
         g_gap = param.g_gap
-        Is_gap = self.K_gap * g_gap * (self.M_gap * Vs - np.dot(self.Agap, Vs))
-        Id_gap = self.K_gap * g_gap * (self.M_gap * Vd - np.dot(self.Agap, Vd))
+        Is_gap = (
+            self.K_gap
+            * g_gap
+            * (prim.Product((self.M_gap, Vs)) - sym.DotProduct(self.A_gap, Vs))  # type: ignore[arg-type]
+        )
+        Id_gap = (
+            self.K_gap
+            * g_gap
+            * (prim.Product((self.M_gap, Vd)) - sym.DotProduct(self.A_gap, Vd))  # type: ignore[arg-type]
+        )
 
         # put it all together
         C, tau_inh = param.C, param.tau_inh
-        return np.hstack([
+        return (
             -(Is_L + I_Na + I_K + Is_c + Is_gap) / C,
             -(Id_L + Id_c + I_inh + Id_gap) / C,
             alpha_h * (1 - h) - beta_h * h,
             alpha_n * (1 - n) - beta_n * n,
             alpha_s * (1 - s) - s / tau_inh,
-        ])
+        )
 
 
 # }}}
@@ -238,8 +248,8 @@ class Pfeuty(sym.Model):
 
 def _make_pfeuty_2007_model(g_inh: float) -> Pfeuty:
     return Pfeuty(
-        Ainh=np.array([[0, 1], [1, 0]]),
-        Agap=np.array([[0, 1], [1, 0]]),
+        A_inh=np.array([[0, 1], [1, 0]]),
+        A_gap=np.array([[0, 1], [1, 0]]),
         param=PfeutyParameter(
             C=1.0,
             g_Na=35.0,
