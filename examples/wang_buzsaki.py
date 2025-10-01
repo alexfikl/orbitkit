@@ -7,8 +7,9 @@ import pathlib
 from dataclasses import replace
 
 import numpy as np
-import sympy as sp
 
+from orbitkit.models.symbolic import stringify
+from orbitkit.models.targets import NumpyTarget
 from orbitkit.models.wang_buzsaki import make_model_from_name
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
@@ -24,18 +25,22 @@ A = np.ones(n, dtype=np.int32) - np.eye(n, dtype=np.int32)
 
 figname = "Figure3c"
 model = replace(make_model_from_name(f"WangBuzsaki1996{figname}"), A=A)
-source = model.lambdify(n)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
-for i, eq in enumerate(model.pretty()):
-    log.info("Eq%d:\n%s", i, eq)
+
+args, exprs = model.symbolify(n, full=True)
+for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
+    log.info("Eq%d:\n d%s/dt = %s", i, stringify(name), stringify(eq))
+
+target = NumpyTarget()
+source = target.lambdify_model(model, model.n)
 
 # NOTE: lambdify rate functions to get the steady state for the gating variables
-V = sp.var("V")
-hinf = sp.lambdify((V,), model.hinf(V), modules="numpy")
-ninf = sp.lambdify((V,), model.ninf(V), modules="numpy")
-sinf = sp.lambdify((V,), model.sinf(V), modules="numpy")
+V = args[1]
+hinf = target.lambdify(target.generate_code((V,), model.hinf(V)))
+ninf = target.lambdify(target.generate_code((V,), model.ninf(V)))
+sinf = target.lambdify(target.generate_code((V,), model.sinf(V)))
 
 # }}}
 

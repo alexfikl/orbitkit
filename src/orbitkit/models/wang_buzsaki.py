@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import sympy as sp
+import pymbolic.primitives as prim
 
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
@@ -77,10 +77,10 @@ class WangBuzsaki(sym.Model):
         `doi:10.1523/jneurosci.16-20-06402.1996 <https://doi.org/10.1523/jneurosci.16-20-06402.1996>`__.
     """
 
-    A: Array
-    """An adjacency matrix for the synaptic current."""
     param: WangBuzsakiParameter
     """Parameters for the Wang-Buzsáki model."""
+    A: Array | sym.MatrixSymbol
+    """An adjacency matrix for the synaptic current."""
 
     fpre: sym.RateFunction
     """Normalized concentration of the post-synaptic transmitter-receptor complex."""
@@ -106,32 +106,30 @@ class WangBuzsaki(sym.Model):
             if len(self.beta) != 3:
                 raise ValueError("must provide exactly 3 'beta[i]' rate functions")
 
-            if isinstance(self.A, np.ndarray) and (
-                self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]
-            ):
+            if self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]:
                 raise ValueError(f"adjacency matrix 'A' not square: {self.A.shape}")
 
     @property
     def n(self) -> int:
-        return 0 if isinstance(self.A, sp.Symbol) else self.A.shape[0]
+        return self.A.shape[0]
 
     @property
-    def M_syn(self) -> Array:  # noqa: N802
-        return (  # type: ignore[no-any-return]
-            sp.Symbol("M_syn")
-            if isinstance(self.A, sp.Symbol)
+    def M_syn(self) -> Array | sym.MatrixSymbol:  # noqa: N802
+        return (
+            sym.MatrixSymbol("M_syn", (self.A.shape[0],))
+            if isinstance(self.A, sym.MatrixSymbol)
             else np.sum(self.A, axis=1)
         )
 
-    def hinf(self, V: Array) -> Array:
+    def hinf(self, V: sym.Expression) -> sym.Expression:
         alpha_h, beta_h = self.alpha[1](V), self.beta[1](V)
-        return alpha_h / (alpha_h + beta_h)  # type: ignore[no-any-return]
+        return alpha_h / (alpha_h + beta_h)
 
-    def ninf(self, V: Array) -> Array:
+    def ninf(self, V: sym.Expression) -> sym.Expression:
         alpha_n, beta_n = self.alpha[2](V), self.beta[2](V)
-        return alpha_n / (alpha_n + beta_n)  # type: ignore[no-any-return]
+        return alpha_n / (alpha_n + beta_n)
 
-    def sinf(self, V: Array) -> Array:
+    def sinf(self, V: sym.Expression) -> sym.Expression:
         fpre, alpha, beta = self.fpre(V), self.param.alpha, self.param.beta
         return alpha * fpre / (alpha * fpre + beta)
 
@@ -139,7 +137,9 @@ class WangBuzsaki(sym.Model):
     def variables(self) -> tuple[str, ...]:
         return ("V", "h", "n", "s")
 
-    def evaluate(self, t: float, *args: Array) -> Array:
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
         V, h, n, s = args
         param = self.param
 
@@ -164,16 +164,18 @@ class WangBuzsaki(sym.Model):
 
         # compute synaptic current
         g_syn, E_syn = param.g_syn, param.E_syn
-        I_syn = g_syn * (V - E_syn) * np.dot(self.A, s) / self.M_syn
+        I_syn = (
+            g_syn * (V - E_syn) * prim.Quotient(sym.DotProduct(self.A, s), self.M_syn)  # type: ignore[arg-type]
+        )
 
         # put it all together
         C, phi, alpha, beta = param.C, param.phi, param.alpha, param.beta
-        return np.hstack([
+        return (
             -(I_Na + I_K + I_L + I_syn) / C,
             phi * (alpha_h * (1 - h) - beta_h * h),
             phi * (alpha_n * (1 - n) - beta_n * n),
             alpha * fpre * (1 - s) - beta * s,
-        ])
+        )
 
 
 # }}}

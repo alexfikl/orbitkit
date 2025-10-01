@@ -78,7 +78,7 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
     d = len(model.variables)
     target = NumpyTarget()
 
-    source = target.lambdify(model, n)
+    source = target.lambdify_model(model, n)
     assert source is not None
 
     ys = rng.random(d * n)
@@ -122,7 +122,7 @@ def test_codegen_numpy_kuramoto(n: int) -> None:
     d = len(model.variables)
     target = NumpyTarget()
 
-    source = target.lambdify(model, n)
+    source = target.lambdify_model(model, n)
     assert source is not None
 
     for _ in range(8):

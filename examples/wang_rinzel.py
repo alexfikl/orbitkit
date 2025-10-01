@@ -29,7 +29,7 @@ for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
     log.info("Eq%d:\n d%s/dt = %s", i, stringify(name), stringify(eq))
 
 target = NumpyTarget()
-source = target.lambdify(model, model.n)
+source = target.lambdify_model(model, model.n)
 
 # }}}
 
