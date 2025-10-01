@@ -119,7 +119,7 @@ class NumpyTarget:
         cgen(f"return np.hstack([{expressions}])")
 
         source = cgen.get()
-        log.info("Code:\n%s", source)
+        log.debug("Code:\n%s", source)
 
         if pretty:
             import ast
@@ -153,7 +153,7 @@ class NumpyTarget:
         cgen(f"return {to_numpy(expr)}")
 
         source = cgen.get()
-        log.info("Code:\n%s", source)
+        log.debug("Code:\n%s", source)
 
         if pretty:
             import ast

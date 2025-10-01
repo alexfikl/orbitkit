@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+from dataclasses import replace
 
 import numpy as np
 import pymbolic.primitives as prim
@@ -25,26 +26,48 @@ set_plotting_defaults()
 # {{{ test_symbolify
 
 
-def get_model_from_module(module_name: str, model_name: str) -> Model:
+def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
+    # construct a dummy all-to-all connectivity matrix for the models that need it
+    A = np.ones((n, n)) - np.eye(n)
+    model: Model
+
     if module_name == "kuramoto":
-        import orbitkit.models.kuramoto as module
+        from orbitkit.models import kuramoto
+
+        model = kuramoto.make_model_from_name(model_name)
+    elif module_name == "wang_rinzel":
+        from orbitkit.models import wang_rinzel
+
+        model = replace(wang_rinzel.make_model_from_name(model_name), A=A)
+    elif module_name == "wang_buzsaki":
+        from orbitkit.models import wang_buzsaki
+
+        model = replace(wang_buzsaki.make_model_from_name(model_name), A=A)
+    elif module_name == "pfeuty":
+        from orbitkit.models import pfeuty
+
+        model = replace(pfeuty.make_model_from_name(model_name), A_inh=A, A_gap=A)
     else:
         raise ValueError(f"unknown module name: '{module_name}'")
 
-    return module.make_model_from_name(model_name)
+    return model
 
 
 @pytest.mark.parametrize(
     ("module_name", "model_name"),
     [
         ("kuramoto", "Abrams2008Figure2a"),
+        ("wang_rinzel", "WangRinzel1992Figure1a"),
+        ("wang_rinzel", "WangRinzel1992Figure4a"),
+        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
+        ("pfeuty", "Pfeuty2007Figure2cl"),
     ],
 )
 def test_symbolify(module_name: str, model_name: str) -> None:
     n = 32
 
-    model = get_model_from_module(module_name, model_name)
-    args, exprs = model.symbolify(n)
+    model = get_model_from_module(module_name, model_name, n)
+    args, exprs = model.symbolify(n, full=True)
     assert args[0].name == "t"
 
     for i, (arg, expr) in enumerate(zip(args[1:], exprs, strict=True)):
@@ -66,6 +89,10 @@ def test_symbolify(module_name: str, model_name: str) -> None:
     ("module_name", "model_name"),
     [
         ("kuramoto", "Abrams2008Figure2a"),
+        ("wang_rinzel", "WangRinzel1992Figure1a"),
+        ("wang_rinzel", "WangRinzel1992Figure4a"),
+        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
+        ("pfeuty", "Pfeuty2007Figure2cl"),
     ],
 )
 def test_codegen_numpy(module_name: str, model_name: str) -> None:
@@ -74,10 +101,10 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
 
     from orbitkit.models.targets import NumpyTarget
 
-    model = get_model_from_module(module_name, model_name)
+    model = get_model_from_module(module_name, model_name, n)
     d = len(model.variables)
-    target = NumpyTarget()
 
+    target = NumpyTarget()
     source = target.lambdify_model(model, n)
     assert source is not None
 
@@ -116,7 +143,7 @@ def test_codegen_numpy_kuramoto(n: int) -> None:
 
     from orbitkit.models.targets import NumpyTarget
 
-    model = get_model_from_module("kuramoto", "Abrams2008Figure2c")
+    model = get_model_from_module("kuramoto", "Abrams2008Figure2c", n)
     assert isinstance(model, KuramotoAbrams)
 
     d = len(model.variables)
