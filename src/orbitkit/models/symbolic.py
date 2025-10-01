@@ -20,7 +20,7 @@ log = module_logger(__name__)
 Expression: TypeAlias = (
     int | float | complex | np.inexact | np.integer | prim.ExpressionNode
 )
-
+"""A union of allowable classes that can be part of an expression."""
 
 # {{{ dataclass as symbolic
 
@@ -73,6 +73,8 @@ Variable = prim.Variable
 
 @prim.expr_dataclass()
 class ExpressionNode(prim.ExpressionNode):
+    """A base class for ``orbitkit``-specific expression nodes."""
+
     def make_stringifier(  # noqa: PLR6301
         self,
         originating_stringifier: StringifyMapperBase[Any] | None = None,
@@ -82,35 +84,89 @@ class ExpressionNode(prim.ExpressionNode):
 
 @prim.expr_dataclass()
 class Contract(ExpressionNode):
+    """Describes a tensor contraction (i.e. a sum along the given axes).
+
+    .. note::
+
+        Note that this does not check if the given expression evaluates to a
+        tensor where all of these axes are valid.
+
+    """
+
     aggregate: Expression
-    axis: tuple[int, ...]
+    axes: tuple[int, ...]
+    """A tuple of axes to contract along."""
 
 
 @prim.expr_dataclass()
 class DotProduct(ExpressionNode):
+    """Describes a standard dot product.
+
+    .. note::
+
+        This expression node does not check if the left and right operands evaluate
+        to two tensors with appropriate dimensions for this dot product.
+
+    .. warning::
+
+        In most cases, this is assumed to have :func:`numpy.dot` semantics, i.e.
+        it translates to an inner product for vectors, a matrix product for
+        matrices, etc.
+    """
+
     left: Array | Expression
     right: Array | Expression
 
 
 @prim.expr_dataclass()
 class Reshape(ExpressionNode):
+    """Describes a reshaping operations on an n-dimensional array.
+
+    .. note::
+
+        This expression node does not check that the operand can be reshaped to
+        the new shape. This will be done at code generation time.
+    """
+
     aggregate: Expression
     shape: tuple[int, ...]
+    """A tuple of integers describing the new shape. A single ``-1`` is allowed
+    to expand the remaining dimensions."""
 
     @property
     def ndim(self) -> int:
+        """Number of dimensions in the reshaped array."""
         return len(self.shape)
 
 
 @prim.expr_dataclass()
 class MatrixSymbol(prim.Variable):
+    """A :class:`~pymbolic.primitives.Variable` that represents an
+    n-dimensional array.
+    """
+
     shape: tuple[int, ...]
+    """The shape of the symbolic array."""
 
     @property
     def ndim(self) -> int:
+        """Number of dimensions in the symbolic array."""
         return len(self.shape)
 
     def reshape(self, *shape: int) -> Reshape:
+        """Reshape the array into the new *shape*."""
+
+        known_shape = [d for d in shape if d != -1]
+        if len(shape) - len(known_shape) > 1:
+            raise ValueError(f"can only specify one unknown (-1) dimension: {shape}")
+
+        size = np.prod(self.shape)
+        new_size = np.prod(known_shape)
+        has_one = len(known_shape) != len(shape)
+
+        if (has_one and size % new_size != 0) or (not has_one and size != new_size):
+            raise ValueError(f"cannot reshape array of size {size} into shape {shape}")
+
         return Reshape(self, shape)
 
 
@@ -122,13 +178,17 @@ class MatrixSymbol(prim.Variable):
 
 @prim.expr_dataclass()
 class Function(prim.Variable):
-    pass
+    r"""A known special function (e.g. :math:`\sin`, etc.)."""
 
 
 sin = Function("sin")
+"""The sine function."""
 cos = Function("cos")
+"""The cosine function."""
 exp = Function("exp")
+"""The exponential function."""
 tanh = Function("tanh")
+"""The hyperbolic tangent function."""
 
 # }}}
 
@@ -256,7 +316,7 @@ class StringifyMapper(StringifyMapperBase[Any]):
 
     def map_contract(self, expr: Contract, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
-        return f"sum({aggregate}, axis={expr.axis})"
+        return f"sum({aggregate}, axis={expr.axes})"
 
     def map_reshape(self, expr: Reshape, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
@@ -303,8 +363,9 @@ class Model(ABC):
         essentially be passed directly to some other backend for code generation.
 
         :returns: a tuple of ``(args, model)``, where *args* are the symbolic
-            variables (i.e. :class:`~sympy.Symbol`\ s and such) and the model is
-            given as a symbolic object array.
+            variables (i.e. :class:`~pymbolic.primitives.Variable` and such) and
+            the model is given as a tuple of symbolic expression (one for each
+            input variable).
         """
 
         x = self.variables

@@ -16,7 +16,7 @@ ORBITKIT: Utilities for Dynamical Systems
    can and will change frequently for the foreseeable future). This is also meant
    as a personal bag of tricks and will not necessarily be consistent or complete.
 
-This is bag of random utilities that can be used to analyse and visualize
+This is bag of random utilities that can be used to analyze and visualize
 continuous dynamical systems. It will mainly grow as various needs arise and
 it does not aim to be a general framework for dynamical systems.
 

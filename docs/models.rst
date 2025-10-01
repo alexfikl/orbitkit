@@ -30,3 +30,7 @@ Symbolic Utilities
 ------------------
 
 .. automodule:: orbitkit.models.symbolic
+
+Code Generation
+---------------
+.. automodule:: orbitkit.models.targets

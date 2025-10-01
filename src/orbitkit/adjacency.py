@@ -571,7 +571,7 @@ def generate_adjacency_fractal(
 ) -> Array:
     """Generate a Cantor set-like connectivity based on the *base* pattern.
 
-    This function generates the network described in [Omelchenko2015]. It takes
+    This function generates the network described in [Omelchenko2015]_. It takes
     a base pattern (e.g. ``"11011"``) and performs a recursive Cantor set
     construction, where each "1" is replaced by the base pattern and each "0"
     is replaced by a zero pattern the same length as the base pattern. This

@@ -85,7 +85,7 @@ class KuramotoAbrams(sym.Model):
                     / theta_b.shape[0]
                     * sym.Contract(
                         theta_b.reshape(-1, 1) - theta_a.reshape(1, -1) - self.alpha,
-                        axis=(0,),
+                        axes=(0,),
                     )
                     for b, theta_b in enumerate(thetas)
                 )

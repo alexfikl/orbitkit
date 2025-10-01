@@ -168,6 +168,11 @@ autodoc_default_options = {
     "show-inheritance": None,
 }
 
+# FIXME: this would be nice to have, but Sphinx does not like it
+# autodoc_type_aliases = {
+#     "Expression": "orbitkit.models.symbolic.Expression",
+# }
+
 # }}}
 
 # {{{ links
@@ -179,7 +184,9 @@ nitpick_ignore_regex = [
 intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable", None),
+    "pymbolic": ("https://documen.tician.de/pymbolic", None),
     "python": ("https://docs.python.org/3", None),
+    "pytools": ("https://documen.tician.de/pytools", None),
     "rich": ("https://rich.readthedocs.io/en/stable", None),
     "scipy": ("https://docs.scipy.org/doc/scipy", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
