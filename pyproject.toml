@@ -48,6 +48,7 @@ optional-dependencies.docs = [
 ]
 
 urls.Repository = "https://github.com/alexfikl/orbitkit"
+urls.Documentation = "https://orbitkit.readthedocs.io"
 
 [dependency-groups]
 dev = [

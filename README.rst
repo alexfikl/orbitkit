@@ -39,3 +39,4 @@ Links
 -----
 
 * `Code <https://github.com/alexfikl/orbitkit>`__.
+* `Documentation <https://orbitkit.readthedocs.io>`__.
