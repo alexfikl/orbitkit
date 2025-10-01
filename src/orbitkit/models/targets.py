@@ -23,6 +23,7 @@ log = module_logger(__name__)
 
 @dataclass
 class Code:
+    name: str
     source: str
     inputs: tuple[sym.Variable, ...]
     args: dict[str, Array]
@@ -87,26 +88,37 @@ class NumpyTarget:
 
     module: str = "np"
 
-    def generate_code(
+    def generate_model_code(
         self,
         model: sym.Model,
         n: int | tuple[int, ...],
         *,
         pretty: bool = False,
     ) -> Code:
+        if isinstance(n, int):
+            n = (n,) * len(model.variables)
+
         inputs, exprs = model.symbolify(n)
-        gen = NumpyCodeGenerator(module=self.module)
-        expressions = ", ".join(gen(expr) for expr in exprs)
+        to_numpy = NumpyCodeGenerator(module=self.module)
+        expressions = ", ".join(to_numpy(expr) for expr in exprs)
 
         from pytools.py_codegen import PythonFunctionGenerator
 
         cgen = PythonFunctionGenerator(
             self.funcname,
-            args=(*(arg.name for arg in inputs), *gen.array_arguments),
+            args=(inputs[0].name, "y", *to_numpy.array_arguments),
         )
+
+        i = 0
+        for n_i, arg in zip(n, inputs[1:], strict=True):
+            cgen(f"{arg.name} = y[{i}:{i + n_i}]")
+            i += n_i
+
         cgen(f"return np.hstack([{expressions}])")
 
         source = cgen.get()
+        log.info("Code:\n%s", source)
+
         if pretty:
             import ast
 
@@ -114,30 +126,50 @@ class NumpyTarget:
             # really the code prettifier one would hope for
             source = ast.unparse(ast.parse(source))
 
-        return Code(source=source, inputs=inputs, args=gen.array_arguments.copy())
-
-    def lambdify(
-        self,
-        model: sym.Model,
-        n: int | tuple[int, ...],
-    ) -> Callable[[float, Array], Array]:
-        """Create a callable that is usable by :func:`scipy.integrate.solve_ivp`
-        or other similar integrators.
-
-        This uses :meth:`variables` and :func:`lambdify` to create a
-        :mod:`numpy` compatible callable.
-        """
-        if isinstance(n, int):
-            n = (n,) * len(model.variables)
-
-        funclocals: dict[str, Any] = {}
-        filename = (
-            f"<generated code for {type(model).__name__} [{NumpyTarget.codecounter}]>"
+        return Code(
+            name=type(model).__name__,
+            source=source,
+            inputs=inputs,
+            args=to_numpy.array_arguments.copy(),
         )
-        NumpyTarget.codecounter += 1
 
-        code = self.generate_code(model, n)
-        log.info("Code:\n%s", code)
+    def generate_code(
+        self,
+        inputs: tuple[sym.Variable],
+        expr: sym.Expression,
+        *,
+        name: str = "expr",
+        pretty: bool = False,
+    ) -> Code:
+        from pytools.py_codegen import PythonFunctionGenerator
+
+        to_numpy = NumpyCodeGenerator(module=self.module)
+        cgen = PythonFunctionGenerator(
+            self.funcname,
+            args=tuple(arg.name for arg in inputs),
+        )
+        cgen(f"return {to_numpy(expr)}")
+
+        source = cgen.get()
+        log.info("Code:\n%s", source)
+
+        if pretty:
+            import ast
+
+            source = ast.unparse(ast.parse(source))
+
+        return Code(name=name, source=source, inputs=inputs, args={})
+
+    def lambdify_model(
+        self, model: sym.Model, n: int | tuple[int, ...]
+    ) -> Callable[[float, Array], Array]:
+        code = self.generate_model_code(model, n)
+        return self.lambdify(code)
+
+    def lambdify(self, code: Code) -> Callable[..., Array]:
+        funclocals: dict[str, Any] = {}
+        filename = f"<generated code for {code.name} [{NumpyTarget.codecounter}]>"
+        NumpyTarget.codecounter += 1
 
         exec(
             compile(code.source, filename, "exec"),
@@ -166,14 +198,8 @@ class NumpyTarget:
 
         weakref.finalize(func, make_finalize(filename))
 
-        i = 0
-        slices = []
-        for n_i in n:
-            slices.append(np.s_[i : i + n_i])
-            i += n_i
-
-        def wrapper(t: float, y: Array) -> Array:
-            return func(t, *[y[s_i] for s_i in slices], **code.args)  # type: ignore[no-any-return]
+        def wrapper(*args: Array) -> Array:
+            return func(*args, **code.args)  # type: ignore[no-any-return]
 
         return wrapper
 
