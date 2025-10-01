@@ -578,7 +578,7 @@ def generate_adjacency_fractal(
     results in a networks of size ``len(base) ** nlevels`` after all the
     subdivisions.
 
-    The resulting pattern is then used to construct a circulant adjancency
+    The resulting pattern is then used to construct a circulant adjacency
     matrix that can be conveniently arranged in non-standard ring-structure.
 
     .. [Omelchenko2015] I. Omelchenko, A. Provata, J. Hizanidis, E. Schöll, P. Hövel,
