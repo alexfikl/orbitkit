@@ -68,6 +68,9 @@ def ds_symbolic(
 # {{{ expressions
 
 
+Variable = prim.Variable
+
+
 @prim.expr_dataclass()
 class ExpressionNode(prim.ExpressionNode):
     def make_stringifier(  # noqa: PLR6301

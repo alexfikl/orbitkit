@@ -4,11 +4,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 import numpy as np
 from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
+from pytools import UniqueNameGenerator
 
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
@@ -17,12 +18,37 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
+# {{{ code
+
+
+@dataclass
+class Code:
+    source: str
+    inputs: tuple[sym.Variable, ...]
+    args: dict[str, Array]
+
+    def __str__(self) -> str:
+        return self.source
+
+
+# }}}
+
 # {{{ numpy target
+
+
+# TODO: will need to make this into a proper compiler with statements and
+# assignments and whatnot at some point. The main driving force for that is
+# the need for CSE to save intermediate results..
 
 
 @dataclass(frozen=True)
 class NumpyCodeGenerator(StringifyMapper[Any]):
     module: str = "np"
+    array_arguments: dict[str, Array] = field(init=False, default_factory=dict)
+    unique_names: UniqueNameGenerator = field(
+        init=False,
+        default_factory=lambda: UniqueNameGenerator(forced_prefix="_arg"),
+    )
 
     def handle_unsupported_expression(self, expr: object, enclosing_prec: int) -> str:
         raise NotImplementedError(f"{type(self)} cannot handle {type(expr)}: {expr}")
@@ -30,12 +56,15 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
         return f"{self.module}.{expr.name}"
 
-    def map_numpy_array(
-        self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], enclosing_prec: int
-    ) -> str:
-        # FIXME: this is quite hacky
-        ary = repr(expr).replace("dtype=", f"dtype={self.module}.")
-        return f"{self.module}.{ary}"
+    def map_numpy_array(self, expr: Array, enclosing_prec: int) -> str:
+        for name, ary in self.array_arguments.items():
+            if ary is expr:
+                return name
+
+        name = self.unique_names("")
+        self.array_arguments[name] = expr
+
+        return name
 
     def map_contract(self, expr: sym.Contract, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
@@ -54,17 +83,38 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
 @dataclass(frozen=True)
 class NumpyTarget:
     codecounter: ClassVar[int] = 0
+    funcname: str = "_numpy_lambdify_generated_func"
 
     module: str = "np"
 
-    def generate_code(self, model: sym.Model, n: int | tuple[int, ...]) -> str:
-        args, exprs = model.symbolify(n)
+    def generate_code(
+        self,
+        model: sym.Model,
+        n: int | tuple[int, ...],
+        *,
+        pretty: bool = False,
+    ) -> Code:
+        inputs, exprs = model.symbolify(n)
         gen = NumpyCodeGenerator(module=self.module)
-
-        arguments = ", ".join(args.name for args in args)
         expressions = ", ".join(gen(expr) for expr in exprs)
 
-        return f"lambda {arguments}: np.hstack([{expressions}])"
+        from pytools.py_codegen import PythonFunctionGenerator
+
+        cgen = PythonFunctionGenerator(
+            self.funcname,
+            args=(*(arg.name for arg in inputs), *gen.array_arguments),
+        )
+        cgen(f"return np.hstack([{expressions}])")
+
+        source = cgen.get()
+        if pretty:
+            import ast
+
+            # NOTE: this just adds some nicer spaces around operators, so not
+            # really the code prettifier one would hope for
+            source = ast.unparse(ast.parse(source))
+
+        return Code(source=source, inputs=inputs, args=gen.array_arguments.copy())
 
     def lambdify(
         self,
@@ -81,30 +131,27 @@ class NumpyTarget:
             n = (n,) * len(model.variables)
 
         funclocals: dict[str, Any] = {}
-        funcname = "_numpy_lambdify_generated_func"
         filename = (
             f"<generated code for {type(model).__name__} [{NumpyTarget.codecounter}]>"
         )
         NumpyTarget.codecounter += 1
 
         code = self.generate_code(model, n)
-        code = f"{funcname} = {code}"
-
         log.info("Code:\n%s", code)
 
         exec(
-            compile(code, filename, "exec"),
-            {self.module: np, "_MODULE_SOURCE_CODE": code},
+            compile(code.source, filename, "exec"),
+            {self.module: np, "_MODULE_SOURCE_CODE": code.source},
             funclocals,
         )
 
         import linecache
 
-        func = funclocals[funcname]
+        func = funclocals[self.funcname]
         linecache.cache[filename] = (
-            len(code),
+            len(code.source),
             None,
-            code.splitlines(keepends=True),
+            code.source.splitlines(keepends=True),
             filename,
         )
 
@@ -126,7 +173,7 @@ class NumpyTarget:
             i += n_i
 
         def wrapper(t: float, y: Array) -> Array:
-            return func(t, *[y[s_i] for s_i in slices])  # type: ignore[no-any-return]
+            return func(t, *[y[s_i] for s_i in slices], **code.args)  # type: ignore[no-any-return]
 
         return wrapper
 
