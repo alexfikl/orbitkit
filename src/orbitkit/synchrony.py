@@ -43,59 +43,172 @@ def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
     return chi  # type: ignore[no-any-return]
 
 
-def kuramoto_order_parameters(V: Array) -> Array:
-    r"""Compute Kuramoto's order parameter for the time series *V*.
+def kuramoto_order_parameter(theta: Array) -> Array:
+    r"""Compute Kuramoto's order parameter for the time series *theta*.
 
-    The order parameter is obtained by first taking the Hilbert transform of the
-    signal and using the corresponding argument as the phase in the Kuramoto
-    model. Then the order parameter :math:`r(t)` is computed as usual
+    Then the order parameter :math:`r(t)` is computed as usual (see e.g.
+    [Schroder2017]_):
 
     .. math::
 
-        r^n e^{\imath \psi^n} = \frac{1}{n} \sum_{j = 0}^N e^{\imath \theta_j^n}.
+        r(t) e^{\imath \psi(t)} = \frac{1}{n} \sum_{j = 0}^n e^{\imath \theta_j(t)},
 
-    where :math:`n` denotes the time step and :math:`N` is the number of nodes.
+    where :math:`N` is the number of nodes in the network. Explicitly, the order
+    parameter cam be written as
+
+    .. [Schroder2017] M. Schröder, M. Timme, D. Witthaut,
+        *A Universal Order Parameter for Synchrony in Networks of
+        Limit Cycle Oscillators*,
+        Chaos: An Interdisciplinary Journal of Nonlinear Science, Vol. 27, 2017,
+        `doi:10.1063/1.4995963 <https://doi.org/10.1063/1.4995963>`__.
 
     :arg V: and array of shape ``(nnodes, ntimesteps)`` describing the signal.
     :returns: an array of size ``(ntimesteps,)`` containing the order parameter
         :math:`r(t)`.
     """
 
-    from scipy.signal import hilbert
-
-    # get angle of signal
-    Vhat = hilbert(V, axis=1)
-    theta = np.angle(Vhat)
-
-    # compute order parameter
-    r = np.abs(np.mean(np.exp(1j * theta), axis=0))
-
-    return r  # type: ignore[no-any-return]
+    return np.abs(np.mean(np.exp(1j * theta), axis=0))  # type: ignore[no-any-return]
 
 
-def kuramoto_order_parameter(V: Array, *, method: str = "hilbert") -> float:
-    """Compute an average of the Kuramoto order parameter.
+def global_kuramoto_order_parameter(theta: Array) -> float:
+    r"""Compute an average of the classic Kuramoto order parameter.
 
-    See :func:`kuramoto_order_parameters` to get the value at each time step.
+    See :func:`kuramoto_order_parameter` to get the value at each time step. The
+    global order parameter is then given by
+
+    .. math::
+
+        r_{\text{classic}} = \langle r(t) \rangle_t.
     """
-    return float(np.mean(kuramoto_order_parameters(V)))
+    return float(np.mean(kuramoto_order_parameter(theta)))
 
 
-def kuramoto_order_parameter_network(V: Array, *, mat: Array) -> Array:
-    raise NotImplementedError
+def global_kuramoto_order_parameter_network(theta: Array, mat: Array) -> float:
+    r"""Compute a network-sensitive order parameter (see Equation 6 in [Schroder2017]_).
+
+    This order parameter is given by
+
+    .. math::
+
+        r_{\text{net}} = \frac{\sum_{i = 0}^{n - 1} r_i}
+                              {\sum_{i = 0}^{n - 1} k_i},
+
+    where
+
+    .. math::
+
+        r_i = \sum_{j = 0}^{n - 1} A_{i j} \langle e^{\imath \theta_j(t)} \rangle_t.
+
+    :arg mat: a binary adjacency matrix for the system.
+    :returns: an array of shape ``(nnodes, ntimesteps)`` containing the order
+        parameters :math:`r_i(t)`.
+    """
+    r"""Compute an average of the network Kuramoto order parameter.
 
 
-def kuramoto_order_parameter_mean_field(V: Array, *, mat: Array) -> Array:
-    raise NotImplementedError
+    See :func:`kuramoto_order_parameter_network` to get the value at each time step.
+    """
+    n, _ = theta.shape
+    if mat.shape != (n, n):
+        raise ValueError(
+            "adjacency matrix 'mat' size does not match 'theta': "
+            f"matrix has shape {mat.shape} and theta has shape {theta.shape}"
+        )
+
+    r = np.abs(mat @ np.mean(np.exp(1j * theta), axis=1))
+    k = np.sum(mat != 0, axis=1)
+
+    return float(np.sum(r) / np.sum(k))
 
 
-def kuramoto_order_parameter_link(V: Array, *, mat: Array) -> Array:
-    raise NotImplementedError
+def kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> Array:
+    r"""Compute a network-sensitive mean-field order parameter (see Equation 7
+    in [Schroder2017]_).
+
+    .. math::
+
+        r(t) e^{\imath \psi(t)} =
+            \frac{\sum k_i e^{\imath \theta_i(t)}}{\sum k_i},
+
+    where :math:`k_i` is the degree of the node :math:`i`. Note that, unlike
+    :func:`kuramoto_order_parameter_network`, this measure uses an average
+    over all the node neighbors (i.e. a "mean field" approach).
+
+    :arg mat: a binary adjacency matrix for the system.
+    :returns: an array of size ``(ntimesteps,)`` containing the order parameter
+        :math:`r(t)`.
+    """
+
+    n, _ = theta.shape
+    if mat.shape != (n, n):
+        raise ValueError(
+            "adjacency matrix 'mat' size does not match 'theta': "
+            f"matrix has shape {mat.shape} and theta has shape {theta.shape}"
+        )
+
+    k = np.sum(mat != 0, axis=1).reshape(-1, 1)
+    return np.abs(np.sum(k * theta, axis=0)) / np.sum(k)  # type: ignore[no-any-return]
 
 
-def kuramoto_order_parameter_universal(V: Array, *, mat: Array) -> Array:
-    # http://dx.doi.org/10.1063/1.4995963
-    raise NotImplementedError
+def global_kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> float:
+    """Compute an average of the mean field Kuramoto order parameter.
+
+    See :func:`kuramoto_order_parameter_mean_field` to get the value at each time step.
+    """
+
+    return float(np.mean(kuramoto_order_parameter_mean_field(theta, mat)))
+
+
+def global_kuramoto_order_parameter_link(theta: Array, mat: Array) -> float:
+    r"""Compute a network-sensitive order parameter (see Equation 8 in [Schroder2017]_).
+
+    This order parameter is given by
+
+    .. math::
+
+        r_{\text{link}} = \frac{1}{\sum k_i} \sum_{i, j = 0}^{n - 1}
+            A_{ij} |\langle e^{\imath (\theta_i - \theta_j)} \rangle_t|,
+
+    where :math:`k_i` is the degree of node :math:`i`.
+    """
+    n, _ = theta.shape
+    if mat.shape != (n, n):
+        raise ValueError(
+            "adjacency matrix 'mat' size does not match 'theta': "
+            f"matrix has shape {mat.shape} and theta has shape {theta.shape}"
+        )
+
+    k = np.sum(mat != 0, axis=1)
+    dt = np.mean(np.exp(1j * (theta[None, :, :] - theta[:, None, :])), axis=-1)
+
+    return float(np.sum(mat * np.abs(dt)) / np.sum(k))
+
+
+def global_kuramoto_order_parameter_universal(theta: Array, mat: Array) -> float:
+    r"""Compute a universal network-sensitive order parameter (see Equation 9
+    from [Schroder2017]_).
+
+    This order parameter is given by:
+
+    .. math::
+
+        r_{\text{uni}} = \frac{1}{\sum k_i} \sum_{i, j = 0}^{n - 1}
+            A_{ij} \langle \cos (\theta_i - \theta_j)\rangle_t
+
+    where :math:`k_i` is the degree of node :math:`i`.
+    """
+
+    n, _ = theta.shape
+    if mat.shape != (n, n):
+        raise ValueError(
+            "adjacency matrix 'mat' size does not match 'theta': "
+            f"matrix has shape {mat.shape} and theta has shape {theta.shape}"
+        )
+
+    k = np.sum(mat != 0, axis=1)
+    dcos = np.mean(np.cos(theta[None, :, :] - theta[:, None, :]), axis=-1)
+
+    return float(np.sum(mat * dcos) / np.sum(k))
 
 
 def kemeth_spatial_correlation_measure(

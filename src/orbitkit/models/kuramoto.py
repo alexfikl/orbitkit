@@ -20,9 +20,89 @@ def shift_kuramoto_angle(theta: Array) -> Array:
     return np.angle(np.exp(1j * theta))
 
 
+# {{{ Kuramoto
+
+
+@dataclass(frozen=True)
+class Kuramoto(sym.Model):
+    r"""Right-hand side of the classic Kuramoto model from [Kuramoto1984]_.
+
+    .. math::
+
+        \frac{\mathrm{d} \theta_i}{\mathrm{d} t} =
+            \omega_i
+            + \frac{1}{N} \sum_{j = 0}^{N - 1}
+                K_{ij} \sin (\theta_j - \theta_i - \alpha)
+
+    .. [Kuramoto1984] Y. Kuramoto,
+        *Chemical Oscillations, Waves, and Turbulence*,
+        Springer Berlin Heidelberg, 1984.
+        `doi:10.1007/978-3-642-69689-3 <https://doi.org/10.1007/978-3-642-69689-3>`__.
+    """
+
+    omega: Array | sym.Expression
+    """Frequency of ech oscillator in the Kuramoto model."""
+    alpha: sym.Expression
+    """Phase lag for each oscillator in the Kuramoto model."""
+    K: Array | sym.MatrixSymbol
+    """Coupling matrix between the different populations."""
+
+    if __debug__:
+
+        def __post_init__(self) -> None:
+            if self.K.ndim != 2 or self.K.shape[0] != self.K.shape[1]:
+                raise ValueError(f"coupling matrix 'K' must be square: {self.K.shape}")
+
+            from numbers import Real
+
+            pi2 = np.pi / 2.0
+            if isinstance(self.alpha, Real) and -pi2 <= self.alpha < pi2:
+                raise ValueError(
+                    f"Phase lag 'alpha' must be in [-pi/2, pi/2]: {self.alpha}"
+                )
+
+            if self.K.ndim != 2 or self.K.shape[0] != self.K.shape[1]:
+                raise ValueError(f"adjacency matrix 'K' not square: {self.K.shape}")
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("theta",)
+
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
+        (theta,) = args
+        K = self.K
+
+        if theta.shape != (K.shape[0],):
+            raise ValueError(
+                "'theta' shape does not match coupling 'K': "
+                f"got {theta.shape} but expected ({K.shape[0]},)"
+            )
+
+        result = prim.Sum((  # type: ignore[arg-type]
+            self.omega,
+            sym.Contract(
+                prim.Product((  # type: ignore[arg-type]
+                    self.K,
+                    theta.reshape(1, -1) - theta.reshape(-1, 1) - self.alpha,
+                )),
+                axes=(1,),
+            )
+            / theta.shape[0],
+        ))
+
+        return (result,)
+
+
+# }}}
+
+# {{{ KuramotoAbrams
+
+
 @dataclass(frozen=True)
 class KuramotoAbrams(sym.Model):
-    r"""Right-hand side of the Adams model from [Abrams2008]_.
+    r"""Right-hand side of the Kuramoto-like Abrams model from [Abrams2008]_.
 
     .. math::
 
@@ -94,6 +174,12 @@ class KuramotoAbrams(sym.Model):
         )
 
 
+# }}}
+
+
+# {{{ Parameters from literature
+
+
 def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:
     alpha = np.pi / 2.0 - beta
     mu = (1 + A) / 2.0
@@ -117,5 +203,12 @@ KURAMOTO_MODEL = {
 }
 
 
+def get_registered_parameters() -> tuple[str, ...]:
+    return tuple(KURAMOTO_MODEL)
+
+
 def make_model_from_name(name: str) -> KuramotoAbrams:
     return KURAMOTO_MODEL[name]
+
+
+# }}}

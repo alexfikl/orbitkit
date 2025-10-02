@@ -36,6 +36,34 @@ class Code:
         return self.source
 
 
+def lambdify(
+    model: sym.Model,
+    n: int | tuple[int, ...] | None = None,
+    *,
+    target: str = "numpy",
+) -> Callable[[float, Array], Array]:
+    model_n = getattr(model, "n", None)
+    if n is None and model_n is None:
+        raise ValueError("must provide variable sizes 'n'")
+
+    if n is None:
+        n = model_n
+
+    if n != model_n:
+        raise ValueError(
+            "model size and given size do not match: "
+            f"model has size {model_n} and given size is {n}"
+        )
+    assert n is not None
+
+    if target == "numpy":
+        ctarget = NumpyTarget()
+    else:
+        raise ValueError(f"unknown target: '{target}'")
+
+    return ctarget.lambdify_model(model, n)
+
+
 # }}}
 
 # {{{ numpy target
