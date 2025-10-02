@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import pathlib
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +18,47 @@ log = module_logger(__name__)
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as mp
+
+# {{{ utils
+
+
+def slugify(stem: str, separator: str = "_") -> str:
+    """
+    :returns: an ASCII slug representing *stem*, with all the unicode cleaned up
+        and all non-standard separators replaced.
+    """
+    import re
+    import unicodedata
+
+    stem = unicodedata.normalize("NFKD", stem)
+    stem = stem.encode("ascii", "ignore").decode().lower()
+    stem = re.sub(r"[^a-z0-9]+", separator, stem)
+    stem = re.sub(rf"[{separator}]+", separator, stem.strip(separator))
+
+    return stem
+
+
+def to_color(
+    w: Array,
+    *,
+    colormap: str = "turbo",
+    vmin: float = -1.0,
+    vmax: float = 1.0,
+) -> tuple[str, ...]:
+    from matplotlib import cm
+    from matplotlib.colors import Normalize, to_hex
+
+    cmap = cm.get_cmap(colormap)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+
+    colors = cmap(norm(w))
+    return tuple(to_hex(color).upper() for color in colors)
+
+
+# }}}
+
+
+# {{{ figure context manager
 
 
 @contextmanager
@@ -79,6 +121,12 @@ def figure(
         mp.close(fig)
 
 
+# }}}
+
+
+# {{{ savefig wrapper
+
+
 def savefig(
     fig: Any,
     filename: PathLike,
@@ -100,8 +148,6 @@ def savefig(
     :arg overwrite: if *True*, any existing files are overwritten.
     :arg kwargs: renaming arguments are passed directly to ``savefig``.
     """
-    import pathlib
-
     import matplotlib.pyplot as mp
 
     ext = mp.rcParams["savefig.format"]
@@ -137,51 +183,10 @@ def savefig(
     )
 
 
-def slugify(stem: str, separator: str = "_") -> str:
-    """
-    :returns: an ASCII slug representing *stem*, with all the unicode cleaned up
-        and all non-standard separators replaced.
-    """
-    import re
-    import unicodedata
-
-    stem = unicodedata.normalize("NFKD", stem)
-    stem = stem.encode("ascii", "ignore").decode().lower()
-    stem = re.sub(r"[^a-z0-9]+", separator, stem)
-    stem = re.sub(rf"[{separator}]+", separator, stem.strip(separator))
-
-    return stem
+# }}}
 
 
-def imshow(ax: Any, x: Array) -> Any:
-    im = ax.imshow(
-        x,
-        interpolation="none",
-        vmin=0,
-        vmax=1,
-        aspect="auto",
-        origin="lower",
-    )
-
-    # major ticks
-    ax.set_xticks(np.arange(0, 10, 1))
-    ax.set_yticks(np.arange(0, 10, 1))
-
-    # Labels for major ticks
-    ax.set_xticklabels(np.arange(1, 11, 1))
-    ax.set_yticklabels(np.arange(1, 11, 1))
-
-    # Minor ticks
-    ax.set_xticks(np.arange(-0.5, 10, 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, 10, 1), minor=True)
-
-    # Gridlines based on minor ticks
-    ax.grid(which="minor", color="w", linestyle="-", linewidth=2)
-
-    # Remove minor ticks
-    ax.tick_params(which="minor", bottom=False, left=False)
-
-    return im
+# {{{ heatmap
 
 
 def heatmap(
@@ -199,6 +204,12 @@ def heatmap(
     linewidth: float = 1.0,
     xrotation: float = 45.0,
 ) -> Any:
+    """Plot a heatmap for a given array.
+
+    This is just a :func:`~matplotlib.pyplot.imshow` plot with some specific
+    commands. In particular, it overlays a custom grid on top of the image
+    that exactly corresponds to the "pixels" in *z*.
+    """
     # make uniform grid for display
     xs = np.linspace(x[0], x[-1], x.size)
     ys = np.linspace(y[0], y[-1], y.size)
@@ -238,6 +249,12 @@ def heatmap(
             ax.axhline(ys[j] + 0.5 * dy, color=linecolor, lw=linewidth)
 
     return im
+
+
+# }}}
+
+
+# {{{ rastergram
 
 
 def rastergram(
@@ -285,3 +302,81 @@ def rastergram(
     # }}}
 
     ax.eventplot(peaks, linelengths=markerheight, linewidths=markerwidth, color="black")
+
+
+# }}}
+
+
+# {{{ dot
+
+
+def write_dot_from_adjacency(
+    filename: PathLike,
+    mat: Array,
+    *,
+    nodenames: Iterable[str] | None = None,
+    nodecolors: Iterable[str] | None = None,
+    layout: str = "neato",
+    overwrite: bool = False,
+) -> None:
+    filename = pathlib.Path(filename)
+    if not overwrite and filename.exists():
+        raise FileExistsError(f"Output file '{filename}' already exists")
+
+    if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"'mat' must be a square matrix: {mat.shape}")
+
+    n, _ = mat.shape
+    if nodenames is None:
+        nodenames = tuple(f"{i}" for i in range(n))
+    else:
+        nodenames = tuple(nodenames)
+
+    if len(nodenames) != n:
+        raise ValueError(
+            f"incorrect number of node names: got {len(nodenames)} but expected {n}"
+        )
+
+    if nodecolors is None:  # noqa: SIM108
+        nodecolors = ("white",) * n
+    else:
+        nodecolors = tuple(nodecolors)
+
+    if len(nodecolors) != n:
+        raise ValueError(
+            f"incorrect number of node colors: got {len(nodecolors)} but expected {n}"
+        )
+
+    with open(filename, "w", encoding="utf-8") as outf:
+        outf.write("graph G {\n")
+        outf.write(f"    layout={layout};\n")
+        outf.write("    overlap=false;\n")
+        outf.write('    sep="+0.5";\n')
+        outf.write("\n")
+        outf.write("    node [penwidth=2, shape=circle, width=1.0];\n")
+        outf.write('    edge [penwidth=10, color="#6782A7C0"];\n')
+        outf.write("\n")
+
+        for i, (name, color) in enumerate(zip(nodenames, nodecolors, strict=True)):
+            rgba = color
+            if len(rgba) == 7:
+                rgba = f"{color}C0"
+            assert len(rgba) == 9
+
+            outf.write(
+                f'    "{i}" [label="{name}", style=filled, fillcolor="{rgba}"];\n'
+            )
+
+        outf.write("\n")
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                if mat[i, j] != 0:
+                    outf.write(f'    "{i}" -- "{j}";\n')
+
+        outf.write("}\n")
+
+    log.info("Saving '%s'", filename)
+
+
+# }}}
