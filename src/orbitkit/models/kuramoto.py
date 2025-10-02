@@ -56,13 +56,17 @@ class Kuramoto(sym.Model):
             from numbers import Real
 
             pi2 = np.pi / 2.0
-            if isinstance(self.alpha, Real) and -pi2 <= self.alpha < pi2:
+            if isinstance(self.alpha, Real) and not -pi2 <= self.alpha <= pi2:
                 raise ValueError(
                     f"Phase lag 'alpha' must be in [-pi/2, pi/2]: {self.alpha}"
                 )
 
             if self.K.ndim != 2 or self.K.shape[0] != self.K.shape[1]:
                 raise ValueError(f"adjacency matrix 'K' not square: {self.K.shape}")
+
+    @property
+    def n(self) -> int:
+        return self.K.shape[0]
 
     @property
     def variables(self) -> tuple[str, ...]:
@@ -180,6 +184,25 @@ class KuramotoAbrams(sym.Model):
 # {{{ Parameters from literature
 
 
+def _make_kuramoto_schroder_2017_model(K: float) -> Kuramoto:
+    #                 0     1     2     3    4    5    6     7     8    9
+    omega = np.array([0.5, -1.0, -0.2, -0.5, 0.3, 0.1, 0.9, -0.8, -0.3, 1.0])
+    A = np.array([
+        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
+        [0, 0, 0, 0, 0, 1, 1, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ])
+
+    return Kuramoto(omega=omega, alpha=0.0, K=A | A.T)
+
+
 def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:
     alpha = np.pi / 2.0 - beta
     mu = (1 + A) / 2.0
@@ -196,6 +219,7 @@ def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:
 
 
 KURAMOTO_MODEL = {
+    "Schroder2017Figure1b": _make_kuramoto_schroder_2017_model(0.05),
     "Abrams2008Figure1": _make_kuramoto_abrams_2008_model(0.1, 0.2),
     "Abrams2008Figure2a": _make_kuramoto_abrams_2008_model(0.1, 0.2),
     "Abrams2008Figure2b": _make_kuramoto_abrams_2008_model(0.1, 0.28),
@@ -207,7 +231,7 @@ def get_registered_parameters() -> tuple[str, ...]:
     return tuple(KURAMOTO_MODEL)
 
 
-def make_model_from_name(name: str) -> KuramotoAbrams:
+def make_model_from_name(name: str) -> sym.Model:
     return KURAMOTO_MODEL[name]
 
 
