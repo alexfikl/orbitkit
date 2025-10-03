@@ -22,11 +22,11 @@ build.sphinx
 latex.out
 __pycache__
 
-# binary
-*.h5
+# generated
 *.png
 *.svg
 !docs/*.svg
 *.mp4
 *.pymon
 examples/*.png
+examples/*.dot

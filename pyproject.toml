@@ -36,10 +36,8 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=2.1",
-    "pymbolic>=2024.2",
     "rich>=10",
     "scipy>=1.14",
-    "sympy>=1.12",
 ]
 # NOTE: this is just here because readthedocs does not know how to read dependency-groups
 optional-dependencies.docs = [
@@ -52,26 +50,12 @@ urls.Documentation = "https://orbitkit.readthedocs.io"
 urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [dependency-groups]
-dev = [
-    "matplotlib",
-    "pyproject-fmt",
-    "reuse",
-    "scienceplots",
-    "typos",
-    "uv",
-]
-test = [
-    "matplotlib",
-    "mypy",
-    "pytest",
-    "ruff",
-    "scipy-stubs",
-]
-docs = [
-    "sphinx>=6",
-    "sphinx-book-theme",
-]
+dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
+test = [ "mypy", "pytest", "ruff", "scipy-stubs" ]
+docs = [ "sphinx>=6", "sphinx-book-theme" ]
 clustering = [ "leidenalg>=0.10" ]
+codegen = [ "pymbolic>=2024.2", "sympy>=1.12" ]
+visualization = [ "matplotlib", "scienceplots" ]
 
 [tool.ruff]
 target-version = "py310"
