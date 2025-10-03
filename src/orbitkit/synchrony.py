@@ -43,7 +43,14 @@ def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
     return chi  # type: ignore[no-any-return]
 
 
-def kuramoto_order_parameter(theta: Array) -> Array:
+def _weighted_mean(x: Array, t: Array | None, *, axis: int = 0) -> Array:
+    if t is None:
+        return np.mean(x, axis=axis)
+
+    return np.trapezoid(x, t, axis=axis)
+
+
+def kuramoto_order_parameter(theta: Array, t: Array | None = None) -> Array:
     r"""Compute Kuramoto's order parameter for the time series *theta*.
 
     Then the order parameter :math:`r(t)` is computed as usual (see e.g.
@@ -62,12 +69,17 @@ def kuramoto_order_parameter(theta: Array) -> Array:
         Chaos: An Interdisciplinary Journal of Nonlinear Science, Vol. 27, 2017,
         `doi:10.1063/1.4995963 <https://doi.org/10.1063/1.4995963>`__.
 
-    :arg V: and array of shape ``(nnodes, ntimesteps)`` describing the signal.
+    :arg theta: and array of shape ``(nnodes, ntimesteps)`` describing the signal.
     :returns: an array of size ``(ntimesteps,)`` containing the order parameter
         :math:`r(t)`.
     """
+    if t is not None:
+        _, m = theta.shape
 
-    return np.abs(np.mean(np.exp(1j * theta), axis=0))  # type: ignore[no-any-return]
+        if t.shape != (m,):
+            raise ValueError(f"time instances 't' have incorrect shape: {t.shape}")
+
+    return np.abs(_weighted_mean(np.exp(1j * theta), t, axis=0))  # type: ignore[no-any-return]
 
 
 def global_kuramoto_order_parameter(theta: Array) -> float:
@@ -147,7 +159,7 @@ def kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> Array:
         )
 
     k = np.sum(mat != 0, axis=1).reshape(-1, 1)
-    return np.abs(np.sum(k * theta, axis=0)) / np.sum(k)  # type: ignore[no-any-return]
+    return np.abs(np.sum(k * np.exp(1j * theta), axis=0) / np.sum(k))  # type: ignore[no-any-return]
 
 
 def global_kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> float:
