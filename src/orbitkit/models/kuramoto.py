@@ -30,9 +30,11 @@ class Kuramoto(sym.Model):
     .. math::
 
         \frac{\mathrm{d} \theta_i}{\mathrm{d} t} =
-            \omega_i
-            + \frac{1}{N} \sum_{j = 0}^{N - 1}
-                K_{ij} \sin (\theta_j - \theta_i - \alpha)
+            \omega_i + \sum_{j = 0}^{N - 1}
+                K_{ij} \sin (\theta_j - \theta_i - \alpha),
+
+    where we note that the sum is not averaged by the number of nodes. If such a
+    weighting is desired, it should be added into the weight matrix :math:`K`.
 
     .. [Kuramoto1984] Y. Kuramoto,
         *Chemical Oscillations, Waves, and Turbulence*,
@@ -89,11 +91,10 @@ class Kuramoto(sym.Model):
             sym.Contract(
                 prim.Product((  # type: ignore[arg-type]
                     self.K,
-                    theta.reshape(1, -1) - theta.reshape(-1, 1) - self.alpha,
+                    sym.sin(theta.reshape(1, -1) - theta.reshape(-1, 1) - self.alpha),
                 )),
                 axes=(1,),
-            )
-            / theta.shape[0],
+            ),
         ))
 
         return (result,)
@@ -168,7 +169,9 @@ class KuramotoAbrams(sym.Model):
                     K[a, b]
                     / theta_b.shape[0]
                     * sym.Contract(
-                        theta_b.reshape(-1, 1) - theta_a.reshape(1, -1) - self.alpha,
+                        sym.sin(
+                            theta_b.reshape(-1, 1) - theta_a.reshape(1, -1) - self.alpha
+                        ),
                         axes=(0,),
                     )
                     for b, theta_b in enumerate(thetas)
@@ -200,7 +203,7 @@ def _make_kuramoto_schroder_2017_model(K: float) -> Kuramoto:
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ])
 
-    return Kuramoto(omega=omega, alpha=0.0, K=A | A.T)
+    return Kuramoto(omega=omega, alpha=0.0, K=K * (A | A.T))
 
 
 def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:
@@ -220,6 +223,11 @@ def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:
 
 KURAMOTO_MODEL = {
     "Schroder2017Figure1b": _make_kuramoto_schroder_2017_model(0.05),
+    "Schroder2017Figure1c": _make_kuramoto_schroder_2017_model(0.25),
+    "Schroder2017Figure1d": _make_kuramoto_schroder_2017_model(0.50),
+    "Schroder2017Figure1e": _make_kuramoto_schroder_2017_model(1.50),
+    "Schroder2017Figure1f": _make_kuramoto_schroder_2017_model(2.00),
+    "Schroder2017Figure1g": _make_kuramoto_schroder_2017_model(10.0),
     "Abrams2008Figure1": _make_kuramoto_abrams_2008_model(0.1, 0.2),
     "Abrams2008Figure2a": _make_kuramoto_abrams_2008_model(0.1, 0.2),
     "Abrams2008Figure2b": _make_kuramoto_abrams_2008_model(0.1, 0.28),
