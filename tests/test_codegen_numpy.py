@@ -64,6 +64,8 @@ def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
     ],
 )
 def test_symbolify(module_name: str, model_name: str) -> None:
+    pytest.importorskip("pymbolic")
+
     n = 32
 
     model = get_model_from_module(module_name, model_name, n)
@@ -96,6 +98,8 @@ def test_symbolify(module_name: str, model_name: str) -> None:
     ],
 )
 def test_codegen_numpy(module_name: str, model_name: str) -> None:
+    pytest.importorskip("pymbolic")
+
     n = 32
     rng = np.random.default_rng(seed=42)
 
@@ -139,6 +143,7 @@ def kuramoto(model: KuramotoAbrams, t: float, *thetas: Array) -> Array:
 
 @pytest.mark.parametrize("n", [32])
 def test_codegen_numpy_kuramoto(n: int) -> None:
+    pytest.importorskip("pymbolic")
     rng = np.random.default_rng(seed=42)
 
     from orbitkit.models.targets import NumpyTarget
