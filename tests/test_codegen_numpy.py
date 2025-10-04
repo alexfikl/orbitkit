@@ -132,7 +132,7 @@ def kuramoto(model: KuramotoAbrams, t: float, *thetas: Array) -> Array:
             model.K[a, b]
             / theta_b.shape[0]
             * np.sum(
-                theta_b.reshape(-1, 1) - theta_a.reshape(1, -1) - model.alpha,
+                np.sin(theta_b.reshape(-1, 1) - theta_a.reshape(1, -1) - model.alpha),
                 axis=0,
             )
             for b, theta_b in enumerate(thetas)
