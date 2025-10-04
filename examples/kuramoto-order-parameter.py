@@ -37,6 +37,8 @@ for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
 
 from scipy.integrate import solve_ivp
 
+# NOTE: [Schroder2017] does not mention the exact time step / time horizon they
+# use, but this seems to match pretty well with the results from Figure 2
 dt = 0.1
 tspan = (0.0, 1000.0)
 

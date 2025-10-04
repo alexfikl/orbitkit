@@ -14,10 +14,6 @@ from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
-# FIXME: This seems to reproduce Figure 1e-g more or less perfectly, but does
-# not reproduce Figure 1b-d almost at all. It seems like the paper has solutions
-# that grow faster and become wavy (e.g. Figure 1c), but we do not get that.
-
 # {{{ create right-hand side
 
 figname = "Figure1c"
