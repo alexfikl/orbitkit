@@ -7,7 +7,7 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.models.kuramoto import make_model_from_name
+from orbitkit.models.kuramoto import Kuramoto, make_model_from_name
 from orbitkit.models.symbolic import stringify
 from orbitkit.models.targets import NumpyTarget
 from orbitkit.utils import module_logger
@@ -22,6 +22,7 @@ log = module_logger(__name__)
 
 figname = "Figure1c"
 model = make_model_from_name(f"Schroder2017{figname}")
+assert isinstance(model, Kuramoto)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
@@ -86,6 +87,9 @@ with figure(
     else:
         ax.set_ylim(-1.0, 1.0)
     ax.set_xlim(tspan)
+
+assert isinstance(model.K, np.ndarray)
+assert isinstance(model.omega, np.ndarray)
 
 write_dot_from_adjacency(
     dirname / f"kuramoto_{figname.lower()}.dot",

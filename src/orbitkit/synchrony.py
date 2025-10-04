@@ -43,14 +43,7 @@ def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
     return chi  # type: ignore[no-any-return]
 
 
-def _weighted_mean(x: Array, t: Array | None, *, axis: int = 0) -> Array:
-    if t is None:
-        return np.mean(x, axis=axis)
-
-    return np.trapezoid(x, t, axis=axis)
-
-
-def kuramoto_order_parameter(theta: Array, t: Array | None = None) -> Array:
+def kuramoto_order_parameter(theta: Array) -> Array:
     r"""Compute Kuramoto's order parameter for the time series *theta*.
 
     Then the order parameter :math:`r(t)` is computed as usual (see e.g.
@@ -73,13 +66,7 @@ def kuramoto_order_parameter(theta: Array, t: Array | None = None) -> Array:
     :returns: an array of size ``(ntimesteps,)`` containing the order parameter
         :math:`r(t)`.
     """
-    if t is not None:
-        _, m = theta.shape
-
-        if t.shape != (m,):
-            raise ValueError(f"time instances 't' have incorrect shape: {t.shape}")
-
-    return np.abs(_weighted_mean(np.exp(1j * theta), t, axis=0))  # type: ignore[no-any-return]
+    return np.abs(np.mean(np.exp(1j * theta), axis=0))  # type: ignore[no-any-return]
 
 
 def global_kuramoto_order_parameter(theta: Array) -> float:
@@ -92,7 +79,7 @@ def global_kuramoto_order_parameter(theta: Array) -> float:
 
         r_{\text{classic}} = \langle r(t) \rangle_t.
     """
-    return float(np.mean(kuramoto_order_parameter(theta)))
+    return float(np.mean(kuramoto_order_parameter(theta), axis=-1))
 
 
 def global_kuramoto_order_parameter_network(theta: Array, mat: Array) -> float:
@@ -127,7 +114,7 @@ def global_kuramoto_order_parameter_network(theta: Array, mat: Array) -> float:
             f"matrix has shape {mat.shape} and theta has shape {theta.shape}"
         )
 
-    r = np.abs(mat @ np.mean(np.exp(1j * theta), axis=1))
+    r = np.abs(mat @ np.mean(np.exp(1j * theta), axis=-1))
     k = np.sum(mat != 0, axis=1)
 
     return float(np.sum(r) / np.sum(k))
@@ -167,8 +154,7 @@ def global_kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> floa
 
     See :func:`kuramoto_order_parameter_mean_field` to get the value at each time step.
     """
-
-    return float(np.mean(kuramoto_order_parameter_mean_field(theta, mat)))
+    return float(np.mean(kuramoto_order_parameter_mean_field(theta, mat), axis=-1))
 
 
 def global_kuramoto_order_parameter_link(theta: Array, mat: Array) -> float:
