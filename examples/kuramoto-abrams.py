@@ -23,7 +23,7 @@ rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
-n = 64
+n = 512
 figname = "Figure2c"
 model = make_model_from_name(f"Abrams2008{figname}")
 
@@ -51,35 +51,22 @@ log.info("tspan: %s", tspan)
 log.info("param: %s", figname)
 log.info(model)
 
-for k in range(32):
-    # NOTE: Figure2 says that the integration began from an initial condition close
-    # to the chimera state. From Figure 1, it seems like this means something like this
-    y0 = np.hstack([
-        rng.normal(0.0, 0.1, size=n),
-        rng.normal(0.0, 2.0, size=n),
-    ])
+# NOTE: Figure2 says that the integration began from an initial condition close
+# to the chimera state. From Figure 1, it seems like this means something like this
+y0 = np.hstack([
+    rng.normal(0.0, 0.1, size=n),
+    rng.normal(0.0, 2.0, size=n),
+])
 
-    result = solve_ivp(
-        source,
-        tspan,
-        y0,
-        method="RK45",
-        # atol=1.0e-6,
-        # rtol=1.0e-8,
-        max_step=0.05,
-    )
-
-    # compute Kuramoto order parameter
-    theta = result.y[:n, -128:]
-    r0 = np.abs(np.mean(np.exp(1j * theta), axis=0))
-
-    theta = result.y[n:, -128:]
-    r1 = np.abs(np.mean(np.exp(1j * theta), axis=0))
-
-    if np.max(r0) < 1.0 or np.max(r1) < 1.0:
-        break
-
-    log.info("[%2d] Retrying... Got r0 %.8e r1 %.8e", k, np.max(r0), np.max(r1))
+result = solve_ivp(
+    source,
+    tspan,
+    y0,
+    method="RK45",
+    # atol=1.0e-6,
+    # rtol=1.0e-8,
+    max_step=0.05,
+)
 
 # }}}
 
@@ -115,13 +102,13 @@ with figure(
     theta = result.y[n:, mask]
     r1 = np.abs(np.mean(np.exp(1j * theta), axis=0))
 
-    ax0.plot(result.t[mask], r0, lw=6)
+    ax0.plot(result.t[mask], r0, lw=3)
     ax0.set_xlabel("$t$")
     ax0.set_ylabel("$r^0$")
     ax0.set_xlim(tmin_for_plot, tspan[1])
     ax0.set_ylim(0.0, 1.0)
 
-    ax1.plot(result.t[mask], r1, lw=6)
+    ax1.plot(result.t[mask], r1, lw=3)
     ax1.set_xlabel("$t$")
     ax1.set_ylabel("$r^1$")
     ax1.set_xlim(tmin_for_plot, tspan[1])
