@@ -129,8 +129,7 @@ class FitzHughNagumoOmelchenko(sym.Model):
 def _make_fhn_omelchenko_2019(sigma: float) -> FitzHughNagumoOmelchenko:
     from orbitkit.adjacency import generate_adjacency_fractal
 
-    G = generate_adjacency_fractal("110011", nlevels=4)
-
+    G = generate_adjacency_fractal("11011", nlevels=4)
     phi = np.pi - 0.1
 
     return FitzHughNagumoOmelchenko(
