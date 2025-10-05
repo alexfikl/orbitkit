@@ -560,7 +560,7 @@ def _expand_pattern(base: str, nlevels: int, dtype: Any = None) -> Array:
         pattern = "".join([(base if i == "1" else zeros) for i in pattern])
 
     # transform pattern to 0/1 array
-    return np.frombuffer(pattern.encode(), dtype=dtype) - ord("0")
+    return np.fromiter(pattern, dtype=dtype)
 
 
 def generate_adjacency_fractal(
