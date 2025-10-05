@@ -63,9 +63,6 @@ class Kuramoto(sym.Model):
                     f"Phase lag 'alpha' must be in [-pi/2, pi/2]: {self.alpha}"
                 )
 
-            if self.K.ndim != 2 or self.K.shape[0] != self.K.shape[1]:
-                raise ValueError(f"adjacency matrix 'K' not square: {self.K.shape}")
-
     @property
     def n(self) -> int:
         return self.K.shape[0]
@@ -113,8 +110,8 @@ class KuramotoAbrams(sym.Model):
 
         \frac{\mathrm{d} \theta^\sigma_i}{\mathrm{d} t} =
             \omega
-            + \sum_{\sigma' = 0}^{m - 1} \frac{K_{\sigma \sigma'}}{n_\sigma'}
-                \sum_{j = 0}^{n_\sigma' - 1}
+            + \sum_{\sigma' = 0}^{m - 1} \frac{K_{\sigma \sigma'}}{n_{\sigma'}}
+                \sum_{j = 0}^{n_{\sigma'} - 1}
                 \sin (\theta^{\sigma'}_j - \theta^\sigma_i - \alpha)
 
     The model has :math:`m` identical populations, each with :math:`n_\sigma`

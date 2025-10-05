@@ -90,12 +90,46 @@ class Contract(ExpressionNode):
 
         Note that this does not check if the given expression evaluates to a
         tensor where all of these axes are valid.
-
     """
 
     aggregate: Expression
     axes: tuple[int, ...]
     """A tuple of axes to contract along."""
+
+
+@prim.expr_dataclass()
+class EinsteinSummation(ExpressionNode):
+    """Describes a general Einstein summation between multiple terms.
+
+    .. note::
+
+        Note that this does not check if the given expression evaluates to a
+        tensor where all of these indices are valid.
+    """
+
+    subscripts: str
+    """Description of indices to sum. The indices must be a comma separated list
+    for each of of the ``operands``. An optional ``->`` can be included to
+    label the output indices.
+    """
+    operands: tuple[Expression, ...]
+
+
+def einsum(subscripts: str, *operands: Expression) -> EinsteinSummation:
+    """Construct a :class:`EinsteinSummation`."""
+
+    if "->" in subscripts:
+        inputs, _ = subscripts.split("->")
+    else:
+        inputs = subscripts
+
+    if len(inputs.split(",")) != len(operands):
+        raise ValueError(
+            "'operands' do not match those provided in 'subscripts': "
+            f"got {len(operands)} operands for '{subscripts}'"
+        )
+
+    return EinsteinSummation(subscripts, operands)
 
 
 @prim.expr_dataclass()

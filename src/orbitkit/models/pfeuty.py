@@ -103,7 +103,7 @@ class Pfeuty(sym.Model):
     """
     beta: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
     r"""Rate functions (open to closed) for the Pfeuty model:
-    :math:(\beta_m, \beta_h, \beta_n).
+    :math:`(\beta_m, \beta_h, \beta_n)`.
     """
 
     if __debug__:

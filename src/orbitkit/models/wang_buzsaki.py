@@ -91,7 +91,7 @@ class WangBuzsaki(sym.Model):
     """
     beta: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
     r"""Rate functions (open to closed) for the Wang-Buzsáki model:
-    :math:(\beta_m, \beta_h, \beta_n).
+    :math:`(\beta_m, \beta_h, \beta_n)`.
     """
 
     if __debug__:

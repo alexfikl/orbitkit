@@ -11,20 +11,30 @@ examples. However, additions are very welcome, especially if they exhibit
 some new and exciting behavior that trips up any of the implemented data
 analysis methods.
 
-Wang-Rinzel
------------
+Wang-Rinzel (1992)
+------------------
 
 .. automodule:: orbitkit.models.wang_rinzel
 
-Wang-Buzsáki
-------------
+Wang-Buzsáki (1996)
+-------------------
 
 .. automodule:: orbitkit.models.wang_buzsaki
 
-Pfeuty
-------
+Pfeuty (2007)
+-------------
 
 .. automodule:: orbitkit.models.pfeuty
+
+Kuramoto
+--------
+
+.. automodule:: orbitkit.models.kuramoto
+
+FitzHugh-Nagumo
+---------------
+
+.. automodule:: orbitkit.models.fitzhugh_nagumo
 
 Symbolic Utilities
 ------------------
