@@ -127,7 +127,9 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
+    "diffrax.*",
     "igraph.*",
+    "jax.*",
     "leidenalg.*",
     "mpl_toolkits.*",
     "numba.*",

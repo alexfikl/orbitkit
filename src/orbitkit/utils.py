@@ -611,7 +611,7 @@ def timeit(
     *,
     repeat: int = 1000,
     number: int = 50,
-    skip: int = 0,
+    skip: int = 3,
 ) -> TimingResult:
     """Run *stmt* using :func:`timeit.repeat`.
 

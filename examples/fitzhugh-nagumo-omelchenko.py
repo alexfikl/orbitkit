@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import pathlib
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 
 from orbitkit.models.fitzhugh_nagumo import (
@@ -12,11 +14,14 @@ from orbitkit.models.fitzhugh_nagumo import (
     make_model_from_name,
 )
 from orbitkit.models.symbolic import stringify
-from orbitkit.models.targets import NumpyTarget
+from orbitkit.models.targets import JaxTarget
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
+
+# FIXME: this will not look like in the paper because we do not incorporate the
+# delays. We could do that in the future, since diffrax wants to support it.
 
 # {{{ create right-hand side
 
@@ -31,7 +36,7 @@ args, exprs = model.symbolify(model.n, full=True)
 for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
     log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
 
-target = NumpyTarget()
+target = JaxTarget()
 source = target.lambdify_model(model, model.n)
 
 # }}}
@@ -39,7 +44,7 @@ source = target.lambdify_model(model, model.n)
 
 # {{{ evolve
 
-from scipy.integrate import solve_ivp
+from diffrax import Dopri5, ODETerm, PIDController, SaveAt, diffeqsolve
 
 tspan = (0.0, 120.0)
 tmin_for_plot = 112.0
@@ -50,20 +55,27 @@ log.info(model)
 
 # NOTE: Figure1 just says that the initial conditions are "random". We use the
 # [-2.0, 2.0] interval to match the magnitude of he solutions at T
-y0 = np.hstack([
-    rng.uniform(-2.0, 2.0, size=model.n),
-    rng.uniform(-2.0, 2.0, size=model.n),
-])
-
-result = solve_ivp(
-    source,
-    tspan,
-    y0,
-    method="RK45",
-    # atol=1.0e-6,
-    # rtol=1.0e-8,
-    # max_step=0.05,
+y0 = jax.device_put(
+    np.hstack([
+        rng.uniform(-2.0, 2.0, size=model.n),
+        rng.uniform(-2.0, 2.0, size=model.n),
+    ])
 )
+
+result = diffeqsolve(
+    ODETerm(lambda t, y, args: source(t, y)),
+    Dopri5(),
+    t0=tspan[0],
+    t1=tspan[1],
+    dt0=0.01,
+    y0=y0,
+    max_steps=2 * 4096,
+    saveat=SaveAt(ts=jnp.linspace(*tspan, 12000)),
+    stepsize_controller=PIDController(atol=1.0e-5, rtol=1.0e-5),
+)
+
+ts = jax.device_get(result.ts)
+ys = jax.device_get(result.ys.T)
 
 # }}}
 
@@ -82,7 +94,8 @@ set_plotting_defaults()
 
 from orbitkit.visualization import figure
 
-mask = result.t > tmin_for_plot
+mask = ts > tmin_for_plot
+ns = np.arange(model.n)
 
 with figure(
     dirname / f"fitzhugh_nagumo_omelchenko_{figname.lower()}_solution",
@@ -91,10 +104,8 @@ with figure(
 ) as fig:
     ax = fig.gca()
 
-    n = np.arange(model.n)
-    t = result.t[mask]
-    t, n = np.meshgrid(t, n)
-    im = ax.contourf(n, t, result.y[: model.n, mask], cmap="jet")
+    t, n = np.meshgrid(ts[mask], ns)
+    im = ax.contourf(n, t, ys[: model.n, mask], cmap="jet")
 
     ax.set_xlabel("$i$")
     ax.set_ylabel("$t$")
@@ -109,7 +120,7 @@ with figure(
 ) as fig:
     ax = fig.gca()
 
-    ax.plot(np.arange(model.n), result.y[: model.n, -1], "o", markersize=5)
+    ax.plot(ns, ys[: model.n, -1], "o", markersize=5)
     ax.set_xlabel("$i$")
     ax.set_ylabel("$u_i$")
 
