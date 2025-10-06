@@ -134,6 +134,8 @@ def savefig(
     bbox_inches: str = "tight",
     pad_inches: float = 0,
     normalize: bool = False,
+    facecolor: str = "white",
+    transparent: bool = False,
     overwrite: bool = True,
     **kwargs: Any,
 ) -> None:
@@ -179,6 +181,8 @@ def savefig(
         bbox_extra_artists=tuple(bbox_extra_artists),
         bbox_inches="tight",
         pad_inches=pad_inches,
+        facecolor=facecolor,
+        transparent=transparent,
         **kwargs,
     )
 
