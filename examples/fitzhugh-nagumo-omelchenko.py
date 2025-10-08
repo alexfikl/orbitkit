@@ -22,7 +22,7 @@ try:
     import jax
     import jax.numpy as jnp
 except ImportError:
-    log.error("This example requiers `jax` and `diffrax`.")
+    log.error("This example requires `jax` and `diffrax`.")
     raise SystemExit(0) from None
 
 # FIXME: this will not look like in the paper because we do not incorporate the
@@ -52,7 +52,7 @@ source = target.lambdify_model(model, model.n)
 try:
     from diffrax import Dopri5, ODETerm, PIDController, SaveAt, diffeqsolve
 except ImportError:
-    log.error("This example requiers `jax` and `diffrax`.")
+    log.error("This example requires `jax` and `diffrax`.")
     raise SystemExit(0) from None
 
 tspan = (0.0, 120.0)
@@ -72,7 +72,7 @@ y0 = jax.device_put(
 )
 
 result = diffeqsolve(
-    ODETerm(lambda t, y, args: source(t, y)),
+    ODETerm(lambda t, y, args: source(t, y)),  # type: ignore[arg-type,unused-ignore]
     Dopri5(),
     t0=tspan[0],
     t1=tspan[1],
