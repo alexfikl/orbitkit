@@ -21,6 +21,8 @@ Expression: TypeAlias = (
     int | float | complex | np.inexact | np.integer | prim.ExpressionNode
 )
 """A union of allowable classes that can be part of an expression."""
+ArrayExpression: TypeAlias = Expression | np.ndarray[tuple[int, ...], np.dtype[Any]]
+"""An expression that can also be an array of expressions."""
 
 # {{{ dataclass as symbolic
 
