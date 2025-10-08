@@ -368,7 +368,64 @@ class JaxTarget(NumpyTarget):
         def wrapper(*args: Array) -> Array:
             return func(*args, *cargs)
 
-        return jax.jit(wrapper)  # type: ignore[no-any-return]
+        return jax.jit(wrapper) if self.jit else wrapper
+
+
+# }}}
+
+
+# {{{ jitcode target
+
+JiTCODEExpression: TypeAlias = np.ndarray[tuple[int], np.dtype[Any]]
+
+
+@dataclass(frozen=True)
+class JiTCODECodeGenerator(NumpyCodeGenerator):
+    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
+        return f"vectorize({self.module}.{expr.name})"
+
+
+@dataclass(frozen=True)
+class JiTCODETarget(NumpyTarget):
+    module: ClassVar[str] = "sp"
+    funcname: ClassVar[str] = "_lambdify_generated_func_jitcode_symengine"
+
+    def _get_module(self) -> Any:  # noqa: PLR6301
+        import symengine
+
+        return symengine
+
+    def _get_code_generator(self) -> NumpyCodeGenerator:
+        return JiTCODECodeGenerator(module=self.module)
+
+    def make_input_variable(self, n: tuple[int, ...]) -> JiTCODEExpression:  # noqa: PLR6301
+        import jitcode
+
+        y = np.empty(np.prod(n), dtype=object)
+        for i in range(y.size):
+            y[i] = jitcode.y(i)
+
+        return y
+
+    def generate_code(
+        self,
+        inputs: sym.Variable | tuple[sym.Variable, ...],
+        exprs: sym.Expression | tuple[sym.Expression, ...],
+        *,
+        variables: sym.Variable | tuple[sym.Variable, ...] | None = None,
+        sizes: int | tuple[int, ...] | None = None,
+        name: str = "expr",
+        pretty: bool = False,
+    ) -> Code:
+        if variables is None:
+            raise NotImplementedError("JiTCODE cannot generate individual functions")
+
+        from pytools.obj_array import vectorize
+
+        code = super().generate_code(
+            inputs, exprs, variables=variables, sizes=sizes, name=name, pretty=pretty
+        )
+        return replace(code, context={**code.context, "vectorize": vectorize})
 
 
 # }}}

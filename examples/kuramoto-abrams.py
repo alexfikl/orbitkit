@@ -9,7 +9,7 @@ import numpy as np
 
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
 from orbitkit.models.symbolic import stringify
-from orbitkit.models.targets import NumpyTarget
+from orbitkit.models.targets import JiTCODETarget
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -23,7 +23,7 @@ rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
-n = 512
+n = 4
 figname = "Figure2c"
 model = make_model_from_name(f"Abrams2008{figname}")
 
@@ -34,7 +34,10 @@ args, exprs = model.symbolify((n, n), full=True)
 for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
     log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
 
-target = NumpyTarget()
+target = JiTCODETarget()
+target.generate_model_code(model, (n, n))
+
+raise SystemExit(1)
 source = target.lambdify_model(model, (n, n))
 
 # }}}

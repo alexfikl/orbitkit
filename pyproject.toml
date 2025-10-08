@@ -130,10 +130,12 @@ module = [
     "diffrax.*",
     "igraph.*",
     "jax.*",
+    "jitcode.*",
     "leidenalg.*",
     "mpl_toolkits.*",
     "numba.*",
     "scienceplots.*",
+    "symengine.*",
     "sympy.*",
 ]
 ignore_missing_imports = true
