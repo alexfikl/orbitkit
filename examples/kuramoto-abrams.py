@@ -37,6 +37,13 @@ for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
 target = JiTCODETarget()
 target.generate_model_code(model, (n, n))
 
+source = target.lambdify_model(model, (n, n))
+
+import jitcode
+
+result = source(jitcode.t, target.make_input_variable((n, n)))
+log.info("%s <%s>:\n%s", type(result), result.dtype, result)
+
 raise SystemExit(1)
 source = target.lambdify_model(model, (n, n))
 

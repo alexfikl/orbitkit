@@ -381,19 +381,14 @@ JiTCODEExpression: TypeAlias = np.ndarray[tuple[int], np.dtype[Any]]
 
 @dataclass(frozen=True)
 class JiTCODECodeGenerator(NumpyCodeGenerator):
-    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
-        return f"vectorize({self.module}.{expr.name})"
+    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:  # noqa: PLR6301
+        return f"vectorized(sp.{expr.name})"
 
 
 @dataclass(frozen=True)
 class JiTCODETarget(NumpyTarget):
-    module: ClassVar[str] = "sp"
+    module: ClassVar[str] = "np"
     funcname: ClassVar[str] = "_lambdify_generated_func_jitcode_symengine"
-
-    def _get_module(self) -> Any:  # noqa: PLR6301
-        import symengine
-
-        return symengine
 
     def _get_code_generator(self) -> NumpyCodeGenerator:
         return JiTCODECodeGenerator(module=self.module)
@@ -420,12 +415,16 @@ class JiTCODETarget(NumpyTarget):
         if variables is None:
             raise NotImplementedError("JiTCODE cannot generate individual functions")
 
-        from pytools.obj_array import vectorize
+        import symengine
+        from pytools.obj_array import vectorized
 
         code = super().generate_code(
             inputs, exprs, variables=variables, sizes=sizes, name=name, pretty=pretty
         )
-        return replace(code, context={**code.context, "vectorize": vectorize})
+        return replace(
+            code,
+            context={**code.context, "sp": symengine, "vectorized": vectorized},
+        )
 
 
 # }}}
