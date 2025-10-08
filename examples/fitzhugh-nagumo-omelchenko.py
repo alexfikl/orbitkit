@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import pathlib
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 
 from orbitkit.models.fitzhugh_nagumo import (
@@ -19,6 +17,13 @@ from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
+
+try:
+    import jax
+    import jax.numpy as jnp
+except ImportError:
+    log.error("This example requiers `jax` and `diffrax`.")
+    raise SystemExit(0) from None
 
 # FIXME: this will not look like in the paper because we do not incorporate the
 # delays. We could do that in the future, since diffrax wants to support it.
@@ -44,7 +49,11 @@ source = target.lambdify_model(model, model.n)
 
 # {{{ evolve
 
-from diffrax import Dopri5, ODETerm, PIDController, SaveAt, diffeqsolve
+try:
+    from diffrax import Dopri5, ODETerm, PIDController, SaveAt, diffeqsolve
+except ImportError:
+    log.error("This example requiers `jax` and `diffrax`.")
+    raise SystemExit(0) from None
 
 tspan = (0.0, 120.0)
 tmin_for_plot = 112.0
