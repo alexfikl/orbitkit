@@ -426,11 +426,15 @@ class Model(ABC):
         return (t, *args), model.evaluate(t, *args)
 
     def __str__(self) -> str:
-        args, exprs = self.symbolify(8, full=True)
+        n = getattr(self, "n", None)
+        if n is None:
+            n = 8
+
+        args, exprs = self.symbolify(n, full=True)
 
         eqs = []
         for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-            eqs.append(f"Eq{i:02d}: d{stringify(name)}/dt = {stringify(eq)}")
+            eqs.append(f"[{i:02d}]:\n\td{stringify(name)}/dt = {stringify(eq)}")
 
         return "\n".join(eqs)
 
