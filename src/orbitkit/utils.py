@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -572,6 +573,18 @@ class TicTocTimer:
     def short(self) -> str:
         """A shorter string for the last :meth:`tic`-:meth:`toc` cycle."""
         return f"wall {self.t_wall:.5f}s"
+
+
+@contextmanager
+def tictoc(name: str = "timing") -> Iterator[None]:
+    tt = TicTocTimer()
+    tt.tic()
+
+    try:
+        yield
+    finally:
+        tt.toc()
+        log.info("%s: %s", name.upper(), tt)
 
 
 # }}}

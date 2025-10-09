@@ -10,7 +10,7 @@ import numpy as np
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
 from orbitkit.models.symbolic import stringify
 from orbitkit.models.targets import JiTCODETarget
-from orbitkit.utils import module_logger
+from orbitkit.utils import module_logger, tictoc
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
@@ -23,7 +23,7 @@ rng = np.random.default_rng(seed=42)
 
 # {{{ create right-hand side
 
-n = 4
+n = 64
 figname = "Figure2c"
 model = make_model_from_name(f"Abrams2008{figname}")
 
@@ -34,11 +34,9 @@ args, exprs = model.symbolify((n, n), full=True)
 for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
     log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
 
-target = JiTCODETarget()
-target.generate_model_code(model, (n, n))
-
-source = target.lambdify_model(model, (n, n))
-y = target.make_input_variable((n, n))
+with tictoc("codegen"):
+    target = JiTCODETarget()
+    source_func = target.lambdify_model(model, (n, n))
 
 # }}}
 
@@ -61,14 +59,20 @@ y0 = np.hstack([
     rng.normal(0.0, 2.0, size=n),
 ])
 
-ode = target.compile(source(jitcode.t, y), y, method="RK45")
-ode.set_initial_value(y0, tspan[0])
+with tictoc("evaluation"):
+    y = target.make_input_variable((n, n))
+    source = source_func(jitcode.t, y)
 
-dt = 0.1
-t = np.arange(tspan[0], tspan[1], dt)
-y = np.empty((y0.size, t.size), dtype=y0.dtype)
-for i in range(t.size):
-    y[:, i] = ode.integrate(t[i])
+with tictoc("compile"):
+    ode = target.compile(source, y, method="RK45")
+    ode.set_initial_value(y0, tspan[0])
+
+with tictoc("evolve"):
+    dt = 0.1
+    t = np.arange(tspan[0], tspan[1], dt)
+    y = np.empty((y0.size, t.size), dtype=y0.dtype)
+    for i in range(t.size):
+        y[:, i] = ode.integrate(t[i])
 
 # }}}
 
