@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import pathlib
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import numpy as np
 from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
@@ -15,6 +17,9 @@ from pytools import UniqueNameGenerator
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
+
+if TYPE_CHECKING:
+    import jitcode
 
 log = module_logger(__name__)
 
@@ -393,15 +398,6 @@ class JiTCODETarget(NumpyTarget):
     def _get_code_generator(self) -> NumpyCodeGenerator:
         return JiTCODECodeGenerator(module=self.module)
 
-    def make_input_variable(self, n: tuple[int, ...]) -> JiTCODEExpression:  # noqa: PLR6301
-        import jitcode
-
-        y = np.empty(np.prod(n), dtype=object)
-        for i in range(y.size):
-            y[i] = jitcode.y(i)
-
-        return y
-
     def generate_code(
         self,
         inputs: sym.Variable | tuple[sym.Variable, ...],
@@ -425,6 +421,61 @@ class JiTCODETarget(NumpyTarget):
             code,
             context={**code.context, "sp": symengine, "vectorized": vectorized},
         )
+
+    def make_input_variable(self, n: tuple[int, ...]) -> JiTCODEExpression:  # noqa: PLR6301
+        import jitcode
+
+        y = np.empty(np.sum(n), dtype=object)
+        for i in range(y.size):
+            y[i] = jitcode.y(i)
+
+        return y
+
+    def compile(  # noqa: PLR6301
+        self,
+        f: Array,
+        y: Array,
+        *,
+        method: str = "RK45",
+        atol: float = 1.0e-6,
+        rtol: float = 1.0e-8,
+        module_location: str | pathlib.Path | None = None,
+        verbose: bool = False,
+    ) -> jitcode.jitcode:
+        import jitcode
+
+        if module_location is not None:
+            module_location = pathlib.Path(module_location)
+
+        if module_location and module_location.exists():
+            ode = jitcode.jitcode(
+                f,
+                n=y.size,
+                verbose=verbose,
+                module_location=str(module_location),
+            )
+        else:
+            ode = jitcode.jitcode(
+                f,
+                n=y.size,
+                verbose=verbose,
+            )
+
+            if module_location is not None:
+                t_start = time.time()
+                newfilename = ode.save_compiled(str(module_location), overwrite=True)
+                if verbose:
+                    log.info("Compilation time: %.3fs.", time.time() - t_start)
+
+                if newfilename != str(module_location):
+                    log.warning(
+                        "jitcode saved compiled module in different file: '%s'. "
+                        "This may cause performance issues since it will be recompiled",
+                        newfilename,
+                    )
+
+        ode.set_integrator(method, atol=atol, rtol=rtol)
+        return ode
 
 
 # }}}

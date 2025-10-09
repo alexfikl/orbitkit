@@ -38,21 +38,14 @@ target = JiTCODETarget()
 target.generate_model_code(model, (n, n))
 
 source = target.lambdify_model(model, (n, n))
-
-import jitcode
-
-result = source(jitcode.t, target.make_input_variable((n, n)))
-log.info("%s <%s>:\n%s", type(result), result.dtype, result)
-
-raise SystemExit(1)
-source = target.lambdify_model(model, (n, n))
+y = target.make_input_variable((n, n))
 
 # }}}
 
 
 # {{{ evolve
 
-from scipy.integrate import solve_ivp
+import jitcode
 
 tspan = (0.0, 1000.0)
 tmin_for_plot = 0.0
@@ -68,15 +61,14 @@ y0 = np.hstack([
     rng.normal(0.0, 2.0, size=n),
 ])
 
-result = solve_ivp(
-    source,
-    tspan,
-    y0,
-    method="RK45",
-    # atol=1.0e-6,
-    # rtol=1.0e-8,
-    max_step=0.05,
-)
+ode = target.compile(source(jitcode.t, y), y, method="RK45")
+ode.set_initial_value(y0, tspan[0])
+
+dt = 0.1
+t = np.arange(tspan[0], tspan[1], dt)
+y = np.empty((y0.size, t.size), dtype=y0.dtype)
+for i in range(t.size):
+    y[:, i] = ode.integrate(t[i])
 
 # }}}
 
@@ -94,7 +86,7 @@ set_plotting_defaults()
 
 from orbitkit.visualization import figure
 
-mask = result.t > tmin_for_plot
+mask = t > tmin_for_plot
 
 with figure(
     dirname / f"abrams_kuramoto_{figname.lower()}_order",
@@ -106,19 +98,19 @@ with figure(
     ax0, ax1 = fig.axes
 
     # compute Kuramoto order parameter
-    theta = result.y[:n, mask]
+    theta = y[:n, mask]
     r0 = np.abs(np.mean(np.exp(1j * theta), axis=0))
 
-    theta = result.y[n:, mask]
+    theta = y[n:, mask]
     r1 = np.abs(np.mean(np.exp(1j * theta), axis=0))
 
-    ax0.plot(result.t[mask], r0, lw=3)
+    ax0.plot(t[mask], r0, lw=3)
     ax0.set_xlabel("$t$")
     ax0.set_ylabel("$r^0$")
     ax0.set_xlim(tmin_for_plot, tspan[1])
     ax0.set_ylim(0.0, 1.0)
 
-    ax1.plot(result.t[mask], r1, lw=3)
+    ax1.plot(t[mask], r1, lw=3)
     ax1.set_xlabel("$t$")
     ax1.set_ylabel("$r^1$")
     ax1.set_xlim(tmin_for_plot, tspan[1])
@@ -133,13 +125,13 @@ with figure(
 ) as fig:
     ax0, ax1 = fig.axes
 
-    theta = shift_kuramoto_angle(result.y[:n, -1])
+    theta = shift_kuramoto_angle(y[:n, -1])
     ax0.plot(np.arange(n), theta, "o")
     ax0.set_xlabel("$j$")
     ax0.set_ylabel(r"$\theta^0_j$")
     ax0.set_ylim([-np.pi, np.pi])
 
-    theta = shift_kuramoto_angle(result.y[n:, -1])
+    theta = shift_kuramoto_angle(y[n:, -1])
     ax1.plot(np.arange(n, 2 * n), theta, "o")
     ax1.set_xlabel("$j$")
     ax1.set_ylabel(r"$\theta^1_j$")
