@@ -103,7 +103,7 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
     n = 32
     rng = np.random.default_rng(seed=42)
 
-    from orbitkit.models.targets import NumpyTarget
+    from orbitkit.codegen.numpy import NumpyTarget
 
     model = get_model_from_module(module_name, model_name, n)
     d = len(model.variables)
@@ -146,7 +146,7 @@ def test_codegen_numpy_kuramoto(n: int) -> None:
     pytest.importorskip("pymbolic")
     rng = np.random.default_rng(seed=42)
 
-    from orbitkit.models.targets import NumpyTarget
+    from orbitkit.codegen.numpy import NumpyTarget
 
     model = get_model_from_module("kuramoto", "Abrams2008Figure2c", n)
     assert isinstance(model, KuramotoAbrams)

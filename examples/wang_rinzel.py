@@ -7,8 +7,7 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.models.symbolic import stringify
-from orbitkit.models.targets import NumpyTarget
+from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.wang_rinzel import make_model_from_name
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
@@ -23,10 +22,7 @@ model = make_model_from_name(f"WangRinzel1992{figname}")
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
-
-args, exprs = model.symbolify(model.n, full=False)
-for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-    log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
+log.info("Equations:\n%s", model)
 
 target = NumpyTarget()
 source = target.lambdify_model(model, model.n)

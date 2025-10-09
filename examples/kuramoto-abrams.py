@@ -7,9 +7,8 @@ import pathlib
 
 import numpy as np
 
+from orbitkit.codegen.jitcode import JiTCODETarget
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
-from orbitkit.models.symbolic import stringify
-from orbitkit.models.targets import JiTCODETarget
 from orbitkit.utils import module_logger, tictoc
 
 log = module_logger(__name__)
@@ -29,10 +28,7 @@ model = make_model_from_name(f"Abrams2008{figname}")
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", 2 * n)
-
-args, exprs = model.symbolify((n, n), full=True)
-for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-    log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
+log.info("Equations:\n%s", model)
 
 with tictoc("codegen"):
     target = JiTCODETarget()

@@ -9,9 +9,9 @@ from dataclasses import replace
 import numpy as np
 
 from orbitkit.adjacency import generate_adjacency_erdos_renyi
+from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.pfeuty import make_model_from_name
-from orbitkit.models.symbolic import stringify
-from orbitkit.models.targets import NumpyTarget
+from orbitkit.models.symbolic import MatrixSymbol
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -38,16 +38,13 @@ model = replace(make_model_from_name(f"Pfeuty2007{figname}"), A_inh=A_inh, A_gap
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
-
-args, exprs = model.symbolify(n, full=True)
-for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-    log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
+log.info("Equations:\n%s", model)
 
 target = NumpyTarget()
 source = target.lambdify_model(model, model.n)
 
 # NOTE: lambdify rate functions to get the steady state for the gating variables
-V = args[1]
+V = MatrixSymbol("V", (n,))
 hinf = target.lambdify(target.generate_code((V,), model.hinf(V)))
 ninf = target.lambdify(target.generate_code((V,), model.ninf(V)))
 

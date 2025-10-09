@@ -7,9 +7,8 @@ import pathlib
 
 import numpy as np
 
+from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.kuramoto import Kuramoto, make_model_from_name
-from orbitkit.models.symbolic import stringify
-from orbitkit.models.targets import NumpyTarget
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -22,10 +21,7 @@ assert isinstance(model, Kuramoto)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
-
-args, exprs = model.symbolify(model.n, full=True)
-for i, (name, eq) in enumerate(zip(args[1:], exprs, strict=True)):
-    log.info("Eq%d:\n    d%s/dt = %s", i, stringify(name), stringify(eq))
+log.info("Equations:\n%s", model)
 
 target = NumpyTarget()
 source = target.lambdify_model(model, model.n)
