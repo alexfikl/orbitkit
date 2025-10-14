@@ -98,6 +98,7 @@ lint.ignore = [
     "PLR0912", # too-many-branches
     "PLR0913", # too-many-arguments
     "PLR0914", # too-many-local-variables
+    "PLR0915", # too-many-local-statements
     "PLR0917", # too-many-positional
     "PLR2004", # magic-value-comparison
     "S101",    # assert

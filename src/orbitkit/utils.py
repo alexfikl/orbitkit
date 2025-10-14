@@ -295,7 +295,7 @@ class EOCRecorder:
             return np.nan
 
         h, error = np.array(self.history).T
-        _, eoc = estimate_order_of_convergence(h, error)
+        _, eoc, _ = estimate_order_of_convergence(h, error)
         return eoc
 
     @property
@@ -308,23 +308,45 @@ class EOCRecorder:
         return stringify_eoc(self)
 
 
-def estimate_order_of_convergence(x: Array, y: Array) -> tuple[float, float]:
-    """Computes an estimate of the order of convergence in the least-square sense.
+def estimate_order_of_convergence(
+    x: Array,
+    y: Array,
+    *,
+    model: Literal["poly", "nlogn"] = "poly",
+) -> tuple[float, float, float]:
+    r"""Computes an estimate of the order of convergence in the least-square sense.
     This assumes that the :math:`(x, y)` pair follows a law of the form
 
     .. math::
 
-        y = m x^p
+        y = c x^p \log^q x
 
-    and estimates the constant :math:`m` and power :math:`p`.
+    and estimates the constant :math:`m` and powers :math:`(p, q)`. The logarithmic
+    part is only computed for the ``nlogn`` model.
     """
     assert x.size == y.size
     if x.size <= 1:
         raise RuntimeError("Need at least two values to estimate order.")
 
     eps = np.finfo(x.dtype).eps
-    c = np.polyfit(np.log10(x + eps), np.log10(y + eps), 1)
-    return 10 ** c[-1], c[-2]
+
+    base = np.e
+    logx = np.log(x + eps)
+    logy = np.log(y + eps)
+
+    if model == "poly":
+        c = np.polyfit(logx, logy, 1)
+        return base ** c[-1], c[-2], 0.0
+    elif model == "nlogn":
+        loglogx = np.log(logx)
+        c, *_ = np.linalg.lstsq(
+            np.hstack([np.ones_like(logx), logx, loglogx]), logy, rcond=None
+        )
+        return base ** c[0], c[1], c[2]
+    else:
+        raise ValueError(
+            f"unsupported 'model': {model} (can be one of 'poly', 'nlogn')"
+        )
 
 
 def estimate_gliding_order_of_convergence(
@@ -412,24 +434,37 @@ def stringify_eoc(*eocs: EOCRecorder) -> str:
 def visualize_eoc(
     filename: PathLike,
     *eocs: EOCRecorder,
-    order: float | None = None,
+    order: float | tuple[float, float] | None = None,
     abscissa: str | Literal[False] = "h",
     ylabel: str | Literal[False] = "Error",
     olabel: str | Literal[False] | None = None,
     enable_legend: bool = True,
     overwrite: bool = True,
 ) -> None:
-    """Plot the given :class:`EOCRecorder` instances in a loglog plot.
+    r"""Plot the given :class:`EOCRecorder` instances in a loglog plot.
 
     :arg filename: output file name for the figure.
-    :arg order: expected order for all the errors recorded in *eocs*.
+    :arg order: expected order for all the errors recorded in *eocs*. If it is
+         single number :math:`p`, we use the model :math:`O(n^p)`. If it is a
+         pair of numbers :math:`(p, q)`, we use the model :math:`O(n^p \log^q n)`.
     :arg abscissa: name for the abscissa.
     """
     if not eocs:
         raise ValueError("no EOCRecorders are provided")
 
-    if order is not None and order <= 0.0:
-        raise ValueError(f"The 'order' should be a non-negative real number: {order}")
+    from numbers import Number
+
+    if order is not None:
+        if isinstance(order, Number) and order <= 0.0:
+            raise ValueError(f"'order' should be non-negative: {order}")
+
+        if isinstance(order, tuple):
+            if len(order) != 2:
+                raise ValueError(f"'order' should be a pair '(p, q)': {order}")
+
+            p, q = order
+            if p <= 0 or q <= 0:
+                raise ValueError(f"'order' should be non-negative: {order}")
 
     from orbitkit.visualization import figure
 
@@ -484,7 +519,20 @@ def visualize_eoc(
         if order is not None and not eocs_have_order:
             max_h, min_e, max_e = extent
 
-            min_h = np.exp(np.log(max_h) + np.log(min_e / max_e) / order)
+            if isinstance(order, Number):
+                # NOTE: solves y = x^p
+                min_h = np.exp(np.log(max_h) + np.log(min_e / max_e) / order)
+            elif isinstance(order, tuple):
+                from scipy.special import lambertw
+
+                # NOTE: solve y = x^p log^q x
+                p, q = order
+                k = max_h**p * np.log(max_h) ** q / (max_e / min_e)
+                k = p / q * k ** (1.0 / q)
+                min_h = np.real(k / lambertw(k)) ** (q / p)
+            else:
+                raise AssertionError
+
             (line,) = ax.loglog(
                 [max_h, min_h],
                 [max_e, min_e],
