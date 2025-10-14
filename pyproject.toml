@@ -41,6 +41,7 @@ dependencies = [
 ]
 # NOTE: this is just here because readthedocs does not know how to read dependency-groups
 optional-dependencies.docs = [
+    "jitcode>=1.7.3",
     "pymbolic>=2024.2",
     "sphinx>=6",
     "sphinx-book-theme",
@@ -57,6 +58,7 @@ test = [ "mypy", "pytest", "ruff", "scipy-stubs" ]
 docs = [ "sphinx>=6", "sphinx-book-theme" ]
 clustering = [ "leidenalg>=0.10" ]
 codegen = [ "pymbolic>=2024.2", "sympy>=1.12" ]
+backends = [ "jax>=0.7", "jitcode>=1.7.3" ]
 visualization = [ "matplotlib", "scienceplots" ]
 
 [tool.ruff]
