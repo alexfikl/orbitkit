@@ -8,6 +8,7 @@ ORBITKIT: Utilities for Dynamical Systems
 
     api
     models
+    codegen
     literature
 
 .. warning::

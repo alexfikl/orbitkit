@@ -179,6 +179,8 @@ autodoc_default_options = {
 
 nitpick_ignore_regex = [
     ["py:class", r"optype.*"],
+    ["py:class", r"symengine.*"],
+    ["py:class", r".*PymbolicToSymEngineMapper"]
 ]
 
 intersphinx_mapping = {
