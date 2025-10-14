@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 import orbitkit.models.symbolic as sym
 from orbitkit.typing import Array
@@ -49,6 +49,11 @@ class Code:
 
 
 class Target(ABC):
+    funcname: ClassVar[str]
+    """The name of the generated function. This should not be seen outside of
+    this code generator.
+    """
+
     def generate_model_code(
         self,
         model: sym.Model,
