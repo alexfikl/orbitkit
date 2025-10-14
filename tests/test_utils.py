@@ -17,7 +17,7 @@ ENABLE_VISUAL = get_environ_boolean("ORBITKIT_ENABLE_VISUAL")
 log = module_logger(__name__)
 set_plotting_defaults()
 
-# {{{ test_estimate_order_of_convergence
+# {{{ test_estimate_scaling
 
 
 @pytest.mark.parametrize(
@@ -29,8 +29,8 @@ set_plotting_defaults()
         (1.0, 2.0),
     ],
 )
-def test_estimate_order_of_convergence(p: float, q: float) -> None:
-    from orbitkit.utils import estimate_order_of_convergence
+def test_estimate_scaling(p: float, q: float) -> None:
+    from orbitkit.utils import estimate_scaling, solve_scaling_line
 
     rng = np.random.default_rng(seed=42)
     sigma = 0.1
@@ -48,11 +48,9 @@ def test_estimate_order_of_convergence(p: float, q: float) -> None:
         y = c * x**p * np.log(x) ** q
         y += sigma * rng.random(y.shape)
 
-        c_est, p_est, q_est = estimate_order_of_convergence(x, y, model="nlogn")
+        c_est, p_est, q_est = estimate_scaling(x, y)
         log.info(
-            "On [%g, %g] expected [%g, %g, %g] got [%g, %g, %g]",
-            xa,
-            xb,
+            "(c, p, q): [%g, %g, %g] estimate [%g, %g, %g]",
             c,
             p,
             q,
@@ -64,6 +62,13 @@ def test_estimate_order_of_convergence(p: float, q: float) -> None:
         assert abs(c - c_est) < 2.0
         assert abs(p - p_est) < 1.0
         assert abs(q - q_est) < 1.0
+
+        xmin, xmax = x[0], x[-1]
+        ymin, ymax = y[0], y[-1]
+
+        (xmin_est, _), _ = solve_scaling_line(xmax, ymin, ymax, order=(p, q))
+        log.info("xmin:      %g estimate %g", xmin, xmin_est)
+        assert abs(xmin - xmin_est) < sigma
 
 
 # }}}

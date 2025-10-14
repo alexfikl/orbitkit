@@ -295,7 +295,7 @@ class EOCRecorder:
             return np.nan
 
         h, error = np.array(self.history).T
-        _, eoc, _ = estimate_order_of_convergence(h, error)
+        _, eoc = estimate_order_of_convergence(h, error)
         return eoc
 
     @property
@@ -308,48 +308,26 @@ class EOCRecorder:
         return stringify_eoc(self)
 
 
-def estimate_order_of_convergence(
-    x: Array,
-    y: Array,
-    *,
-    model: Literal["poly", "nlogn"] = "poly",
-) -> tuple[float, float, float]:
+def estimate_order_of_convergence(x: Array, y: Array) -> tuple[float, float]:
     r"""Computes an estimate of the order of convergence in the least-square sense.
     This assumes that the :math:`(x, y)` pair follows a law of the form
 
     .. math::
 
-        y = c x^p \log^q x
+        y = c x^p
 
-    and estimates the constant :math:`m` and powers :math:`(p, q)`. The logarithmic
-    part is only computed for the ``nlogn`` model.
+    and estimates the constant :math:`c` and power :math:`p`.
     """
     assert x.size == y.size
     if x.size <= 1:
         raise RuntimeError("Need at least two values to estimate order.")
 
     eps = np.finfo(x.dtype).eps
-
-    base = np.e
     logx = np.log(x + eps)
     logy = np.log(y + eps)
 
-    if model == "poly":
-        c = np.polyfit(logx, logy, 1)
-        return base ** c[-1], c[-2], 0.0
-    elif model == "nlogn":
-        if np.any(x < 1.0):
-            raise ValueError("cannot estimate 'nlogn' for x < 1")
-
-        loglogx = np.log(logx + eps)
-        c, *_ = np.linalg.lstsq(
-            np.column_stack([np.ones_like(logx), logx, loglogx]), logy, rcond=None
-        )
-        return base ** c[0], c[1], c[2]
-    else:
-        raise ValueError(
-            f"unsupported 'model': {model} (can be one of 'poly', 'nlogn')"
-        )
+    c = np.polyfit(logx, logy, 1)
+    return np.e ** c[-1], c[-2]
 
 
 def estimate_gliding_order_of_convergence(
@@ -564,6 +542,101 @@ def visualize_eoc(
 
 # }}}
 
+
+# {{{ scaling
+
+
+def estimate_scaling(x: Array, y: Array) -> tuple[float, float, float]:
+    r"""Estimate scaling in the least squared sense.
+
+    This assumes that the :math:`(x, y)` pair follows a law of the form
+
+    .. math::
+
+        y \sim c x^p \log^q x
+
+    and estimates the constant :math:`c` and the powers :math:`(p, q)`. Note that
+    the law assumes that :math:`x > 1`. In most cases of interest, :math:`x`
+    will be the number of degrees of freedom and :math:`y` will be the run time.
+    """
+    assert x.size == y.size
+    if x.size <= 1:
+        raise RuntimeError("need at least two values to estimate scaling")
+
+    if np.any(x <= 1.0):
+        raise ValueError("cannot estimate 'nlogn' for x <= 1")
+
+    # NOTE: this works by taking the log to obtain
+    #
+    #       \log y = \log c + p \log x + q \log \log x
+    #
+    # so then the problem becomes
+    #
+    #       [1, \log x, \log \log x]^T [\log c, p, q] = \log y
+    #
+    # and we can estimate the vector (\log c, p, q) by least squares.
+    logx = np.log(x)
+    logy = np.log(y)
+    loglogx = np.log(logx)
+
+    c, *_ = np.linalg.lstsq(
+        np.column_stack([np.ones_like(logx), logx, loglogx]), logy, rcond=None
+    )
+    return np.e ** c[0], c[1], c[2]
+
+
+def solve_scaling_line(
+    xmax: float,
+    ymin: float,
+    ymax: float,
+    *,
+    order: float | tuple[float, float],
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    r"""Computes *xmin* such that *(xmin, ymin)* and *(xmax, ymax)* follow the law
+
+    .. math::
+
+        y \sim x^p \log^q x
+
+    for the given *order*.
+    """
+    from numbers import Number
+
+    if isinstance(order, Number):
+        order = (order, order)
+
+    if not isinstance(order, tuple):
+        raise TypeError(f"'order' is not a tuple: {type(order)}")
+
+    if len(order) != 2:
+        raise ValueError(f"'order' not a pair (p, q): {order}")
+
+    p, q = order
+    if p < 0 or q < 0:
+        raise ValueError(f"'order' must be non-negative: {order}")
+
+    if xmax <= 0.0:
+        raise ValueError(f"'xmax' must be non-negative: {xmax}")
+
+    if q == 0:
+        xmin = xmax * (ymin / ymax) ** (1.0 / p)
+    else:
+        from scipy.special import lambertw
+
+        z = xmax**p * np.log(xmax) ** q / (ymax / ymin)
+        z = p / q * z ** (1.0 / q)
+
+        # NOTE: the Lambert W function is real on the k = 0 branch for z > -1/e, so
+        # we error out if that is not the case. This should not happen if x > 1.0.
+        if z < -1.0 / np.e:
+            raise ValueError("cannot solve for the provided values")
+
+        xmin = np.real(z / lambertw(z)) ** (q / p)
+
+    return (xmin, xmax), (ymin, ymax)
+
+
+# }}}
 
 # {{{ TicTocTimer
 
