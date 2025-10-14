@@ -338,9 +338,12 @@ def estimate_order_of_convergence(
         c = np.polyfit(logx, logy, 1)
         return base ** c[-1], c[-2], 0.0
     elif model == "nlogn":
-        loglogx = np.log(logx)
+        if np.any(x < 1.0):
+            raise ValueError("cannot estimate 'nlogn' for x < 1")
+
+        loglogx = np.log(logx + eps)
         c, *_ = np.linalg.lstsq(
-            np.hstack([np.ones_like(logx), logx, loglogx]), logy, rcond=None
+            np.column_stack([np.ones_like(logx), logx, loglogx]), logy, rcond=None
         )
         return base ** c[0], c[1], c[2]
     else:
