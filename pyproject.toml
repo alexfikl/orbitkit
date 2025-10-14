@@ -41,8 +41,10 @@ dependencies = [
 ]
 # NOTE: this is just here because readthedocs does not know how to read dependency-groups
 optional-dependencies.docs = [
+    "pymbolic>=2024.2",
     "sphinx>=6",
     "sphinx-book-theme",
+    "sympy>=1.12",
 ]
 
 urls.Documentation = "https://orbitkit.readthedocs.io"
