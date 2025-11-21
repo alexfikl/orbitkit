@@ -54,7 +54,7 @@ class SymEngineMapper(PymbolicToSymEngineMapper):
             result = self.input_map[expr.name]
             assert expr.shape == result.shape
         else:
-            result = super().map_variable(expr)  # type: ignore[no-untyped-call]
+            result = super().map_variable(expr)
 
         return result
 
