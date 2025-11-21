@@ -82,8 +82,36 @@ def linkcode_resolve(domain, info):
     return f"{url}/blob/main/src/{filepath}#L{linestart}-L{linestop}"
 
 
+def process_autodoc_missing_reference(app, env, node, contnode):
+    """Fix missing references due to string annotations."""
+    # NOTE: only classes for now, since we just need some numpy objects
+    if node["reftype"] != "class":
+        return None
+
+    target = node["reftarget"]
+    if target not in custom_type_links:
+        return None
+
+    from sphinx.ext import intersphinx
+
+    inventory, module, reftype = custom_type_links[target]
+    if inventory:
+        node.attributes["py:module"] = module
+        node.attributes["reftype"] = reftype
+
+        return intersphinx.resolve_reference_in_inventory(
+            env, inventory, node, contnode
+        )
+    else:
+        py_domain = env.get_domain("py")
+        return py_domain.resolve_xref(  # type: ignore[assignment,unused-ignore]
+            env, node["refdoc"], app.builder, reftype, target,
+            node, contnode)
+
+
 def setup(app) -> None:
     app.connect("autodoc-process-bases", add_dataclass_annotation)
+    app.connect("missing-reference", process_autodoc_missing_reference)
 
 
 # }}}
@@ -192,6 +220,10 @@ intersphinx_mapping = {
     "rich": ("https://rich.readthedocs.io/en/stable", None),
     "scipy": ("https://docs.scipy.org/doc/scipy", None),
     "sympy": ("https://docs.sympy.org/latest/", None),
+}
+
+custom_type_links = {
+    "Array": (None, "orbitkit.typing", "obj"),
 }
 
 # }}}

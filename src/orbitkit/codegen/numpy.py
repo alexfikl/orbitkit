@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 import numpy as np
+import pytools
 from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
-from pytools import UniqueNameGenerator
 
 import orbitkit.models.symbolic as sym
 from orbitkit.codegen import Code, Target, execute_code
@@ -38,9 +38,9 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     graph. These need to be added as arguments or defined as variables on code
     generation.
     """
-    unique_name_generator: UniqueNameGenerator = field(
+    unique_name_generator: pytools.UniqueNameGenerator = field(
         init=False,
-        default_factory=lambda: UniqueNameGenerator(forced_prefix="_arg"),
+        default_factory=lambda: pytools.UniqueNameGenerator(forced_prefix="_arg"),
     )
     """A name generator for :attr:`array_arguments`."""
 
