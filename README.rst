@@ -6,7 +6,11 @@
     :alt: Documentation
     :target: https://orbitkit.readthedocs.io/en/latest/?badge=latest
 
-|badge-ci| |badge-rtd|
+.. |badge-reuse| image:: https://api.reuse.software/badge/github.com/alexfikl/orbitkit
+    :alt: REUSE
+    :target: https://api.reuse.software/info/github.com/alexfikl/orbitkit
+
+|badge-ci| |badge-rtd| |badge-reuse|
 
 orbitkit
 ========
