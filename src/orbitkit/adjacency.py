@@ -101,6 +101,25 @@ def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
         raise ValueError(f"unknown stringify format: '{fmt}'")
 
 
+ADJACENCY_TYPES = frozenset({
+    "bus",
+    "bus1",
+    "bus2",
+    "configuration",
+    "erdosrenyi",
+    "feedforward",
+    "fractal",
+    "gapjunctions",
+    "lattice",
+    "ring",
+    "ring1",
+    "ring2",
+    "star",
+    "startree",
+    "strogatzwatts",
+})
+
+
 def make_adjacency_matrix_from_name(  # noqa: PLR0911
     n: int,
     topology: str,
@@ -159,7 +178,7 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
         base = "".join(f"{rng.integers(2)}" for _ in range(p))
         return generate_adjacency_fractal(base, nlevels=k, dtype=dtype)
     else:
-        raise ValueError(f"Unknown topology: '{topology}'")
+        raise ValueError(f"unknown topology: '{topology}'")
 
 
 # }}}
