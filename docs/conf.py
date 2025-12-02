@@ -92,12 +92,23 @@ def process_autodoc_missing_reference(app, env, node, contnode):
     if target not in custom_type_links:
         return None
 
-    from sphinx.ext import intersphinx
+    from docutils.nodes import Text
 
-    inventory, module, reftype = custom_type_links[target]
+    inventory, reftarget, reftype = custom_type_links[target]
+    module, objname = reftarget.rsplit(".", maxsplit=1)
+
+    if isinstance(contnode, Text):
+        if app.config.autodoc_typehints_format == "short":
+            contnode = Text(objname)
+        else:
+            contnode = Text(reftarget)
+
     if inventory:
         node.attributes["py:module"] = module
         node.attributes["reftype"] = reftype
+        node.attributes["reftarget"] = reftarget
+
+        from sphinx.ext import intersphinx
 
         return intersphinx.resolve_reference_in_inventory(
             env, inventory, node, contnode
@@ -105,8 +116,8 @@ def process_autodoc_missing_reference(app, env, node, contnode):
     else:
         py_domain = env.get_domain("py")
         return py_domain.resolve_xref(  # type: ignore[assignment,unused-ignore]
-            env, node["refdoc"], app.builder, reftype, target,
-            node, contnode)
+            env, node["refdoc"], app.builder, reftype, target, node, contnode
+        )
 
 
 def setup(app) -> None:
@@ -208,7 +219,7 @@ autodoc_default_options = {
 nitpick_ignore_regex = [
     ["py:class", r"optype.*"],
     ["py:class", r"symengine.*"],
-    ["py:class", r".*PymbolicToSymEngineMapper"]
+    ["py:class", r".*PymbolicToSymEngineMapper"],
 ]
 
 intersphinx_mapping = {
@@ -223,7 +234,11 @@ intersphinx_mapping = {
 }
 
 custom_type_links = {
-    "Array": (None, "orbitkit.typing", "obj"),
+    # numpy
+    "DTypeLike": ("numpy", "numpy.typing.DTypeLike", "obj"),
+    "np.random.Generator": ("numpy", "numpy.random.Generator", "class"),
+    # orbitkit
+    "Array": (None, "orbitkit.typing.Array", "obj"),
 }
 
 # }}}

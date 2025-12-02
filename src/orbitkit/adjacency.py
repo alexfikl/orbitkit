@@ -12,7 +12,7 @@ from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from numpy.typing import DtypeLike
+    from numpy.typing import DTypeLike
 
 log = module_logger(__name__)
 
@@ -125,7 +125,7 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
     topology: str,
     *,
     k: int | None = None,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     """
@@ -186,7 +186,7 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
 # {{{ adjacency matrices
 
 
-def generate_adjacency_all(n: int, *, dtype: DtypeLike = None) -> Array:
+def generate_adjacency_all(n: int, *, dtype: DTypeLike = None) -> Array:
     r"""Generate a all-to-all :math:`n \times n` adjacency matrix."""
     if dtype is None:
         dtype = np.int32
@@ -197,7 +197,7 @@ def generate_adjacency_all(n: int, *, dtype: DtypeLike = None) -> Array:
     return result
 
 
-def generate_adjacency_feed_forward(n: int, *, dtype: DtypeLike = None) -> Array:
+def generate_adjacency_feed_forward(n: int, *, dtype: DTypeLike = None) -> Array:
     r"""Generate a :math:`n \times n` lower triangular adjacency matrix."""
     if dtype is None:
         dtype = np.int32
@@ -206,7 +206,7 @@ def generate_adjacency_feed_forward(n: int, *, dtype: DtypeLike = None) -> Array
     return np.tril(result, k=-1)
 
 
-def generate_adjacency_ring(n: int, *, k: int = 1, dtype: DtypeLike = None) -> Array:
+def generate_adjacency_ring(n: int, *, k: int = 1, dtype: DTypeLike = None) -> Array:
     """Generate a *k*-ring network with :math:`n` nodes.
 
     In this network, each node is connected to its :math:`k` nearest neighbors
@@ -237,7 +237,7 @@ def generate_adjacency_ring(n: int, *, k: int = 1, dtype: DtypeLike = None) -> A
     return result
 
 
-def generate_adjacency_bus(n: int, *, k: int = 1, dtype: DtypeLike = None) -> Array:
+def generate_adjacency_bus(n: int, *, k: int = 1, dtype: DTypeLike = None) -> Array:
     """Generate a bus network with :math:`n` nodes.
 
     In this network, each node is connected to its :math:`k` nearest neighbors
@@ -268,7 +268,7 @@ def generate_adjacency_bus(n: int, *, k: int = 1, dtype: DtypeLike = None) -> Ar
     return result
 
 
-def generate_adjacency_star(n: int, *, dtype: DtypeLike = None) -> Array:
+def generate_adjacency_star(n: int, *, dtype: DTypeLike = None) -> Array:
     """Generate a star network with :math:`n` nodes.
 
     In this network, there is a central node connected to all nodes.
@@ -290,7 +290,7 @@ def generate_adjacency_star_tree(
     n: int,
     *,
     nhubs: int | None = None,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
 ) -> Array:
     """Generate a star of stars network with :math:`n` nodes.
 
@@ -362,7 +362,7 @@ def generate_adjacency_lattice(
     n: int,
     m: int | None = None,
     *,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
 ) -> Array:
     r"""Generate a lattice network with :math:`n` nodes.
 
@@ -400,7 +400,7 @@ def generate_adjacency_erdos_renyi(
     *,
     p: float | None = None,
     k: int | None = None,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     symmetric: bool = True,
     rng: np.random.Generator | None = None,
 ) -> Array:
@@ -452,7 +452,7 @@ def generate_adjacency_strogatz_watts(
     *,
     k: int = 2,
     p: float = 0.1,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     r"""Generate a random Strogatz-Watts :math:`n \times n` adjacency matrix.
@@ -525,7 +525,7 @@ def _make_adjacency_from_groups(
     groups: Array,
     gaps: int | Array,
     *,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
 ) -> tuple[Array, Array, Array]:
     if dtype is None:
         dtype = np.int32
@@ -555,7 +555,7 @@ def generate_adjacency_gap_junctions(
     n: int,
     m: int,
     *,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     alpha: float = 1.0,
     avgsize: int = 9,
     maxsize: int = 21,
@@ -636,7 +636,7 @@ def generate_adjacency_gap_junctions(
     return result
 
 
-def _expand_pattern(base: str, nlevels: int, dtype: DtypeLike = None) -> Array:
+def _expand_pattern(base: str, nlevels: int, dtype: DTypeLike = None) -> Array:
     zeros = "0" * len(base)
     pattern = base
     for _ in range(nlevels - 1):
@@ -650,7 +650,7 @@ def generate_adjacency_fractal(
     base: str,
     *,
     nlevels: int = 4,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
 ) -> Array:
     """Generate a Cantor set-like connectivity based on the *base* pattern.
 
@@ -699,7 +699,7 @@ def generate_adjacency_configuration(
     n: int,
     *,
     degrees: Array | int | None = None,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     """Generate a random :math:`n \times n` adjacency matrix for a configuration
@@ -754,7 +754,7 @@ def generate_adjacency_configuration(
 def generate_random_weights(
     mat: Array,
     *,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     symmetric: bool = False,
     rng: np.random.Generator | None = None,
 ) -> Array:
@@ -778,7 +778,7 @@ def generate_random_weights(
 def generate_random_gaussian_weights(
     mat: Array,
     *,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     sigma: float = 1.0,
     rng: np.random.Generator | None = None,
 ) -> Array:
@@ -790,7 +790,7 @@ def generate_random_gaussian_weights(
         rng = np.random.default_rng()
 
     # generate some random points to compute distances
-    Sigma = rng.random(size=2, dtype=dtype)
+    Sigma = rng.random(size=2, dtype=dtype)  # type: ignore[arg-type]
     Sigma @= Sigma.T
     x = rng.multivariate_normal(np.zeros(2, dtype=dtype), Sigma, size=mat.shape[0])
 
@@ -808,7 +808,7 @@ def generate_random_equal_row_sum(
     mat: Array,
     *,
     alpha: float = 1.0,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     r"""Generate a random weights for the adjacency matrix *mat* with equal row sum.
@@ -845,7 +845,7 @@ def generate_symmetric_random_equal_row_sum(
     *,
     maxit: int = 512,
     atol: float = 1.0e-9,
-    dtype: DtypeLike = None,
+    dtype: DTypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     """This generates a symmetric random matrix with equal row sum of 1.
