@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import time
 
 import numpy as np
 import pytest
@@ -70,6 +71,49 @@ def test_estimate_scaling(p: float, q: float) -> None:
         (xmin_est, _), _ = solve_scaling_line(xmax, ymin, ymax, order=(p, q))
         log.info("xmin:      %g estimate %g", xmin, xmin_est)
         assert abs(xmin - xmin_est) < sigma
+
+
+# }}}
+
+
+# {{{ test_tic_toc_timer
+
+
+def test_tic_toc_timer() -> None:
+    from orbitkit.utils import TicTocTimer
+
+    n = 5
+    tt = TicTocTimer()
+    for _ in range(n):
+        tt.tic()
+        time.sleep(1)
+        tt.toc()
+
+        assert tt.t_wall >= 1.0
+
+    assert tt.n_calls == n
+    assert tt.t_avg >= 1.0
+    assert tt.t_sqr < 0.01
+
+    log.info("timer: %s", tt)
+    log.info("short: %s", tt.short())
+    log.info("stats: %s", tt.stats())
+
+
+# }}}
+
+
+# {{{ test_block_timer
+
+
+def test_block_timer() -> None:
+    from orbitkit.utils import BlockTimer
+
+    with BlockTimer("testing") as bt:
+        time.sleep(1)
+
+    assert bt.t_wall >= 1.0
+    log.info("timer: %s", bt)
 
 
 # }}}
