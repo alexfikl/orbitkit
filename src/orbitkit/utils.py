@@ -320,7 +320,7 @@ def estimate_order_of_convergence(x: Array, y: Array) -> tuple[float, float]:
     """
     assert x.size == y.size
     if x.size <= 1:
-        raise RuntimeError("Need at least two values to estimate order.")
+        raise RuntimeError("need at least two values to estimate order")
 
     eps = np.finfo(x.dtype).eps
     logx = np.log(x + eps)
@@ -335,7 +335,7 @@ def estimate_gliding_order_of_convergence(
 ) -> Array:
     assert x.size == y.size
     if x.size <= 1:
-        raise RuntimeError("Need at least two values to estimate order.")
+        raise RuntimeError("need at least two values to estimate order")
 
     if gliding_mean is None:
         gliding_mean = x.size

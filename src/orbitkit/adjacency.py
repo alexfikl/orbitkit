@@ -95,7 +95,7 @@ def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
 
         return "\n".join(lines)
     else:
-        raise ValueError(f"Unknown stringify format: '{fmt}'")
+        raise ValueError(f"unknown stringify format: '{fmt}'")
 
 
 # }}}
@@ -139,7 +139,7 @@ def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
         return np.zeros((n, n), dtype=dtype)
 
     if not 0 <= k < n:
-        raise ValueError(f"Number of neighbors 'm' is invalid: '{k}' (not in [0, {n})")
+        raise ValueError(f"number of neighbors 'm' is invalid: '{k}' (not in [0, {n})")
 
     # NOTE: this is essentially just a periodic banded matrix
     eye = np.eye(n, dtype=dtype)
@@ -170,7 +170,7 @@ def generate_adjacency_bus(n: int, *, k: int = 1, dtype: Any = None) -> Array:
         return np.zeros((n, n), dtype=dtype)
 
     if not 0 <= k < n:
-        raise ValueError(f"Number of neighbors 'm' is invalid: '{k}' (not in [0, {n}])")
+        raise ValueError(f"number of neighbors 'm' is invalid: '{k}' (not in [0, {n}])")
 
     # NOTE: this is essentially just a non-periodic banded matrix
     ones = np.ones(n, dtype=dtype)
@@ -453,7 +453,7 @@ def _make_adjacency_from_groups(
     n = int(np.sum(groups) + np.sum(gaps))
     if groups.shape != gaps.shape:
         raise ValueError(
-            "Cluster sizes and gap sizes must have the same shape: "
+            "cluster sizes and gap sizes must have the same shape: "
             f"got {groups.shape} and {gaps.shape}"
         )
 
@@ -724,7 +724,7 @@ def generate_symmetric_random_equal_row_sum(
     :arg atol: absolute tolerance for the row and column sums.
     """
     if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
-        raise ValueError(f"Adjacency matrix should be square: {mat.shape}")
+        raise ValueError(f"adjacency matrix should be square: {mat.shape}")
 
     if maxit <= 0:
         raise ValueError(f"'maxit' should be positive: {maxit}")
@@ -779,7 +779,7 @@ def normalize_equal_row_sum(
     # are generated on [0.01, 1], so there is no reason a row would have zero sum
     fac = np.sum(mat, axis=1)
     if np.any(np.abs(fac) < 10 * np.finfo(mat.dtype).eps):
-        raise ValueError("Matrix has a zero sum row")
+        raise ValueError("matrix has a zero sum row")
 
     if diagonal:
         result = mat.copy()

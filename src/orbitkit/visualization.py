@@ -146,7 +146,8 @@ def savefig(
         used.
     :arg normalize: if *True*, use :func:`slugify` to normalize the file name.
         Note that this will slugify any extensions as well and replace them
-        with the default extension.
+        with the default extension. If a certain extension is desired, it should
+        probably be set in ``savefig.format``.
     :arg overwrite: if *True*, any existing files are overwritten.
     :arg kwargs: renaming arguments are passed directly to ``savefig``.
     """
@@ -167,7 +168,7 @@ def savefig(
         filename = filename.with_suffix(f".{ext}").resolve()
 
     if not overwrite and filename.exists():
-        raise FileExistsError(f"Output file '{filename}' already exists")
+        raise FileExistsError(f"output file '{filename}' already exists")
 
     bbox_extra_artists = []
     for ax in fig.axes:
@@ -325,7 +326,7 @@ def write_dot_from_adjacency(
 ) -> None:
     filename = pathlib.Path(filename)
     if not overwrite and filename.exists():
-        raise FileExistsError(f"Output file '{filename}' already exists")
+        raise FileExistsError(f"output file '{filename}' already exists")
 
     if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
         raise ValueError(f"'mat' must be a square matrix: {mat.shape}")

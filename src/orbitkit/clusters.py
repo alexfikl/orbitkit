@@ -100,7 +100,7 @@ def find_clusters_from_weights(
     try:
         import leidenalg
     except ImportError:
-        raise ImportError("Clustering functionality requires 'leidenalg'") from None
+        raise ImportError("clustering functionality requires 'leidenalg'") from None
 
     from igraph import Graph
 
@@ -165,6 +165,6 @@ def find_clusters_from_timeseries(
     elif method == "plv":
         mat = make_plv_weight_matrix(x)
     else:
-        raise ValueError(f"Unknown weight matrix computation 'method': {method}")
+        raise ValueError(f"unknown weight matrix computation 'method': {method}")
 
     return find_clusters_from_weights(mat, gamma=gamma)
