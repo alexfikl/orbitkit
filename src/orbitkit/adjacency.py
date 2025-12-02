@@ -3,13 +3,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.linalg as la
 
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
+
+if TYPE_CHECKING:
+    from numpy.typing import DtypeLike
 
 log = module_logger(__name__)
 
@@ -98,12 +101,73 @@ def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
         raise ValueError(f"unknown stringify format: '{fmt}'")
 
 
+def make_adjacency_matrix_from_name(  # noqa: PLR0911
+    n: int,
+    topology: str,
+    *,
+    k: int | None = None,
+    dtype: DtypeLike = None,
+    rng: np.random.Generator | None = None,
+) -> Array:
+    """
+    :arg k: number of neighbor connections in a ring, bus, or Strogatz-Watts
+        network; average number of neighbors in a Erdős-Rényi network; number of
+        gap junction clusters; number of levels in a fractal network.
+    """
+    if dtype is None:
+        dtype = np.int32
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if topology == "feedforward":
+        return generate_adjacency_feed_forward(n, dtype=dtype)
+    elif topology == "ring":
+        k = 2 if k is None else k
+        return generate_adjacency_ring(n, k=k, dtype=dtype)
+    elif topology == "ring1":
+        return generate_adjacency_ring(n, k=1, dtype=dtype)
+    elif topology == "ring2":
+        return generate_adjacency_ring(n, k=2, dtype=dtype)
+    elif topology == "bus":
+        k = 2 if k is None else k
+        return generate_adjacency_bus(n, k=k, dtype=dtype)
+    elif topology == "bus1":
+        return generate_adjacency_bus(n, k=1, dtype=dtype)
+    elif topology == "bus2":
+        return generate_adjacency_bus(n, k=2, dtype=dtype)
+    elif topology == "star":
+        return generate_adjacency_star(n, dtype=dtype)
+    elif topology == "startree":
+        return generate_adjacency_star_tree(n, dtype=dtype)
+    elif topology == "lattice":
+        return generate_adjacency_lattice(n, dtype=dtype)
+    elif topology == "erdosrenyi":
+        return generate_adjacency_erdos_renyi(n, k=k, dtype=dtype, rng=rng)
+    elif topology == "strogatzwatts":
+        k = 2 if k is None else k
+        return generate_adjacency_strogatz_watts(n, k=k, dtype=dtype, rng=rng)
+    elif topology == "configuration":
+        return generate_adjacency_configuration(n, dtype=dtype, rng=rng)
+    elif topology == "gapjunctions":
+        k = max(int(n // 9) - 1, 1) if k is None else k
+        return generate_adjacency_gap_junctions(n, k, dtype=dtype, rng=rng)
+    elif topology == "fractal":
+        # NOTE: for k levels, we have n = p**{k + 1} nodes in the network
+        k = 4 if k is None else k
+        p = round(n ** (1 / (k + 1)))
+        base = "".join(f"{rng.integers(2)}" for _ in range(p))
+        return generate_adjacency_fractal(base, nlevels=k, dtype=dtype)
+    else:
+        raise ValueError(f"Unknown topology: '{topology}'")
+
+
 # }}}
 
 # {{{ adjacency matrices
 
 
-def generate_adjacency_all(n: int, *, dtype: Any = None) -> Array:
+def generate_adjacency_all(n: int, *, dtype: DtypeLike = None) -> Array:
     r"""Generate a all-to-all :math:`n \times n` adjacency matrix."""
     if dtype is None:
         dtype = np.int32
@@ -114,7 +178,7 @@ def generate_adjacency_all(n: int, *, dtype: Any = None) -> Array:
     return result
 
 
-def generate_adjacency_feed_forward(n: int, *, dtype: Any = None) -> Array:
+def generate_adjacency_feed_forward(n: int, *, dtype: DtypeLike = None) -> Array:
     r"""Generate a :math:`n \times n` lower triangular adjacency matrix."""
     if dtype is None:
         dtype = np.int32
@@ -123,7 +187,7 @@ def generate_adjacency_feed_forward(n: int, *, dtype: Any = None) -> Array:
     return np.tril(result, k=-1)
 
 
-def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
+def generate_adjacency_ring(n: int, *, k: int = 1, dtype: DtypeLike = None) -> Array:
     """Generate a *k*-ring network with :math:`n` nodes.
 
     In this network, each node is connected to its :math:`k` nearest neighbors
@@ -154,7 +218,7 @@ def generate_adjacency_ring(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     return result
 
 
-def generate_adjacency_bus(n: int, *, k: int = 1, dtype: Any = None) -> Array:
+def generate_adjacency_bus(n: int, *, k: int = 1, dtype: DtypeLike = None) -> Array:
     """Generate a bus network with :math:`n` nodes.
 
     In this network, each node is connected to its :math:`k` nearest neighbors
@@ -185,7 +249,7 @@ def generate_adjacency_bus(n: int, *, k: int = 1, dtype: Any = None) -> Array:
     return result
 
 
-def generate_adjacency_star(n: int, *, dtype: Any = None) -> Array:
+def generate_adjacency_star(n: int, *, dtype: DtypeLike = None) -> Array:
     """Generate a star network with :math:`n` nodes.
 
     In this network, there is a central node connected to all nodes.
@@ -207,7 +271,7 @@ def generate_adjacency_star_tree(
     n: int,
     *,
     nhubs: int | None = None,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
 ) -> Array:
     """Generate a star of stars network with :math:`n` nodes.
 
@@ -279,7 +343,7 @@ def generate_adjacency_lattice(
     n: int,
     m: int | None = None,
     *,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
 ) -> Array:
     r"""Generate a lattice network with :math:`n` nodes.
 
@@ -317,7 +381,7 @@ def generate_adjacency_erdos_renyi(
     *,
     p: float | None = None,
     k: int | None = None,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     symmetric: bool = True,
     rng: np.random.Generator | None = None,
 ) -> Array:
@@ -369,7 +433,7 @@ def generate_adjacency_strogatz_watts(
     *,
     k: int = 2,
     p: float = 0.1,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     r"""Generate a random Strogatz-Watts :math:`n \times n` adjacency matrix.
@@ -442,7 +506,7 @@ def _make_adjacency_from_groups(
     groups: Array,
     gaps: int | Array,
     *,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
 ) -> tuple[Array, Array, Array]:
     if dtype is None:
         dtype = np.int32
@@ -472,7 +536,7 @@ def generate_adjacency_gap_junctions(
     n: int,
     m: int,
     *,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     alpha: float = 1.0,
     avgsize: int = 9,
     maxsize: int = 21,
@@ -553,7 +617,7 @@ def generate_adjacency_gap_junctions(
     return result
 
 
-def _expand_pattern(base: str, nlevels: int, dtype: Any = None) -> Array:
+def _expand_pattern(base: str, nlevels: int, dtype: DtypeLike = None) -> Array:
     zeros = "0" * len(base)
     pattern = base
     for _ in range(nlevels - 1):
@@ -567,7 +631,7 @@ def generate_adjacency_fractal(
     base: str,
     *,
     nlevels: int = 4,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
 ) -> Array:
     """Generate a Cantor set-like connectivity based on the *base* pattern.
 
@@ -612,6 +676,57 @@ def generate_adjacency_fractal(
     return mat  # type: ignore[no-any-return]
 
 
+def generate_adjacency_configuration(
+    n: int,
+    *,
+    degrees: Array | int | None = None,
+    dtype: DtypeLike = None,
+    rng: np.random.Generator | None = None,
+) -> Array:
+    """Generate a random :math:`n \times n` adjacency matrix for a configuration
+    model.
+
+    :arg degrees: an array of desired node degrees that should sum up to an even
+        number.
+    """
+
+    if dtype is None:
+        dtype = np.int32
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if degrees is None:
+        degrees = 10
+
+    if isinstance(degrees, int):
+        while True:
+            result = rng.integers(1, degrees, size=n, dtype=dtype)
+            if np.sum(result) % 2 == 0:
+                break
+
+        degrees = result
+
+    if np.sum(degrees) % 2 != 0:
+        raise ValueError(f"degrees should sum up to an even number: {degrees}")
+
+    # create pairwise stubs
+    stubs = np.repeat(np.arange(n), degrees)
+    rng.shuffle(stubs)
+
+    # create adjacency matrix
+    from itertools import batched  # type: ignore[attr-defined]
+
+    result = np.zeros((n, n), dtype=dtype)
+    for i, j in batched(stubs, n=2):
+        if i == j:
+            continue
+
+        result[i, j] = result[j, i] = 1
+
+    return result
+
+
 # }}}
 
 # {{{ weights
@@ -620,7 +735,7 @@ def generate_adjacency_fractal(
 def generate_random_weights(
     mat: Array,
     *,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     symmetric: bool = False,
     rng: np.random.Generator | None = None,
 ) -> Array:
@@ -644,7 +759,7 @@ def generate_random_weights(
 def generate_random_gaussian_weights(
     mat: Array,
     *,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     sigma: float = 1.0,
     rng: np.random.Generator | None = None,
 ) -> Array:
@@ -674,7 +789,7 @@ def generate_random_equal_row_sum(
     mat: Array,
     *,
     alpha: float = 1.0,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     r"""Generate a random weights for the adjacency matrix *mat* with equal row sum.
@@ -711,7 +826,7 @@ def generate_symmetric_random_equal_row_sum(
     *,
     maxit: int = 512,
     atol: float = 1.0e-9,
-    dtype: Any = None,
+    dtype: DtypeLike = None,
     rng: np.random.Generator | None = None,
 ) -> Array:
     """This generates a symmetric random matrix with equal row sum of 1.
