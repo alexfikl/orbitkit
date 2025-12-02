@@ -8,7 +8,8 @@ import pathlib
 import numpy as np
 import pytest
 
-from orbitkit.utils import get_environ_boolean, module_logger, set_plotting_defaults
+from orbitkit.utils import get_environ_boolean, module_logger
+from orbitkit.visualization import set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent

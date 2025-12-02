@@ -137,7 +137,7 @@ try:
 except ImportError:
     raise SystemExit(0) from None
 
-from orbitkit.utils import set_plotting_defaults
+from orbitkit.visualization import figure, rastergram, set_plotting_defaults
 
 dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
@@ -156,8 +156,6 @@ for i in range(n):
         npeaks = len(peaks_i)
         k = i
         log.info("Found neuron %d with %d spikes (?).", i, npeaks)
-
-from orbitkit.visualization import figure, rastergram
 
 with figure(dirname / f"pfeuty_{figname.lower()}", overwrite=True) as fig:
     ax = fig.gca()

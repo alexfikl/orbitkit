@@ -8,7 +8,8 @@ import pathlib
 import numpy as np
 import pytest
 
-from orbitkit.utils import get_environ_boolean, module_logger, set_plotting_defaults
+from orbitkit.utils import get_environ_boolean, module_logger
+from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
@@ -49,8 +50,6 @@ def test_cycles_welch_psd(method: str) -> None:
 
     if not ENABLE_VISUAL:
         return
-
-    from orbitkit.visualization import figure
 
     with figure(TEST_DIRECTORY / f"test_cycles_{method}_psd", normalize=True) as fig:
         ax = fig.gca()

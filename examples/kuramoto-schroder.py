@@ -59,12 +59,15 @@ try:
 except ImportError:
     raise SystemExit(0) from None
 
-from orbitkit.utils import set_plotting_defaults
+from orbitkit.visualization import (
+    figure,
+    set_plotting_defaults,
+    to_color,
+    write_dot_from_adjacency,
+)
 
 dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
-
-from orbitkit.visualization import figure, to_color, write_dot_from_adjacency
 
 with figure(
     dirname / f"kuramoto_{figname.lower()}_solution", figsize=(10, 5), overwrite=True
