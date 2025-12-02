@@ -28,7 +28,7 @@ url = "https://github.com/alexfikl/orbitkit"
 def add_dataclass_annotation(app, name, obj, options, bases):
     from dataclasses import is_dataclass
 
-    if not options.get("show-inheritance", False):
+    if not getattr(options, "show_inheritance", False):
         return
 
     if is_dataclass(obj):
@@ -84,6 +84,7 @@ def linkcode_resolve(domain, info):
 
 def process_autodoc_missing_reference(app, env, node, contnode):
     """Fix missing references due to string annotations."""
+
     # NOTE: only classes for now, since we just need some numpy objects
     if node["reftype"] != "class":
         return None

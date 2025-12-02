@@ -43,7 +43,7 @@ dependencies = [
 optional-dependencies.docs = [
     "jitcode>=1.7.3",
     "pymbolic>=2024.2",
-    "sphinx>=6",
+    "sphinx>=6,<9",
     "sphinx-book-theme",
     "sympy>=1.12",
 ]
@@ -55,7 +55,7 @@ urls.Repository = "https://github.com/alexfikl/orbitkit"
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
 test = [ "mypy", "pytest", "ruff", "scipy-stubs" ]
-docs = [ "sphinx>=6", "sphinx-book-theme" ]
+docs = [ "sphinx>=6,<9", "sphinx-book-theme" ]
 clustering = [ "leidenalg>=0.10" ]
 codegen = [ "pymbolic>=2024.2", "sympy>=1.12" ]
 backends = [ "jax>=0.7", "jitcode>=1.7.3" ]
