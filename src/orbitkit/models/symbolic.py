@@ -9,8 +9,10 @@ from typing import Any, Protocol, TypeAlias
 
 import numpy as np
 import pymbolic.primitives as prim
+from pymbolic.mapper import IdentityMapper as IdentityMapperBase
 from pymbolic.mapper.stringifier import PREC_NONE
 from pymbolic.mapper.stringifier import StringifyMapper as StringifyMapperBase
+from pymbolic.typing import Expression as PymbolicExpression
 
 from orbitkit.typing import Array, DataclassInstanceT
 from orbitkit.utils import module_logger
@@ -206,6 +208,28 @@ class MatrixSymbol(prim.Variable):
         return Reshape(self, shape)
 
 
+@prim.expr_dataclass()
+class VariableWithDelay(prim.Variable):
+    """A variable with a constant delay, e.g. :math:`y(t - \tau)`."""
+
+    tau: Expression
+    """The expression for the delay. This is expected to evaluate to be
+    convertible or evaluate to float.
+    """
+
+
+def var(name: str, tau: Expression | None = None) -> prim.Variable:
+    """
+    :arg name: name of the new variable.
+    :arg tau: optional constant delay. If this is zero or *None*, it is assumed
+        that there is no delay and a standard variable is returned.
+    """
+    if tau is None or tau == 0:
+        return prim.Variable(name)
+    else:
+        return VariableWithDelay(name=name, tau=tau)
+
+
 # }}}
 
 
@@ -231,11 +255,11 @@ gamma = Function("gamma")
 # }}}
 
 
-# {{{ kernels
+# {{{ delay kernels
 
 
 @prim.expr_dataclass()
-class DelayKernel(prim.Variable):
+class DelayKernel(ExpressionNode):
     """A general delay kernel for distributed delay equations."""
 
 
@@ -420,6 +444,52 @@ class TanhRate:
 # }}}
 
 
+# {{{ mappers
+
+
+class IdentityMapper(IdentityMapperBase[[]]):
+    def map_contract(self, expr: Contract) -> PymbolicExpression:
+        aggregate = self.rec_arith(expr.aggregate)
+        if aggregate is expr.aggregate:
+            return expr
+
+        return type(expr)(aggregate=aggregate, axes=expr.axes)
+
+    def map_einstein_summation(self, expr: EinsteinSummation) -> PymbolicExpression:
+        operands = tuple(self.rec_arith(operand) for operand in expr.operands)
+        if all(a is b for a, b in zip(operands, expr.operands, strict=True)):
+            return expr
+
+        return type(expr)(subscripts=expr.subscripts, operands=operands)
+
+    def map_dot_product(self, expr: DotProduct) -> PymbolicExpression:
+        # NOTE: mypy is upset because left/right can also be ndarrays
+        left = self.rec_arith(expr.left)  # type: ignore[arg-type]
+        right = self.rec_arith(expr.right)  # type: ignore[arg-type]
+        if left is expr.left and right is expr.right:
+            return expr
+
+        return type(expr)(left, right)
+
+    def map_reshape(self, expr: Reshape) -> PymbolicExpression:
+        aggregate = self.rec_arith(expr.aggregate)
+        if aggregate is expr.aggregate:
+            return expr
+
+        return type(expr)(aggregate=aggregate, shape=expr.shape)
+
+    def map_variable_with_delay(self, expr: VariableWithDelay) -> PymbolicExpression:
+        tau = self.rec_arith(expr.tau)
+        if tau is expr.tau:
+            return expr
+
+        return type(expr)(expr.name, tau)
+
+    # def map_delay_kernel(self, expr: DelayKernel) -> PymbolicExpression: ...
+
+
+# }}}
+
 # {{{ stringifier
 
 
@@ -429,6 +499,16 @@ class StringifyMapper(StringifyMapperBase[Any]):
 
         result = pretty_symbol(expr.name)
         return str(result)
+
+    def map_variable_with_delay(
+        self, expr: VariableWithDelay, enclosing_prec: int
+    ) -> str:
+        from sympy.printing.pretty.pretty_symbology import pretty_symbol
+
+        name = pretty_symbol(expr.name)
+        tau = self.rec(expr.tau, PREC_NONE)
+
+        return f"{name}[delay={tau}]"
 
     def map_numpy_array(  # noqa: PLR6301
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], enclosing_prec: int
@@ -447,6 +527,11 @@ class StringifyMapper(StringifyMapperBase[Any]):
         left = self.rec(expr.left, PREC_NONE)  # type: ignore[arg-type]
         right = self.rec(expr.right, PREC_NONE)  # type: ignore[arg-type]
         return f"dot({left}, {right})"
+
+    def map_delay_kernel(self, expr: DelayKernel) -> str:  # noqa: PLR6301
+        name = type(expr).__name__[:-6].lower()
+
+        return f"{name}_knl"
 
 
 def stringify(expr: Expression) -> str:
