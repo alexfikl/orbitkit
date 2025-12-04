@@ -38,6 +38,8 @@ dynamical systems, but they're usually a lot bigger. For some Python examples, s
   modeling for computational neuroscientists.
 * `BrainPy <https://github.com/brainpy/BrainPy>`__: flexible framework for
   computational neuroscience with a extensive analysis functionality.
+* `python-control <https://github.com/python-control/python-control>`__: a general
+  library for the analysis of feedback control systems.
 
 However, there are many others in various programming languages.
 `DynamicalSystems.jl <https://github.com/JuliaDynamics/DynamicalSystems.jl>`__
