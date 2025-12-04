@@ -269,7 +269,7 @@ class DiracKernel(DelayKernel):
 
     .. math::
 
-        \mathrm{Dirac}(t) = \delta(t)
+        \mathrm{Dirac}(t; \tau) = \delta(t - \tau).
     """
 
     tau: Expression
@@ -326,7 +326,7 @@ class TriangularKernel(DelayKernel):
             \quad (1 - \epsilon) \tau < t < \tau, \\
         \dfrac{(1 + \epsilon) \tau - t}{(\epsilon \tau)^2}, &
             \quad \tau \le t < (1 + \epsilon) \tau, \\
-        0, & \quad text{otherwise}.
+        0, & \quad \text{otherwise}.
         \end{cases}
     """
 

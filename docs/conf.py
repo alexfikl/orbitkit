@@ -240,6 +240,7 @@ custom_type_links = {
     "np.random.Generator": ("numpy", "numpy.random.Generator", "class"),
     # orbitkit
     "Array": (None, "orbitkit.typing.Array", "obj"),
+    "Expression": (None, "orbitkit.models.symbolic.Expression", "obj"),
 }
 
 # }}}
