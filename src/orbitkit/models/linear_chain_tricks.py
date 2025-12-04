@@ -99,7 +99,14 @@ def transform_uniform_kernel(
     y: prim.Variable,
     replacement: str,
 ) -> dict[str, sym.Expression]:
-    """
+    r"""Transform the uniform kernel into additional delay differential equations.
+
+    .. math::
+
+        \dot{z} = \frac{1}{2 \epsilon \tau} (
+            y(t - (1 - \epsilon) \tau) - y(t - (1 + \epsilon) \tau)
+        ).
+
     :returns: a mapping of variable names to equations. One of these variable
         names is the provided *replacement* name and other can be derived from it.
     """
@@ -117,7 +124,18 @@ def transform_triangular_kernel(
     y: prim.Variable,
     replacement: str,
 ) -> dict[str, sym.Expression]:
-    """
+    r"""Transform the triangular kernel into additional delay differential equations.
+
+    .. math::
+
+        \begin{aligned}
+        \dot{z} & = \frac{w}{(\epsilon \tau)^2}, \\
+        \dot{w} & =
+            y(t - (1 - \epsilon) \tau)
+            - 2 y(t - \tau)
+            + y(t - (1 + \epsilon) \tau).
+        \end{aligned}
+
     :returns: a mapping of variable names to equations. One of these variable
         names is the provided *replacement* name and other can be derived from it.
     """
@@ -139,7 +157,16 @@ def transform_gamma_kernel(
     y: prim.Variable,
     replacement: str,
 ) -> dict[str, sym.Expression]:
-    """
+    r"""Transform the Gamma kernel into additional ordinary differential equations.
+
+    .. math::
+
+        \begin{aligned}
+        \dot{z}_p & = \alpha (z_{p - 1} - z_p), \\
+        \dots & \\
+        \dot{z}_1 & = \alpha (y - z_1).
+        \end{aligned}
+
     :returns: a mapping of variable names to equations. One of these variable
         names is the provided *replacement* name and other can be derived from it.
     """
@@ -148,16 +175,20 @@ def transform_gamma_kernel(
     if p == 1:
         z = replacement
         return {z: alpha * (y - sym.var(z))}
-    elif p == 2:
+    elif isinstance(p, int):
         z = replacement
-        w = f"{replacement}_0"
+        zs = (replacement, *(f"{replacement}_{k}" for k in range(p - 1)))
+
         return {
-            z: alpha * (sym.var(w) - sym.var(z)),
-            w: alpha * (y - sym.var(w)),
+            **{
+                zs[k]: alpha * (sym.var(zs[k - 1]) - sym.var(zs[k]))
+                for k in range(1, p)
+            },
+            zs[p - 1]: alpha * (y - sym.var(zs[p - 1])),
         }
     else:
         raise NotImplementedError(
-            f"linear chain trick for Gamma kernel of order p = {p}"
+            f"linear chain trick for Gamma kernel of order p = {p!r}"
         )
 
 
