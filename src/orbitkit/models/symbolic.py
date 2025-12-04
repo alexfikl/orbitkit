@@ -225,9 +225,94 @@ exp = Function("exp")
 """The exponential function."""
 tanh = Function("tanh")
 """The hyperbolic tangent function."""
+gamma = Function("gamma")
+"""The Gamma function."""
 
 # }}}
 
+
+# {{{ kernels
+
+
+@prim.expr_dataclass()
+class DelayKernel(prim.Variable):
+    """A general delay kernel for distributed delay equations."""
+
+
+@prim.expr_dataclass()
+class DiracKernel(DelayKernel):
+    r"""A delay kernel based on the Dirac distribution.
+
+    .. math::
+
+        \mathrm{Dirac}(t) = \delta(t)
+    """
+
+    tau: Expression
+    """Average delay of the kernel."""
+
+
+@prim.expr_dataclass()
+class GammaKernel(DelayKernel):
+    r"""A delay kernel based on the Gamma distribution.
+
+    .. math::
+
+        \mathrm{Gamma}(t; p, \alpha) =
+            \frac{\alpha^p}{\Gamma(p)} t^{p - 1} e^{-\alpha t}.
+
+    The average delay is given by :math:`\tau = p / \alpha`.
+    """
+
+    p: float
+    """Shape parameter of the distribution."""
+    alpha: Expression
+    """Rate parameter of the distribution."""
+
+
+@prim.expr_dataclass()
+class UniformKernel(DelayKernel):
+    r"""A delay kernel based on the uniform distribution.
+
+    .. math::
+
+        \mathrm{Uniform}(t; \epsilon, \tau) =
+        \begin{cases}
+        \dfrac{1}{2 \epsilon \tau}, &
+            \quad (1 - \epsilon) \tau < t < (1 + \epsilon) \tau, \\
+        0, & \quad \text{otherwise}.
+        \end{cases}
+    """
+
+    epsilon: Expression
+    """Parameter controlling the width of the plateau."""
+    tau: Expression
+    """Average delay of the kernel."""
+
+
+@prim.expr_dataclass()
+class TriangularKernel(DelayKernel):
+    r"""A delay kernel based on the triangular distribution.
+
+    .. math::
+
+        \mathrm{Triangular}(t; \epsilon, \tau) =
+        \begin{cases}
+        \dfrac{t - (1 - \epsilon) \tau}{(\epsilon \tau)^2}, &
+            \quad (1 - \epsilon) \tau < t < \tau, \\
+        \dfrac{(1 + \epsilon) \tau - t}{(\epsilon \tau)^2}, &
+            \quad \tau \le t < (1 + \epsilon) \tau, \\
+        0, & \quad text{otherwise}.
+        \end{cases}
+    """
+
+    epsilon: Expression
+    """Parameter controlling the width of the base of the triangle."""
+    tau: Expression
+    """Average delay of the kernel."""
+
+
+# }}}
 
 # {{{ parametrized functions
 
