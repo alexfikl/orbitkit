@@ -221,6 +221,8 @@ nitpick_ignore_regex = [
     ["py:class", r"optype.*"],
     ["py:class", r"symengine.*"],
     ["py:class", r".*PymbolicToSymEngineMapper"],
+    # https://github.com/sphinx-doc/sphinx/issues/14159
+    ["py:class", r".*list\[tuple\[float"],
 ]
 
 intersphinx_mapping = {
