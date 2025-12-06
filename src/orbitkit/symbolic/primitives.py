@@ -164,7 +164,7 @@ class MatrixSymbol(prim.Variable):
 
 
 @prim.expr_dataclass()
-class VariableWithDelay(prim.Variable):
+class VariableWithDelay(Variable):
     """A variable with a constant delay, e.g. :math:`y(t - \tau)`."""
 
     tau: Expression
@@ -219,7 +219,7 @@ class DelayKernel(ExpressionNode):
 
 
 @prim.expr_dataclass()
-class DiracKernel(DelayKernel):
+class DiracDelayKernel(DelayKernel):
     r"""A delay kernel based on the Dirac distribution.
 
     .. math::
@@ -232,7 +232,7 @@ class DiracKernel(DelayKernel):
 
 
 @prim.expr_dataclass()
-class GammaKernel(DelayKernel):
+class GammaDelayKernel(DelayKernel):
     r"""A delay kernel based on the Gamma distribution.
 
     .. math::
@@ -250,7 +250,7 @@ class GammaKernel(DelayKernel):
 
 
 @prim.expr_dataclass()
-class UniformKernel(DelayKernel):
+class UniformDelayKernel(DelayKernel):
     r"""A delay kernel based on the uniform distribution.
 
     .. math::
@@ -270,7 +270,7 @@ class UniformKernel(DelayKernel):
 
 
 @prim.expr_dataclass()
-class TriangularKernel(DelayKernel):
+class TriangularDelayKernel(DelayKernel):
     r"""A delay kernel based on the triangular distribution.
 
     .. math::

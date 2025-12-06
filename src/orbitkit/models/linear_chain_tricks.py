@@ -39,20 +39,21 @@ class DelayKernelReplacer(IdentityMapper):
 
         if isinstance(func, sym.DelayKernel):
             # NOTE: we're naming variables like `z_dirac_n`
-            prefix = type(func).__name__[:-6].lower()
-            z = prim.Variable(self.unique_name_generator(f"z_{prefix}"))
+            z = prim.Variable(self.unique_name_generator("_z"))
 
             (y,) = expr.parameters
             assert isinstance(y, prim.Variable)
 
-            if isinstance(func, sym.DiracKernel):
+            if isinstance(func, sym.DiracDelayKernel):
                 return sym.var(y.name, func.tau)
-            elif isinstance(func, sym.UniformKernel):
-                self.equations.update(transform_uniform_kernel(func, y, z.name))
-            elif isinstance(func, sym.TriangularKernel):
-                self.equations.update(transform_triangular_kernel(func, y, z.name))
-            elif isinstance(func, sym.GammaKernel):
-                self.equations.update(transform_gamma_kernel(func, y, z.name))
+            elif isinstance(func, sym.UniformDelayKernel):
+                self.equations.update(transform_uniform_delay_kernel(func, y, z.name))
+            elif isinstance(func, sym.TriangularDelayKernel):
+                self.equations.update(
+                    transform_triangular_delay_kernel(func, y, z.name)
+                )
+            elif isinstance(func, sym.GammaDelayKernel):
+                self.equations.update(transform_gamma_delay_kernel(func, y, z.name))
             else:
                 raise TypeError(f"unsupported delay kernel: {type(func)}")
 
@@ -61,7 +62,9 @@ class DelayKernelReplacer(IdentityMapper):
             return super().map_call(expr)
 
 
-def transform_delay_kernels(expr: Array) -> tuple[Array, Mapping[str, sym.Expression]]:
+def transform_delay_kernels(
+    expr: sym.Expression | Array,
+) -> tuple[sym.Expression | Array, Mapping[str, sym.Expression]]:
     """Replace all distributed delay kernels with additional differential equations.
 
     The transformations can be found in [Macdonald2013]_. The supported kernels are
@@ -95,8 +98,8 @@ def transform_delay_kernels(expr: Array) -> tuple[Array, Mapping[str, sym.Expres
 # {{{ linear chain tricks
 
 
-def transform_uniform_kernel(
-    kernel: sym.UniformKernel,
+def transform_uniform_delay_kernel(
+    kernel: sym.UniformDelayKernel,
     y: prim.Variable,
     replacement: str,
 ) -> dict[str, sym.Expression]:
@@ -120,8 +123,8 @@ def transform_uniform_kernel(
     }
 
 
-def transform_triangular_kernel(
-    kernel: sym.TriangularKernel,
+def transform_triangular_delay_kernel(
+    kernel: sym.TriangularDelayKernel,
     y: prim.Variable,
     replacement: str,
 ) -> dict[str, sym.Expression]:
@@ -153,8 +156,8 @@ def transform_triangular_kernel(
     }
 
 
-def transform_gamma_kernel(
-    kernel: sym.GammaKernel,
+def transform_gamma_delay_kernel(
+    kernel: sym.GammaDelayKernel,
     y: prim.Variable,
     replacement: str,
 ) -> dict[str, sym.Expression]:
@@ -182,8 +185,8 @@ def transform_gamma_kernel(
 
         return {
             **{
-                zs[k]: alpha * (sym.var(zs[k - 1]) - sym.var(zs[k]))
-                for k in range(1, p)
+                zs[k]: alpha * (sym.var(zs[k + 1]) - sym.var(zs[k]))
+                for k in range(p - 1)
             },
             zs[p - 1]: alpha * (y - sym.var(zs[p - 1])),
         }
