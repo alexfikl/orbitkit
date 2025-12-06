@@ -114,8 +114,8 @@ class WalkMapper(WalkMapperBase[[]]):
         if not self.visit(expr):
             return
 
-        self.rec(expr.left)
-        self.rec(expr.right)
+        self.rec(expr.left)  # type: ignore[arg-type]
+        self.rec(expr.right)  # type: ignore[arg-type]
         self.post_visit(expr)
 
     def map_variable_with_delay(self, expr: sym.VariableWithDelay, /) -> None:

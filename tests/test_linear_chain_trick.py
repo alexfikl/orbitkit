@@ -25,10 +25,10 @@ set_plotting_defaults()
 
 class DelayFinder(WalkMapper):
     def __init__(self) -> None:
-        self.variables = set()
-        self.kernels = set()
+        self.variables: set[sym.VariableWithDelay] = set()
+        self.kernels: set[sym.DelayKernel] = set()
 
-    def visit(self, expr: sym.Expression) -> bool:
+    def visit(self, expr: object) -> bool:
         if isinstance(expr, sym.VariableWithDelay):
             self.variables.add(expr)
         elif isinstance(expr, sym.DelayKernel):
@@ -67,7 +67,7 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
 
     # check that the remaining variables / kernels match expectations
     finder = DelayFinder()
-    finder(result)
+    finder(result)  # type: ignore[arg-type]
     for eq in equations.values():
         finder(eq)
 
