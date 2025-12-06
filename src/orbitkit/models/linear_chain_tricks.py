@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pymbolic.primitives as prim
 from pymbolic.typing import Expression
 
@@ -194,6 +195,124 @@ def transform_gamma_delay_kernel(
         raise NotImplementedError(
             f"linear chain trick for Gamma kernel of order p = {p!r}"
         )
+
+
+# }}}
+
+
+# {{{ approximate_soe_gamma_kernel
+
+
+def approximate_soe_range(
+    p: float,
+    alpha: float,
+    tstart: float = 0.0,
+    tfinal: float | None = None,
+    *,
+    dt: float | None,
+    rtol: float = 1.0e-8,
+) -> Array:
+    """Approximate a range over which to fit a sum of exponentials approximation.
+
+    See :func:`approximate_gamma_kernel`.
+    """
+    import scipy.stats as ss
+
+    if not 0 < rtol < 1:
+        raise ValueError(f"tolerance 'rtol' not in (0, 1): {rtol}")
+
+    if tfinal is None:
+        # NOTE: use the inverse CDF to get a good guess of when we're at tolerance
+        tfinal = ss.gamma.ppf(1.0 - rtol, a=p, scale=1.0 / alpha)
+        tfinal = max(tfinal, tstart + 1.0)
+
+    if dt is None:
+        # NOTE: this is the variance of the Gamma distribution
+        sigma = np.sqrt(p) / alpha
+        dt = min(sigma / 20.0, 1.0e-2 * (tfinal - tstart))
+
+    if tstart >= tfinal:
+        raise ValueError(f"'tstart' ({tstart}) > 'tfinal' ({tfinal})")
+
+    return np.arange(tstart, tfinal, dt)
+
+
+def approximate_soe_gamma_kernel(
+    t: Array,
+    p: float,
+    alpha: float,
+    *,
+    n: int | None = None,
+) -> tuple[Array, Array]:
+    r"""Create a sum of exponentials approximation of the
+    :math:`\mathrm{Gamma}(t; p, \alpha)` kernel.
+
+    .. math::
+
+        \mathrm{Gamma}(t; p, \alpha) =
+            \frac{\alpha^p}{\Gamma(p)} t^{p - 1} e^{-\alpha t}.
+
+    The Gamma kernel is approximated using a sum of exponentials as
+
+    .. math::
+
+        \mathrm{Gammma}(t; p, \alpha) \approx
+            \sum_{k = 0}^{n - 1} w_i e^{\lambda_i t}
+
+    over the provided interval.
+
+    :arg t: time points at which to fit the Gamma kernel.
+    :arg p: shape parameter of the Gamma kernel.
+    :arg alpha: rate parameter of the Gamma kernel.
+    :arg n: number of exponentials in the approximation.
+    :returns: a tuple of ``(w, \lambda)`` of weights and rates for the sum of
+        exponentials approximation.
+    """
+    if p <= 1:
+        raise ValueError(f"shape parameter 'p' must be >= 1: {p}")
+
+    if alpha <= 0:
+        raise ValueError(f"rate parameter 'alpha' must be positive: {alpha}")
+
+    if n is None:
+        n = int(p) + 5
+
+    if n <= 0:
+        raise ValueError(f"number of terms 'n' must be positive: {n}")
+
+    from scipy.special import gamma
+
+    x = t
+    y = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * x)
+
+    # {{{ perform fit with variable projection + least squares
+
+    from scipy.optimize import least_squares
+
+    def fit_weights(loglambdas: Array) -> tuple[Array, Array]:
+        lambdas = np.exp(loglambdas)
+        A = np.exp(-lambdas[None, :] * x[:, None])
+        w, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
+        return A, w
+
+    def residuals(loglambdas: Array) -> Array:
+        A, w = fit_weights(loglambdas)
+        return A @ w - y  # type: ignore[no-any-return]
+
+    peak = max((p - 1) / alpha, np.min(np.diff(x)))
+
+    min_rate = 1.0 / x[-1]
+    max_rate = 1.0 / (0.5 * peak)
+    lambdas0 = np.logspace(np.log10(min_rate), np.log10(max_rate), n)
+
+    result = least_squares(residuals, np.log(lambdas0), method="lm")
+
+    lambdas = np.exp(result.x)
+    _, w = fit_weights(result.x)
+
+    # }}}
+
+    return w, lambdas
 
 
 # }}}
