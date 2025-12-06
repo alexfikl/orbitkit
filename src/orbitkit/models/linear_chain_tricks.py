@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 import pymbolic.primitives as prim
 from pymbolic.typing import Expression
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.symbolic.mappers import IdentityMapper
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -23,7 +24,7 @@ log = module_logger(__name__)
 # {{{ apply
 
 
-class DelayKernelReplacer(sym.IdentityMapper):
+class DelayKernelReplacer(IdentityMapper):
     equations: dict[str, sym.Expression]
     unique_name_generator: UniqueNameGenerator
 

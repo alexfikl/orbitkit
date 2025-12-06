@@ -9,7 +9,8 @@ from functools import cached_property
 import numpy as np
 import pymbolic.primitives as prim
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.models import Model
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -20,7 +21,7 @@ log = module_logger(__name__)
 
 
 @dataclass(frozen=True)
-class FitzHughNagumoOmelchenko(sym.Model):
+class FitzHughNagumoOmelchenko(Model):
     r"""Right-hand side of a network FitzHugh-Nagumo model from [Omelchenko2013]_.
 
     .. math::
@@ -152,7 +153,7 @@ def get_registered_parameters() -> tuple[str, ...]:
     return tuple(FITZHUGH_NAGUMO_MODEL)
 
 
-def make_model_from_name(name: str) -> sym.Model:
+def make_model_from_name(name: str) -> Model:
     return FITZHUGH_NAGUMO_MODEL[name]
 
 

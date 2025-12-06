@@ -10,8 +10,8 @@ import numpy as np
 import pymbolic.primitives as prim
 import pytest
 
+from orbitkit.models import Model
 from orbitkit.models.kuramoto import KuramotoAbrams
-from orbitkit.models.symbolic import Model
 from orbitkit.typing import Array
 from orbitkit.utils import get_environ_boolean, module_logger
 from orbitkit.visualization import set_plotting_defaults

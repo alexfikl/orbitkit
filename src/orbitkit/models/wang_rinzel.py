@@ -7,7 +7,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.models import Model
+from orbitkit.models.rate_functions import ExponentialRate, RateFunction, SigmoidRate
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -42,7 +44,7 @@ class WangRinzelParameter:
 
 
 @dataclass(frozen=True)
-class WangRinzel(sym.Model):
+class WangRinzel(Model):
     r"""Right-hand side of the Wang-Rinzel model from [WangRinzel1992]_.
 
     .. math::
@@ -72,13 +74,13 @@ class WangRinzel(sym.Model):
     A: Array | sym.MatrixSymbol
     """A connection matrix for the synaptic current."""
 
-    minf: sym.RateFunction
+    minf: RateFunction
     r""":math:`m_\infty` activation function used in the membrane potential equation."""
-    sinf: sym.RateFunction
+    sinf: RateFunction
     r""":math:`s_\infty` activation function used in the membrane potential equation."""
-    hinf: sym.RateFunction
+    hinf: RateFunction
     r""":math:`h_\infty` activation function used in the :math:`h` equation."""
-    betah: sym.RateFunction
+    betah: RateFunction
     r""":math:`\tau_h = h_\infty / \beta_h` activation function used in the
     :math:`h` equation."""
 
@@ -221,10 +223,10 @@ def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
             V_threshold=-40.0,
             phi=3.0,
         ),
-        minf=sym.SigmoidRate(1.0, -65.0, 7.8),
-        sinf=sym.SigmoidRate(1.0, theta_syn, 2.0),
-        hinf=sym.SigmoidRate(1.0, -81.0, -11.0),
-        betah=sym.ExponentialRate(1.0, -162.3, 17.8),
+        minf=SigmoidRate(1.0, -65.0, 7.8),
+        sinf=SigmoidRate(1.0, theta_syn, 2.0),
+        hinf=SigmoidRate(1.0, -81.0, -11.0),
+        betah=ExponentialRate(1.0, -162.3, 17.8),
     )
 
 
@@ -250,10 +252,10 @@ WANG_RINZEL_MODEL = {
             phi=2.0,
             k_r=0.005,
         ),
-        minf=sym.SigmoidRate(1.0, -65.0, 7.8),
-        sinf=sym.SigmoidRate(1.0, -35.0, 2.0),
-        hinf=sym.SigmoidRate(1.0, -81.0, -11.0),
-        betah=sym.ExponentialRate(1.0, -162.3, 17.8),
+        minf=SigmoidRate(1.0, -65.0, 7.8),
+        sinf=SigmoidRate(1.0, -35.0, 2.0),
+        hinf=SigmoidRate(1.0, -81.0, -11.0),
+        betah=ExponentialRate(1.0, -162.3, 17.8),
     ),
 }
 

@@ -14,7 +14,7 @@ import symengine as sp
 from pymbolic import primitives as prim
 from pymbolic.interop.symengine import PymbolicToSymEngineMapper
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Code
 from orbitkit.codegen.numpy import NumpyCodeGenerator, NumpyTarget
 from orbitkit.typing import Array

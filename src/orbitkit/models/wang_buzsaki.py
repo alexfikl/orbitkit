@@ -9,7 +9,14 @@ from functools import cached_property
 import numpy as np
 import pymbolic.primitives as prim
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.models import Model
+from orbitkit.models.rate_functions import (
+    ExponentialRate,
+    LinearExpm1Rate,
+    RateFunction,
+    SigmoidRate,
+)
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -52,7 +59,7 @@ class WangBuzsakiParameter:
 
 
 @dataclass(frozen=True)
-class WangBuzsaki(sym.Model):
+class WangBuzsaki(Model):
     r"""Right-hand side of the Wang-Buzsáki model from [Wang1996]_.
 
     .. math::
@@ -83,13 +90,13 @@ class WangBuzsaki(sym.Model):
     A: Array | sym.MatrixSymbol
     """An adjacency matrix for the synaptic current."""
 
-    fpre: sym.RateFunction
+    fpre: RateFunction
     """Normalized concentration of the post-synaptic transmitter-receptor complex."""
-    alpha: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
+    alpha: tuple[RateFunction, RateFunction, RateFunction]
     r"""Rate functions (closed to open) for the Wang-Buzsáki model:
     :math:`(\alpha_m, \alpha_h, \alpha_n)`.
     """
-    beta: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
+    beta: tuple[RateFunction, RateFunction, RateFunction]
     r"""Rate functions (open to closed) for the Wang-Buzsáki model:
     :math:`(\beta_m, \beta_h, \beta_n)`.
     """
@@ -204,17 +211,17 @@ def _make_wang_buzsaki_1996_model(phi: float = 5.0) -> WangBuzsaki:
         ),
         alpha=(
             # alpha_m, alpha_h, alpha_n
-            sym.LinearExpm1Rate(0.1, 3.5, -35.0, 10.0),
-            sym.ExponentialRate(0.07, -58.0, 20.0),
-            sym.LinearExpm1Rate(0.01, 0.34, -34.0, 10.0),
+            LinearExpm1Rate(0.1, 3.5, -35.0, 10.0),
+            ExponentialRate(0.07, -58.0, 20.0),
+            LinearExpm1Rate(0.01, 0.34, -34.0, 10.0),
         ),
         beta=(
             # beta_m, beta_h, beta_n
-            sym.ExponentialRate(4.0, -60.0, 18.0),
-            sym.SigmoidRate(1.0, -28.0, 10.0),
-            sym.ExponentialRate(0.125, -44.0, 80.0),
+            ExponentialRate(4.0, -60.0, 18.0),
+            SigmoidRate(1.0, -28.0, 10.0),
+            ExponentialRate(0.125, -44.0, 80.0),
         ),
-        fpre=sym.SigmoidRate(1.0, 0.0, 2.0),
+        fpre=SigmoidRate(1.0, 0.0, 2.0),
     )
 
 

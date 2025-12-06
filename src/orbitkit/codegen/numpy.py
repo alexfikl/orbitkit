@@ -11,7 +11,7 @@ import numpy as np
 import pytools
 from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Code, Target, execute_code
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger

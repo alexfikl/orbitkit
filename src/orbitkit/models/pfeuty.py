@@ -9,7 +9,15 @@ from functools import cached_property
 import numpy as np
 import pymbolic.primitives as prim
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.models import Model
+from orbitkit.models.rate_functions import (
+    ExponentialRate,
+    LinearExpm1Rate,
+    RateFunction,
+    SigmoidRate,
+    TanhRate,
+)
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -53,7 +61,7 @@ class PfeutyParameter:
 
 
 @dataclass(frozen=True)
-class Pfeuty(sym.Model):
+class Pfeuty(Model):
     r"""Right-hand side of the Pfeuty model from [Pfeuty2007]_.
 
     .. math::
@@ -95,13 +103,13 @@ class Pfeuty(sym.Model):
     A_gap: Array | sym.MatrixSymbol
     """An adjacency matrix for the electric synaptic current."""
 
-    alpha_s: sym.RateFunction
+    alpha_s: RateFunction
     """Normalized concentration of the post-synaptic transmitter-receptor complex."""
-    alpha: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
+    alpha: tuple[RateFunction, RateFunction, RateFunction]
     r"""Rate functions (closed to open) for the Pfeuty model:
     :math:`(\alpha_m, \alpha_h, \alpha_n)`.
     """
-    beta: tuple[sym.RateFunction, sym.RateFunction, sym.RateFunction]
+    beta: tuple[RateFunction, RateFunction, RateFunction]
     r"""Rate functions (open to closed) for the Pfeuty model:
     :math:`(\beta_m, \beta_h, \beta_n)`.
     """
@@ -267,18 +275,18 @@ def _make_pfeuty_2007_model(g_inh: float) -> Pfeuty:
             V_threshold=-52.0,
             tau_inh=3.0,
         ),
-        alpha_s=sym.TanhRate(50.0, 0.0, 4.0),
+        alpha_s=TanhRate(50.0, 0.0, 4.0),
         alpha=(
             # alpha_m, alpha_h, alpha_n
-            sym.LinearExpm1Rate(0.1, 3.5, -35.0, 10.0),
-            sym.ExponentialRate(0.21, -58.0, 20.0),
-            sym.LinearExpm1Rate(0.03, 0.03 * 34.0, -34.0, 10.0),
+            LinearExpm1Rate(0.1, 3.5, -35.0, 10.0),
+            ExponentialRate(0.21, -58.0, 20.0),
+            LinearExpm1Rate(0.03, 0.03 * 34.0, -34.0, 10.0),
         ),
         beta=(
             # beta_m, beta_h, beta_n
-            sym.ExponentialRate(4.0, -60.0, 18.0),
-            sym.SigmoidRate(3.0, -28.0, 10.0),
-            sym.ExponentialRate(0.375, -44.0, 80.0),
+            ExponentialRate(4.0, -60.0, 18.0),
+            SigmoidRate(3.0, -28.0, 10.0),
+            ExponentialRate(0.375, -44.0, 80.0),
         ),
     )
 

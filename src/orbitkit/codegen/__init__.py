@@ -8,7 +8,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.models import Model
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -56,7 +57,7 @@ class Target(ABC):
 
     def generate_model_code(
         self,
-        model: sym.Model,
+        model: Model,
         n: int | tuple[int, ...] | None = None,
         *,
         pretty: bool = False,
@@ -116,7 +117,7 @@ class Target(ABC):
         """
 
     def lambdify_model(
-        self, model: sym.Model, n: int | tuple[int, ...] | None = None
+        self, model: Model, n: int | tuple[int, ...] | None = None
     ) -> Callable[[float, Array], Array]:
         code = self.generate_model_code(model, n)
         return self.lambdify(code)

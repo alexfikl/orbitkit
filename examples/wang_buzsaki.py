@@ -8,8 +8,8 @@ from dataclasses import replace
 
 import numpy as np
 
+import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen.numpy import NumpyTarget
-from orbitkit.models.symbolic import MatrixSymbol
 from orbitkit.models.wang_buzsaki import make_model_from_name
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
@@ -34,7 +34,7 @@ target = NumpyTarget()
 source = target.lambdify_model(model, model.n)
 
 # NOTE: lambdify rate functions to get the steady state for the gating variables
-V = MatrixSymbol("V", (n,))
+V = sym.MatrixSymbol("V", (n,))
 hinf = target.lambdify(target.generate_code((V,), model.hinf(V)))
 ninf = target.lambdify(target.generate_code((V,), model.ninf(V)))
 sinf = target.lambdify(target.generate_code((V,), model.sinf(V)))

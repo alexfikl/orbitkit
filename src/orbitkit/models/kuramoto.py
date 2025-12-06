@@ -8,7 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import pymbolic.primitives as prim
 
-import orbitkit.models.symbolic as sym
+import orbitkit.symbolic.primitives as sym
+from orbitkit.models import Model
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -24,7 +25,7 @@ def shift_kuramoto_angle(theta: Array) -> Array:
 
 
 @dataclass(frozen=True)
-class Kuramoto(sym.Model):
+class Kuramoto(Model):
     r"""Right-hand side of the classic Kuramoto model from [Kuramoto1984]_.
 
     .. math::
@@ -103,7 +104,7 @@ class Kuramoto(sym.Model):
 
 
 @dataclass(frozen=True)
-class KuramotoAbrams(sym.Model):
+class KuramotoAbrams(Model):
     r"""Right-hand side of the Kuramoto-like Abrams model from [Abrams2008]_.
 
     .. math::
@@ -236,7 +237,7 @@ def get_registered_parameters() -> tuple[str, ...]:
     return tuple(KURAMOTO_MODEL)
 
 
-def make_model_from_name(name: str) -> sym.Model:
+def make_model_from_name(name: str) -> Model:
     return KURAMOTO_MODEL[name]
 
 
