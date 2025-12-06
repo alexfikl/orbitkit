@@ -165,7 +165,7 @@ class MatrixSymbol(prim.Variable):
 
 @prim.expr_dataclass()
 class VariableWithDelay(Variable):
-    """A variable with a constant delay, e.g. :math:`y(t - \tau)`."""
+    r"""A variable with a constant delay, e.g. :math:`y(t - \tau)`."""
 
     tau: Expression
     """The expression for the delay. This is expected to evaluate to be

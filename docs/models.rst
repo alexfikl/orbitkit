@@ -42,3 +42,5 @@ Symbolic Utilities
 .. automodule:: orbitkit.models
 
 .. automodule:: orbitkit.models.rate_functions
+
+.. automodule:: orbitkit.models.linear_chain_tricks

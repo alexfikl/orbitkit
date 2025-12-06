@@ -69,6 +69,7 @@ def transform_delay_kernels(
     """Replace all distributed delay kernels with additional differential equations.
 
     The transformations can be found in [Macdonald2013]_. The supported kernels are
+
     * Gamma kernel: transformation using the standard linear chain trick into
       :math:`p` additional ODEs for each equation in *expr*.
     * Uniform kernel: transforms into an additional DDE for each variable in *expr*.
@@ -168,7 +169,7 @@ def transform_gamma_delay_kernel(
 
         \begin{aligned}
         \dot{z}_p & = \alpha (z_{p - 1} - z_p), \\
-        \dots & \\
+        \vdots & \\
         \dot{z}_1 & = \alpha (y - z_1).
         \end{aligned}
 
@@ -212,9 +213,17 @@ def approximate_soe_range(
     dt: float | None,
     rtol: float = 1.0e-8,
 ) -> Array:
-    """Approximate a range over which to fit a sum of exponentials approximation.
+    r"""Approximate a range over which to fit a sum of exponentials approximation.
 
-    See :func:`approximate_gamma_kernel`.
+    See :func:`approximate_soe_gamma_kernel`.
+
+    :arg tstart: start of fit interval.
+    :arg tfinal: end of fit interval. If not provided, a final value is approximated
+        based on the inverse CDF of the Gamma distribution to a tolerance *rtol*.
+    :arg dt: time step used to discretize the range. If not provided, a value
+        is approximated based on the variance of the Gamma distribution.
+    :returns: an array of points :math:`\{x_i\}` over which to best fit the
+        Gamma kernel with parameters :math:`(p, \alpha)`.
     """
     import scipy.stats as ss
 
@@ -256,7 +265,7 @@ def approximate_soe_gamma_kernel(
 
     .. math::
 
-        \mathrm{Gammma}(t; p, \alpha) \approx
+        \mathrm{Gamma}(t; p, \alpha) \approx
             \sum_{k = 0}^{n - 1} w_i e^{\lambda_i t}
 
     over the provided interval.

@@ -115,6 +115,7 @@ def process_autodoc_missing_reference(app, env, node, contnode):
             env, inventory, node, contnode
         )
     else:
+        target = target.split(".")[-1]
         py_domain = env.get_domain("py")
         return py_domain.resolve_xref(  # type: ignore[assignment,unused-ignore]
             env, node["refdoc"], app.builder, reftype, target, node, contnode
@@ -243,6 +244,7 @@ custom_type_links = {
     # orbitkit
     "Array": (None, "orbitkit.typing.Array", "obj"),
     "Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
+    "sym.Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
 }
 
 # }}}
