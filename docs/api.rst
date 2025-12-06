@@ -20,6 +20,19 @@ If you find yourself needing more flexibility and more options,
 
 .. automodule:: orbitkit.adjacency
 
+Symbolic Machinery
+------------------
+
+Expressions
+^^^^^^^^^^^
+
+.. automodule:: orbitkit.symbolic.primitives
+
+Mappers
+^^^^^^^
+
+.. automodule:: orbitkit.symbolic.mappers
+
 Miscellaneous
 -------------
 

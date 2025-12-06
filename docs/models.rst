@@ -39,4 +39,6 @@ FitzHugh-Nagumo
 Symbolic Utilities
 ------------------
 
-.. automodule:: orbitkit.models.symbolic
+.. automodule:: orbitkit.models
+
+.. automodule:: orbitkit.models.rate_functions
