@@ -182,7 +182,7 @@ class StringifyMapper(StringifyMapperBase[Any]):
 
 
 def stringify(expr: sym.Expression | Array) -> str:
-    return StringifyMapper()(expr)  # type: ignore[arg-type]
+    return StringifyMapper()(expr)  # type: ignore[arg-type,unused-ignore]
 
 
 # }}}
