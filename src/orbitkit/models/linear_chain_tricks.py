@@ -362,6 +362,12 @@ def soe_gamma_mpm(
     as complex numbers for this method. However, it is expected that the resulting
     sum of exponentials is still real (to floating point precision).
 
+    .. note::
+
+        This method gives significantly less exponentials compared to
+        :func:`soe_gamma_varpo` at the cost of complex numbers. If this is
+        acceptable, this method should be preferred.
+
     :returns: a tuple of ``(ws, lambdas)`` of weights and rates for the sum of
         exponentials approximation. Note that, even if real, the weights are not
         expected to be positive.

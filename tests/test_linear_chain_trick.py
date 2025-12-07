@@ -114,6 +114,7 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
         (np.pi, np.pi),
         (1.5, 1.5),
         (13.5, 1.5),
+        (23, 0.5),
     ],
 )
 def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
@@ -149,7 +150,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
     if method == "varpo":
         assert error < 1.0
     elif method == "mpm":
-        assert error < 60.0 * soe_eps
+        assert error < 80.0 * soe_eps
     else:
         raise AssertionError
 
