@@ -154,12 +154,16 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
         raise AssertionError
 
     # check error at more t
-    t = optimal_soe_gamma_points(p, alpha, 0.0, t[-1], dt=(t[1] - t[0]) / 4)
+    t = optimal_soe_gamma_points(p, alpha, 0.0, t[-1], dt=(t[1] - t[0]) / 3)
     y_approx = np.real_if_close(np.exp(lambdas[None, :] * t[:, None]) @ ws)
     y_ref = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * t)
 
     error = np.linalg.norm(y_approx - y_ref) / np.linalg.norm(y_ref)
     log.info("(%g, %g): size %d error %.8e", p, alpha, ws.size, error)
+
+    # FIXME: the mpm method has a very large error at
+    #       (1.5, 1.5): size 10 error 1.89945645e-03
+    assert error < 1.0
 
     if not ENABLE_VISUAL:
         return
