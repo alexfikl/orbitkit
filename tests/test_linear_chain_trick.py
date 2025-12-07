@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 
+import numpy as np
 import pytest
 
 import orbitkit.symbolic.primitives as sym
@@ -95,6 +96,96 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
 
     for name, eq in equations.items():
         log.info("%4s: %s", stringify(sym.var(name)), stringify(flatten(eq)))
+
+
+# }}}
+
+
+# {{{ test_sum_of_exponentials
+
+
+@pytest.mark.parametrize("method", ["varpo", "mpm"])
+@pytest.mark.parametrize(
+    ("p", "alpha"),
+    [
+        (1.0, np.pi),
+        (2.0, np.pi),
+        (3.0, np.pi),
+        (np.pi, np.pi),
+        (1.5, 1.5),
+        (13.5, 1.5),
+    ],
+)
+def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
+    from orbitkit.models.linear_chain_tricks import (
+        optimal_soe_gamma_points,
+        soe_gamma_mpm,
+        soe_gamma_varpo,
+    )
+
+    log.info("")
+
+    soe_eps = 1.0e-8
+    t = optimal_soe_gamma_points(p, alpha, rtol=soe_eps)
+
+    if method == "varpo":
+        ws, lambdas = soe_gamma_varpo(t, p, alpha, atol=soe_eps)
+    elif method == "mpm":
+        ws, lambdas = soe_gamma_mpm(t, p, alpha, atol=soe_eps)
+    else:
+        raise ValueError(f"unknown method: {method!r}")
+
+    log.info("(%g, %g): t in [%g, %g] dt %g", p, alpha, t[0], t[-1], t[1] - t[0])
+
+    from scipy.special import gamma
+
+    # check approximation at given t
+    y_approx = np.real_if_close(np.exp(lambdas[None, :] * t[:, None]) @ ws)
+    y_ref = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * t)
+
+    error = np.linalg.norm(y_approx - y_ref) / np.linalg.norm(y_ref)
+    log.info("(%g, %g): size %d error %.8e", p, alpha, ws.size, error)
+
+    if method == "varpo":
+        assert error < 1.0
+    elif method == "mpm":
+        assert error < 60.0 * soe_eps
+    else:
+        raise AssertionError
+
+    # check error at more t
+    t = optimal_soe_gamma_points(p, alpha, 0.0, t[-1], dt=(t[1] - t[0]) / 4)
+    y_approx = np.real_if_close(np.exp(lambdas[None, :] * t[:, None]) @ ws)
+    y_ref = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * t)
+
+    error = np.linalg.norm(y_approx - y_ref) / np.linalg.norm(y_ref)
+    log.info("(%g, %g): size %d error %.8e", p, alpha, ws.size, error)
+
+    if not ENABLE_VISUAL:
+        return
+
+    from orbitkit.visualization import figure
+
+    with figure(
+        TEST_DIRECTORY / f"test_sum_of_exp_{p:05.2f}_{alpha:02.2f}", normalize=True
+    ) as fig:
+        ax = fig.gca()
+
+        ax.plot(t, y_approx)
+        ax.plot(t, y_ref, "k--")
+        ax.set_xlabel("$t$")
+        ax.set_ylabel(rf"$\mathrm{{Gamma}}(t; p={p:.2f}, \alpha={alpha:.2f})$")
+
+    with figure(
+        TEST_DIRECTORY / f"test_sum_of_exp_{p:05.2f}_{alpha:02.2f}_weights",
+        normalize=True,
+    ) as fig:
+        ax = fig.gca()
+
+        ax.plot(ws.real)
+        ax.plot(ws.imag)
+        ax.set_xlabel("$k$")
+        ax.set_ylabel("$w_k$")
 
 
 # }}}

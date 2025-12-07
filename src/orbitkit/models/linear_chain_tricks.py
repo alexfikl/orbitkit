@@ -201,21 +201,21 @@ def transform_gamma_delay_kernel(
 # }}}
 
 
-# {{{ approximate_soe_gamma_kernel
+# {{{ soe_gamma
 
 
-def approximate_soe_range(
+def optimal_soe_gamma_points(
     p: float,
     alpha: float,
     tstart: float = 0.0,
     tfinal: float | None = None,
     *,
-    dt: float | None,
+    dt: float | None = None,
     rtol: float = 1.0e-8,
 ) -> Array:
     r"""Approximate a range over which to fit a sum of exponentials approximation.
 
-    See :func:`approximate_soe_gamma_kernel`.
+    See :func:`soe_gamma_varpo` and :func:`soe_gamma_mpm` for uses of this function.
 
     :arg tstart: start of fit interval.
     :arg tfinal: end of fit interval. If not provided, a final value is approximated
@@ -238,7 +238,7 @@ def approximate_soe_range(
     if dt is None:
         # NOTE: this is the variance of the Gamma distribution
         sigma = np.sqrt(p) / alpha
-        dt = min(sigma / 20.0, 1.0e-2 * (tfinal - tstart))
+        dt = min(sigma / 32.0, 1.0e-2 * (tfinal - tstart))
 
     if tstart >= tfinal:
         raise ValueError(f"'tstart' ({tstart}) > 'tfinal' ({tfinal})")
@@ -246,15 +246,16 @@ def approximate_soe_range(
     return np.arange(tstart, tfinal, dt)
 
 
-def approximate_soe_gamma_kernel(
+def soe_gamma_varpo(
     t: Array,
     p: float,
     alpha: float,
     *,
     n: int | None = None,
+    atol: float = 1.0e-8,
 ) -> tuple[Array, Array]:
     r"""Create a sum of exponentials approximation of the
-    :math:`\mathrm{Gamma}(t; p, \alpha)` kernel.
+    :math:`\mathrm{Gamma}(t; p, \alpha)` kernel using Variable Projection.
 
     .. math::
 
@@ -268,45 +269,63 @@ def approximate_soe_gamma_kernel(
         \mathrm{Gamma}(t; p, \alpha) \approx
             \sum_{k = 0}^{n - 1} w_i e^{\lambda_i t}
 
-    over the provided interval.
+    over the provided interval. Note that, if *p* is 1, then no approximation
+    is necessary and a single pair is returned, regardless of *n*.
 
     :arg t: time points at which to fit the Gamma kernel.
     :arg p: shape parameter of the Gamma kernel.
     :arg alpha: rate parameter of the Gamma kernel.
     :arg n: number of exponentials in the approximation.
-    :returns: a tuple of ``(w, \lambda)`` of weights and rates for the sum of
-        exponentials approximation.
+    :arg atol: desired tolerance of the approximation. If *n* is not given, this
+        value is used to estimate the required number of exponentials needed.
+
+    :returns: a tuple of ``(ws, lambdas)`` of weights and rates for the sum of
+        exponentials approximation. Note that the weights *ws* are real, but not
+        necessarily positive (they tend to zig-zag betwen positive and negative
+        for larger *p*).
     """
-    if p <= 1:
+    if p < 1:
         raise ValueError(f"shape parameter 'p' must be >= 1: {p}")
 
     if alpha <= 0:
         raise ValueError(f"rate parameter 'alpha' must be positive: {alpha}")
 
     if n is None:
-        n = int(p) + 5
+        # NOTE: vaguely based on Belkin and Monzon (2005)
+        #       https://doi.org/10.1016/j.acha.2005.01.003
+        # FIXME: this does not seem to work very well in practice
+        n = int((p + 1) * np.log(1.0 / atol) * np.log(t[-1]) / np.pi) + 1
+        n = min(n, t.size - 1)
 
     if n <= 0:
         raise ValueError(f"number of terms 'n' must be positive: {n}")
 
+    if n >= t.size:
+        raise ValueError(
+            f"number of terms 'n' cannot be larger than 't.size': {n} >= {t.size}"
+        )
+
     from scipy.special import gamma
+
+    if p == 1:
+        return np.array([alpha]), np.array([-alpha])
 
     x = t
     y = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * x)
 
-    # {{{ perform fit with variable projection + least squares
+    # {{{ perform fit with variable projection
 
     from scipy.optimize import least_squares
 
     def fit_weights(loglambdas: Array) -> tuple[Array, Array]:
         lambdas = np.exp(loglambdas)
         A = np.exp(-lambdas[None, :] * x[:, None])
-        w, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
-        return A, w
+        ws, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
+        return A, ws
 
     def residuals(loglambdas: Array) -> Array:
-        A, w = fit_weights(loglambdas)
-        return A @ w - y  # type: ignore[no-any-return]
+        A, ws = fit_weights(loglambdas)
+        return A @ ws - y  # type: ignore[no-any-return]
 
     peak = max((p - 1) / alpha, np.min(np.diff(x)))
 
@@ -314,14 +333,95 @@ def approximate_soe_gamma_kernel(
     max_rate = 1.0 / (0.5 * peak)
     lambdas0 = np.logspace(np.log10(min_rate), np.log10(max_rate), n)
 
-    result = least_squares(residuals, np.log(lambdas0), method="lm")
+    # TODO: use approximation of Jacobian from [Kaufman1975]? Should give much
+    # faster+better results than the default 2-point finite difference.
+    result = least_squares(
+        residuals, np.log(lambdas0), method="lm", ftol=atol, xtol=atol
+    )
 
     lambdas = np.exp(result.x)
-    _, w = fit_weights(result.x)
+    _, ws = fit_weights(result.x)
 
     # }}}
 
-    return w, lambdas
+    return ws, -lambdas
+
+
+def soe_gamma_mpm(
+    t: Array,
+    p: float,
+    alpha: float,
+    *,
+    n: int | None = None,
+    atol: float = 1.0e-8,
+) -> tuple[Array, Array]:
+    r"""Create a sum of exponentials approximation of the
+    :math:`\mathrm{Gamma}(t; p, \alpha)` kernel using the Matrix Pencil Method.
+
+    See :func:`soe_gamma_varpo`. Note that the weights and rates are returned
+    as complex numbers for this method. However, it is expected that the resulting
+    sum of exponentials is still real (to floating point precision).
+
+    :returns: a tuple of ``(ws, lambdas)`` of weights and rates for the sum of
+        exponentials approximation. Note that, even if real, the weights are not
+        expected to be positive.
+    """
+
+    if p < 1:
+        raise ValueError(f"shape parameter 'p' must be >= 1: {p}")
+
+    if alpha <= 0:
+        raise ValueError(f"rate parameter 'alpha' must be positive: {alpha}")
+
+    if n is None:
+        # NOTE: vaguely based on Belkin and Monzon (2005)
+        #       https://doi.org/10.1016/j.acha.2005.01.003
+        n = int((p + 1) * np.log(1.0 / atol) * np.log(t[-1]) / np.pi) + 1
+        n = min(n, t.size - 1)
+
+    if n <= 0:
+        raise ValueError(f"number of terms 'n' must be positive: {n}")
+
+    if n >= t.size:
+        raise ValueError(
+            f"number of terms 'n' cannot be larger than 't.size': {n} >= {t.size}"
+        )
+
+    from scipy.special import gamma
+
+    if p == 1:
+        return np.array([alpha]), np.array([-alpha])
+
+    x = t
+    y = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * x)
+
+    # {{{ perform fit with matrix pencil method
+
+    import scipy.linalg as sla
+
+    # construct Hankel matrix SVD
+    L = y.size // 2
+    H = sla.hankel(y[:L], y[L - 1 : -1])
+    U, S, _ = sla.svd(H)
+
+    # determine number of terms from singular values and tolerance
+    S /= S[0]
+    indices = np.where(atol < S)[0]
+    N = indices.size
+
+    # find lambdas: eigenvalues of U[:-1]^\dagger @ U[1:]
+    # FIXME: t must be uniform, but we're not really requiring that here?
+    Z = sla.pinv(U[:-1, :N]) @ U[1:, :N]
+    poles = np.linalg.eigvals(Z)
+    lambdas = -np.log(poles) / (x[1] - x[0])
+
+    # find weights
+    A = np.exp(-lambdas[None, :] * x[:, None])
+    ws, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
+
+    # }}}
+
+    return ws, -lambdas
 
 
 # }}}
