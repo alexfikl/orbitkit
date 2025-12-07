@@ -281,7 +281,7 @@ def soe_gamma_varpo(
 
     :returns: a tuple of ``(ws, lambdas)`` of weights and rates for the sum of
         exponentials approximation. Note that the weights *ws* are real, but not
-        necessarily positive (they tend to zig-zag betwen positive and negative
+        necessarily positive (they tend to zig-zag between positive and negative
         for larger *p*).
     """
     if p < 1:
