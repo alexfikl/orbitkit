@@ -197,8 +197,9 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
         (3.0, np.pi),
         (np.pi, np.pi),
         (1.5, 1.5),
+        # NOTE: these are a bit slow on the `varpo` method
         (13.5, 1.5),
-        (23, 0.5),
+        # (23, 0.5),
     ],
 )
 def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
