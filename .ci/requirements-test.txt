@@ -18,7 +18,7 @@ iniconfig==2.3.0
     # via pytest
 kiwisolver==1.4.9
     # via matplotlib
-librt==0.6.3
+librt==0.7.3
     # via mypy
 markdown-it-py==4.0.0
     # via rich
@@ -62,7 +62,7 @@ pathspec==0.12.1
     # via mypy
 pillow==12.0.0
     # via matplotlib
-platformdirs==4.5.0
+platformdirs==4.5.1
     # via pytools
 pluggy==1.6.0
     # via pytest
@@ -74,7 +74,7 @@ pymbolic==2025.1
     # via orbitkit (pyproject.toml:codegen)
 pyparsing==3.2.5
     # via matplotlib
-pytest==9.0.1
+pytest==9.0.2
     # via orbitkit (pyproject.toml:test)
 python-dateutil==2.9.0.post0
     # via matplotlib
@@ -82,7 +82,7 @@ pytools==2025.2.5
     # via pymbolic
 rich==14.2.0
     # via orbitkit (pyproject.toml)
-ruff==0.14.7
+ruff==0.14.8
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.0
     # via orbitkit (pyproject.toml:visualization)
