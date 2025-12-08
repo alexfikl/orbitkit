@@ -42,21 +42,6 @@ class ExpressionNode(prim.ExpressionNode):
 
 
 @prim.expr_dataclass()
-class Contract(ExpressionNode):
-    """Describes a tensor contraction (i.e. a sum along the given axes).
-
-    .. note::
-
-        Note that this does not check if the given expression evaluates to a
-        tensor where all of these axes are valid.
-    """
-
-    aggregate: Expression
-    axes: tuple[int, ...]
-    """A tuple of axes to contract along."""
-
-
-@prim.expr_dataclass()
 class EinsteinSummation(ExpressionNode):
     """Describes a general Einstein summation between multiple terms.
 
@@ -89,6 +74,24 @@ def einsum(subscripts: str, *operands: Expression) -> EinsteinSummation:
         )
 
     return EinsteinSummation(subscripts, operands)
+
+
+# FIXME: contract and dot product are just `EinsteinSummation` special cases
+
+
+@prim.expr_dataclass()
+class Contract(ExpressionNode):
+    """Describes a tensor contraction (i.e. a sum along the given axes).
+
+    .. note::
+
+        Note that this does not check if the given expression evaluates to a
+        tensor where all of these axes are valid.
+    """
+
+    aggregate: Expression
+    axes: tuple[int, ...]
+    """A tuple of axes to contract along."""
 
 
 @prim.expr_dataclass()
