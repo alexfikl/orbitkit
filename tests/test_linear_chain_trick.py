@@ -26,11 +26,11 @@ set_plotting_defaults()
 
 class DelayFinder(WalkMapper):
     def __init__(self) -> None:
-        self.variables: set[sym.VariableWithDelay] = set()
+        self.variables: set[sym.CallDelay] = set()
         self.kernels: set[sym.DelayKernel] = set()
 
     def visit(self, expr: object) -> bool:
-        if isinstance(expr, sym.VariableWithDelay):
+        if isinstance(expr, sym.CallDelay):
             self.variables.add(expr)
         elif isinstance(expr, sym.DelayKernel):
             self.kernels.add(expr)
@@ -43,21 +43,21 @@ class DelayFinder(WalkMapper):
 @pytest.mark.parametrize(
     "knl",
     [
-        sym.DiracDelayKernel(sym.var("tau") + 1),
-        sym.UniformDelayKernel(sym.var("epsilon"), 1.0),
-        sym.TriangularDelayKernel(sym.var("epsilon"), 1.0),
-        sym.GammaDelayKernel(1, sym.var("alpha")),
-        sym.GammaDelayKernel(2, sym.var("alpha")),
-        sym.GammaDelayKernel(3, sym.var("alpha")),
-        sym.GammaDelayKernel(7, sym.var("alpha")),
+        sym.DiracDelayKernel(sym.Variable("tau") + 1),
+        sym.UniformDelayKernel(sym.Variable("epsilon"), 1.5),
+        sym.TriangularDelayKernel(sym.Variable("epsilon"), 1.5),
+        sym.GammaDelayKernel(1, sym.Variable("alpha")),
+        sym.GammaDelayKernel(2, sym.Variable("alpha")),
+        sym.GammaDelayKernel(3, sym.Variable("alpha")),
+        sym.GammaDelayKernel(7, sym.Variable("alpha")),
     ],
 )
 def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
     from orbitkit.models.rate_functions import SigmoidRate
 
-    s = SigmoidRate(1, 0, sym.var("sigma"))
+    s = SigmoidRate(1, 0, sym.Variable("sigma"))
 
-    y = sym.var("y")
+    y = sym.Variable("y")
     expr = -y + s(knl(y))
 
     from orbitkit.models.linear_chain_tricks import transform_delay_kernels
@@ -68,7 +68,7 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
 
     # check that the remaining variables / kernels match expectations
     finder = DelayFinder()
-    finder(result)  # type: ignore[arg-type]
+    finder(result)
     for eq in equations.values():
         finder(eq)
 
@@ -95,7 +95,69 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
     log.info("%4s: %s", stringify(y), stringify(flatten(result)))
 
     for name, eq in equations.items():
-        log.info("%4s: %s", stringify(sym.var(name)), stringify(flatten(eq)))
+        log.info("%4s: %s", stringify(sym.Variable(name)), stringify(flatten(eq)))
+
+
+# }}}
+
+
+# {{{ test_wilson_cowan_linear_chain_tricks
+
+
+@pytest.mark.parametrize(
+    "knl",
+    [
+        sym.DiracDelayKernel(sym.Variable("tau") + 1),
+        sym.UniformDelayKernel(sym.Variable("epsilon"), 1.5),
+        sym.TriangularDelayKernel(sym.Variable("epsilon"), 1.5),
+        sym.GammaDelayKernel(1, sym.Variable("alpha")),
+        sym.GammaDelayKernel(2, sym.Variable("alpha")),
+        sym.GammaDelayKernel(3, sym.Variable("alpha")),
+        sym.GammaDelayKernel(7, sym.Variable("alpha")),
+    ],
+)
+def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
+    from orbitkit.models.rate_functions import SigmoidRate
+    from orbitkit.models.wilson_cowan import WilsonCowan1, WilsonCowanParameter
+
+    rng = np.random.default_rng(seed=42)
+
+    n = 10
+    s = SigmoidRate(1, 0, sym.Variable("sigma"))
+    Ep = WilsonCowanParameter(
+        sigmoid=s,
+        kernels=(knl, knl),
+        weights=(rng.random((n, n)), rng.random((10, 10))),
+        forcing=rng.random(10),
+    )
+    Ip = WilsonCowanParameter(
+        sigmoid=s,
+        kernels=(knl, knl),
+        weights=(rng.random((n, n)), rng.random((10, 10))),
+        forcing=rng.random(10),
+    )
+
+    model = WilsonCowan1(E=Ep, I=Ip)
+    log.info("Model:\n%s", model)
+
+    from orbitkit.models.linear_chain_tricks import transform_delay_kernels
+
+    args, exprs = model.symbolify(n, full=True)
+    result, eqs = transform_delay_kernels(exprs)
+    assert len(exprs) == len(result)
+
+    from orbitkit.symbolic.mappers import stringify
+
+    lines = []
+    for i, (y, eq) in enumerate(zip(args[1:], result, strict=True)):
+        lines.append(f"[{i:02d}]:\n\td{stringify(y)}/dt = {stringify(eq)}")
+
+    for i, (name, eq) in enumerate(eqs.items()):
+        i += len(exprs)  # noqa: PLW2901
+        y = sym.Variable(name)
+        lines.append(f"[{i:02d}]:\n\td{stringify(y)}/dt = {stringify(eq)}")
+
+    log.info("Model:\n%s", "\n".join(lines))
 
 
 # }}}

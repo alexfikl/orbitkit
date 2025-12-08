@@ -133,7 +133,7 @@ class Reshape(ExpressionNode):
 
 
 @prim.expr_dataclass()
-class MatrixSymbol(prim.Variable):
+class MatrixSymbol(Variable):
     """A :class:`~pymbolic.primitives.Variable` that represents an
     n-dimensional array.
     """
@@ -164,25 +164,15 @@ class MatrixSymbol(prim.Variable):
 
 
 @prim.expr_dataclass()
-class VariableWithDelay(Variable):
-    r"""A variable with a constant delay, e.g. :math:`y(t - \tau)`."""
+class CallDelay(ExpressionNode):
+    r"""An expression for a delayed call :math:`(expr)(t - \tau)`."""
 
+    aggregate: Expression
+    """Expression that should be evaluated with delay :attr:`tau`."""
     tau: Expression
     """The expression for the delay. This is expected to evaluate to be
     convertible or evaluate to float.
     """
-
-
-def var(name: str, tau: Expression | None = None) -> prim.Variable:
-    """
-    :arg name: name of the new variable.
-    :arg tau: optional constant delay. If this is zero or *None*, it is assumed
-        that there is no delay and a standard variable is returned.
-    """
-    if tau is None or tau == 0:
-        return prim.Variable(name)
-    else:
-        return VariableWithDelay(name=name, tau=tau)
 
 
 # }}}
@@ -192,7 +182,7 @@ def var(name: str, tau: Expression | None = None) -> prim.Variable:
 
 
 @prim.expr_dataclass()
-class Function(prim.Variable):
+class Function(Variable):
     r"""A known special function (e.g. :math:`\sin`, etc.)."""
 
 

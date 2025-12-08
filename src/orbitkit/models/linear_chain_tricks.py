@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias, overload
 
 import numpy as np
 import pymbolic.primitives as prim
@@ -24,48 +24,68 @@ log = module_logger(__name__)
 
 # {{{ apply
 
+Variable: TypeAlias = "sym.Variable | sym.CallDelay"
+
 
 class DelayKernelReplacer(IdentityMapper):
-    equations: dict[str, sym.Expression]
+    kernel_to_var_replace: dict[prim.Call, Variable]
+    var_to_eqs: dict[Variable, dict[str, sym.Expression]]
     unique_name_generator: UniqueNameGenerator
 
     def __init__(self) -> None:
         from pytools import UniqueNameGenerator
 
-        self.equations = {}
+        self.kernel_to_var_replace = {}
+        self.var_to_eqs = {}
         self.unique_name_generator = UniqueNameGenerator()
 
     def map_call(self, expr: prim.Call) -> Expression:
         func = expr.function
 
         if isinstance(func, sym.DelayKernel):
-            # NOTE: we're naming variables like `z_dirac_n`
-            z = prim.Variable(self.unique_name_generator("_z"))
+            try:
+                return self.kernel_to_var_replace[expr]
+            except KeyError:
+                (y,) = expr.parameters
+                assert isinstance(y, prim.Variable)
 
-            (y,) = expr.parameters
-            assert isinstance(y, prim.Variable)
+                # NOTE: we're naming variables like `_z_n`
+                z = prim.Variable(self.unique_name_generator(f"_{y.name}"))
 
-            if isinstance(func, sym.DiracDelayKernel):
-                return sym.var(y.name, func.tau)
-            elif isinstance(func, sym.UniformDelayKernel):
-                self.equations.update(transform_uniform_delay_kernel(func, y, z.name))
-            elif isinstance(func, sym.TriangularDelayKernel):
-                self.equations.update(
-                    transform_triangular_delay_kernel(func, y, z.name)
-                )
-            elif isinstance(func, sym.GammaDelayKernel):
-                self.equations.update(transform_gamma_delay_kernel(func, y, z.name))
-            else:
-                raise TypeError(f"unsupported delay kernel: {type(func)}")
+                if isinstance(func, sym.DiracDelayKernel):
+                    z = sym.CallDelay(y, func.tau)  # type: ignore[assignment]
+                    equations = {}
+                elif isinstance(func, sym.UniformDelayKernel):
+                    equations = transform_uniform_delay_kernel(func, y, z)
+                elif isinstance(func, sym.TriangularDelayKernel):
+                    equations = transform_triangular_delay_kernel(func, y, z)
+                elif isinstance(func, sym.GammaDelayKernel):
+                    equations = transform_gamma_delay_kernel(func, y, z)
+                else:
+                    raise TypeError(f"unsupported delay kernel: {type(func)}") from None
 
-            return z
+                self.kernel_to_var_replace[expr] = z
+                self.var_to_eqs[z] = equations
+                return z
         else:
             return super().map_call(expr)
 
 
+@overload
 def transform_delay_kernels(
-    expr: sym.Expression | Array,
-) -> tuple[sym.Expression | Array, Mapping[str, sym.Expression]]:
+    expr: sym.Expression,
+) -> tuple[sym.Expression, Mapping[str, sym.Expression]]: ...
+
+
+@overload
+def transform_delay_kernels(
+    expr: tuple[sym.Expression, ...],
+) -> tuple[tuple[sym.Expression, ...], Mapping[str, sym.Expression]]: ...
+
+
+def transform_delay_kernels(
+    expr: sym.Expression | tuple[sym.Expression, ...],
+) -> tuple[sym.Expression | tuple[sym.Expression, ...], Mapping[str, sym.Expression]]:
     """Replace all distributed delay kernels with additional differential equations.
 
     The transformations can be found in [Macdonald2013]_. The supported kernels are
@@ -89,9 +109,14 @@ def transform_delay_kernels(
     from constantdict import constantdict
 
     mapper = DelayKernelReplacer()
-    expr = mapper(expr)  # type: ignore[assignment,arg-type]
+    expr = mapper(expr)  # type: ignore[assignment]
 
-    return expr, constantdict(mapper.equations)
+    alleqs = {}
+    for eqs in mapper.var_to_eqs.values():
+        assert not any(name in alleqs for name in eqs)
+        alleqs.update(eqs)
+
+    return expr, constantdict(alleqs)
 
 
 # }}}
@@ -103,7 +128,7 @@ def transform_delay_kernels(
 def transform_uniform_delay_kernel(
     kernel: sym.UniformDelayKernel,
     y: prim.Variable,
-    replacement: str,
+    z: prim.Variable,
 ) -> dict[str, sym.Expression]:
     r"""Transform the uniform kernel into additional delay differential equations.
 
@@ -117,10 +142,12 @@ def transform_uniform_delay_kernel(
         names is the provided *replacement* name and other can be derived from it.
     """
     epsilon, tau = kernel.epsilon, kernel.tau
-    z = replacement
 
     return {
-        z: (sym.var(y.name, (1 - epsilon) * tau) - sym.var(y.name, (1 + epsilon) * tau))
+        z.name: (
+            sym.CallDelay(y, (1 - epsilon) * tau)
+            - sym.CallDelay(y, (1 + epsilon) * tau)
+        )
         / (2 * epsilon * tau)
     }
 
@@ -128,7 +155,7 @@ def transform_uniform_delay_kernel(
 def transform_triangular_delay_kernel(
     kernel: sym.TriangularDelayKernel,
     y: prim.Variable,
-    replacement: str,
+    z: prim.Variable,
 ) -> dict[str, sym.Expression]:
     r"""Transform the triangular kernel into additional delay differential equations.
 
@@ -146,14 +173,13 @@ def transform_triangular_delay_kernel(
         names is the provided *replacement* name and other can be derived from it.
     """
     epsilon, tau = kernel.epsilon, kernel.tau
-    z = replacement
-    w = f"{replacement}_0"
+    w = prim.Variable(f"{z.name}s")
     return {
-        z: sym.var(w) / (epsilon * tau) ** 2,
-        w: (
-            sym.var(y.name, (1 - epsilon) * tau)
-            - 2 * sym.var(y.name, tau)
-            + sym.var(y.name, (1 + epsilon) * tau)
+        z.name: w / (epsilon * tau) ** 2,
+        w.name: (
+            sym.CallDelay(y, (1 - epsilon) * tau)
+            - 2 * sym.CallDelay(y, tau)
+            + sym.CallDelay(y, (1 + epsilon) * tau)
         ),
     }
 
@@ -161,7 +187,7 @@ def transform_triangular_delay_kernel(
 def transform_gamma_delay_kernel(
     kernel: sym.GammaDelayKernel,
     y: prim.Variable,
-    replacement: str,
+    z: prim.Variable,
 ) -> dict[str, sym.Expression]:
     r"""Transform the Gamma kernel into additional ordinary differential equations.
 
@@ -179,18 +205,13 @@ def transform_gamma_delay_kernel(
     p, alpha = kernel.p, kernel.alpha
 
     if p == 1:
-        z = replacement
-        return {z: alpha * (y - sym.var(z))}
+        return {z.name: alpha * (y - z)}
     elif isinstance(p, int):
-        z = replacement
-        zs = (replacement, *(f"{replacement}_{k}" for k in range(p - 1)))
+        zs = (z, *(prim.Variable(f"{z.name}s_{k}") for k in range(p - 1)))
 
         return {
-            **{
-                zs[k]: alpha * (sym.var(zs[k + 1]) - sym.var(zs[k]))
-                for k in range(p - 1)
-            },
-            zs[p - 1]: alpha * (y - sym.var(zs[p - 1])),
+            **{zs[k].name: alpha * (zs[k + 1] - zs[k]) for k in range(p - 1)},
+            zs[p - 1].name: alpha * (y - zs[p - 1]),
         }
     else:
         raise NotImplementedError(

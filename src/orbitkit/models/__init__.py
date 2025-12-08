@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import Field, dataclass, fields, is_dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
 from typing import Any
 
 import numpy as np

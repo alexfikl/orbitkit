@@ -52,14 +52,13 @@ class IdentityMapper(IdentityMapperBase[[]]):
 
         return type(expr)(aggregate=aggregate, shape=expr.shape)
 
-    def map_variable_with_delay(
-        self, expr: sym.VariableWithDelay, /
-    ) -> PymbolicExpression:
+    def map_call_delay(self, expr: sym.CallDelay, /) -> PymbolicExpression:
+        aggregate = self.rec_arith(expr.aggregate)
         tau = self.rec_arith(expr.tau)
-        if tau is expr.tau:
+        if aggregate is expr.aggregate and tau is expr.tau:
             return expr
 
-        return type(expr)(expr.name, tau)
+        return type(expr)(aggregate, tau)
 
     def map_dirac_delay_kernel(
         self, expr: sym.DiracDelayKernel, /
@@ -118,10 +117,11 @@ class WalkMapper(WalkMapperBase[[]]):
         self.rec(expr.right)  # type: ignore[arg-type]
         self.post_visit(expr)
 
-    def map_variable_with_delay(self, expr: sym.VariableWithDelay, /) -> None:
+    def map_call_delay(self, expr: sym.CallDelay, /) -> None:
         if not self.visit(expr):
             return
 
+        self.rec(expr.aggregate)
         self.rec(expr.tau)
         self.post_visit(expr)
 
@@ -144,15 +144,11 @@ class StringifyMapper(StringifyMapperBase[Any]):
         result = pretty_symbol(expr.name)
         return str(result)
 
-    def map_variable_with_delay(
-        self, expr: sym.VariableWithDelay, /, enclosing_prec: int
-    ) -> str:
-        from sympy.printing.pretty.pretty_symbology import pretty_symbol
-
-        name = pretty_symbol(expr.name)
+    def map_call_delay(self, expr: sym.CallDelay, /, enclosing_prec: int) -> str:
+        aggregate = self.rec(expr.aggregate, PREC_NONE)
         tau = self.rec(expr.tau, PREC_NONE)
 
-        return f"{name}(·-({tau}))"
+        return f"{aggregate}(·-({tau}))"
 
     def map_numpy_array(  # noqa: PLR6301
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], /, enclosing_prec: int
