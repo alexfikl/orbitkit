@@ -21,9 +21,9 @@ log = module_logger(__name__)
 class WilsonCowanParameter:
     sigmoid: RateFunction
     """Sigmoid activation function."""
-    kernels: tuple[sym.DelayKernel, sym.DelayKernel]
+    kernels: tuple[sym.DelayKernel, ...]
     r"""Delay kernels :math:`h_{ij}` used in the variables inside the sigmoid."""
-    weights: tuple[Array, Array]
+    weights: tuple[Array, ...]
     r"""The weight matrices :math:`\boldsymbol{W}_{ij}` used in the model."""
     forcing: Array
     """Forcing term used in the model."""
@@ -31,8 +31,6 @@ class WilsonCowanParameter:
     if __debug__:
 
         def __post_init__(self) -> None:
-            assert len(self.kernels) == 2
-
             if len(self.kernels) != len(self.weights):
                 raise ValueError(
                     "kernel and weight counts do not match: "
@@ -93,6 +91,13 @@ class WilsonCowan1(Model):
     if __debug__:
 
         def __post_init__(self) -> None:
+            if len(self.E.kernels) != 2 or len(self.I.kernels) != 2:
+                raise ValueError(
+                    "Expected only two kernels for this model: "
+                    f"got {len(self.E.kernels)} excitatory and "
+                    f"{len(self.I.kernels)} inhibitory kernels"
+                )
+
             if self.E.n != self.I.n:
                 raise ValueError(
                     "'E' and 'I' populations have different sizes: "
@@ -106,6 +111,10 @@ class WilsonCowan1(Model):
     @property
     def variables(self) -> tuple[str, ...]:
         return ("E", "I")
+
+    @property
+    def rattrs(self) -> set[str]:
+        return {"E", "I", "kernels", "weights"}
 
     def evaluate(
         self, t: sym.Expression, *args: sym.MatrixSymbol

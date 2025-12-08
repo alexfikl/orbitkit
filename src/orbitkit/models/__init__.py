@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields, is_dataclass, replace
+from dataclasses import Field, dataclass, fields, is_dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -35,22 +35,36 @@ def ds_symbolic(
     if rattrs is None:
         rattrs = set()
 
-    kwargs: dict[str, Any] = {}
-    for f in fields(obj):
-        attr = getattr(obj, f.name)
-        if (rec or f.name in rattrs) and is_dataclass(attr):
-            assert not isinstance(attr, type)
-            kwargs[f.name] = ds_symbolic(attr, rec=rec, rattrs=rattrs)
-            continue
+    def _ds_field_symbolic(
+        attr: object, fname: str, *, rec: bool, rattrs: set[str]
+    ) -> object:
+        from pymbolic.primitives import ExpressionNode
 
         if isinstance(attr, tuple):
-            kwargs[f.name] = tuple(
-                sym.Variable(f"{f.name}_{i}") for i in range(len(attr))
-            )
+            if rec or fname in rattrs:
+                return tuple(
+                    _ds_field_symbolic(attr[i], f"{fname}_{i}", rec=rec, rattrs=rattrs)
+                    for i in range(len(attr))
+                )
+            else:
+                return tuple(sym.Variable(f"{fname}_{i}") for i in range(len(attr)))
         elif isinstance(attr, np.ndarray):
-            kwargs[f.name] = sym.MatrixSymbol(f.name, attr.shape)
+            return sym.MatrixSymbol(fname, attr.shape)
+        elif isinstance(attr, ExpressionNode):
+            return attr
         else:
-            kwargs[f.name] = sym.Variable(f.name)
+            return sym.Variable(fname)
+
+    kwargs: dict[str, Any] = {}
+    for f in fields(obj):
+        fname = f.name
+        attr = getattr(obj, fname)
+        if (rec or fname in rattrs) and is_dataclass(attr):
+            assert not isinstance(attr, type)
+            kwargs[fname] = ds_symbolic(attr, rec=rec, rattrs=rattrs)
+            continue
+
+        kwargs[fname] = _ds_field_symbolic(attr, fname, rec=rec, rattrs=rattrs)
 
     return replace(obj, **kwargs)
 
@@ -75,6 +89,10 @@ class Model(ABC):
         """
         :returns: an expression of the model evaluated at the given arguments.
         """
+
+    @property
+    def rattrs(self) -> set[str]:
+        return {"param"}
 
     def symbolify(
         self,
@@ -111,7 +129,7 @@ class Model(ABC):
 
         model = self
         if full:
-            model = ds_symbolic(model, rec=False, rattrs={"param"})
+            model = ds_symbolic(model, rec=False, rattrs=self.rattrs)
 
         return (t, *args), model.evaluate(t, *args)
 
