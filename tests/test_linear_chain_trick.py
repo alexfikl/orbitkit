@@ -159,6 +159,28 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
 
     log.info("Model:\n%s", "\n".join(lines))
 
+    # check that the remaining variables / kernels match expectations
+    finder = DelayFinder()
+    finder(result)
+    for eq in eqs.values():
+        finder(eq)
+
+    assert not finder.kernels
+    if isinstance(knl, sym.DiracDelayKernel):
+        assert len(eqs) == 0
+        assert len(finder.variables) == 1 * 2
+    elif isinstance(knl, sym.UniformDelayKernel):
+        assert len(eqs) == 1 * 2
+        assert len(finder.variables) == 2 * 2
+    elif isinstance(knl, sym.TriangularDelayKernel):
+        assert len(eqs) == 2 * 2
+        assert len(finder.variables) == 3 * 2
+    elif isinstance(knl, sym.GammaDelayKernel):
+        assert len(eqs) == knl.p * 2
+        assert len(finder.variables) == 0
+    else:
+        raise TypeError(f"unknown kernel type: {type(knl)}")
+
 
 # }}}
 
