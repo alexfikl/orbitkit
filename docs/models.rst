@@ -36,6 +36,11 @@ FitzHugh-Nagumo
 
 .. automodule:: orbitkit.models.fitzhugh_nagumo
 
+Wilson-Cowan
+------------
+
+.. automodule:: orbitkit.models.wilson_cowan
+
 Symbolic Utilities
 ------------------
 
