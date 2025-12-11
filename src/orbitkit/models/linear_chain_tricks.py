@@ -130,7 +130,7 @@ def transform_uniform_delay_kernel(
     y: prim.Variable,
     z: prim.Variable,
 ) -> dict[str, sym.Expression]:
-    r"""Transform the uniform kernel into additional delay differential equations.
+    r"""Transform the uniform kernel into additional delay differential equation.
 
     .. math::
 
@@ -139,7 +139,7 @@ def transform_uniform_delay_kernel(
         ).
 
     :returns: a mapping of variable names to equations. One of these variable
-        names is the provided *replacement* name and other can be derived from it.
+        names is the provided *z* variable and others can be derived from it.
     """
     epsilon, tau = kernel.epsilon, kernel.tau
 
@@ -170,7 +170,7 @@ def transform_triangular_delay_kernel(
         \end{aligned}
 
     :returns: a mapping of variable names to equations. One of these variable
-        names is the provided *replacement* name and other can be derived from it.
+        names is the provided *z* variable and others can be derived from it.
     """
     epsilon, tau = kernel.epsilon, kernel.tau
     w = prim.Variable(f"{z.name}s")
@@ -200,7 +200,7 @@ def transform_gamma_delay_kernel(
         \end{aligned}
 
     :returns: a mapping of variable names to equations. One of these variable
-        names is the provided *replacement* name and other can be derived from it.
+        names is the provided *z* variable and others can be derived from it.
     """
     p, alpha = kernel.p, kernel.alpha
 
@@ -241,9 +241,9 @@ def optimal_soe_gamma_points(
     :arg tstart: start of fit interval.
     :arg tfinal: end of fit interval. If not provided, a final value is approximated
         based on the inverse CDF of the Gamma distribution to a tolerance *rtol*.
-    :arg dt: time step used to discretize the range. If not provided, a value
+    :arg dt: step size used to discretize the range. If not provided, a value
         is approximated based on the variance of the Gamma distribution.
-    :returns: an array of points :math:`\{x_i\}` over which to best fit the
+    :returns: an array of points :math:`\{t_i\}` over which to best fit the
         Gamma kernel with parameters :math:`(p, \alpha)`.
     """
     import scipy.stats as ss
@@ -293,7 +293,7 @@ def soe_gamma_varpo(
     over the provided interval. Note that, if *p* is 1, then no approximation
     is necessary and a single pair is returned, regardless of *n*.
 
-    :arg t: time points at which to fit the Gamma kernel.
+    :arg t: points at which to fit the Gamma kernel.
     :arg p: shape parameter of the Gamma kernel.
     :arg alpha: rate parameter of the Gamma kernel.
     :arg n: number of exponentials in the approximation.
@@ -449,6 +449,92 @@ def soe_gamma_mpm(
     # }}}
 
     return ws, -lambdas
+
+
+# }}}
+
+
+# {{{ pade_gamma
+
+
+def pade_gamma(
+    gamma_p: float,
+    alpha: float,
+    *,
+    p: int | None = None,
+    q: int = 6,
+) -> tuple[Array, Array]:
+    r"""Create a Padé approximant for the Laplace transform of the
+    :math:`\mathrm{Gamma}(t; p, \alpha)` kernel.
+
+    The Laplace transform of the Gamma kernel is given by
+
+    .. math::
+
+        \mathcal{L}\{\mathrm{Gamma}\}(s) =
+            \left(\frac{\alpha}{\alpha + s}\right)^p.
+
+    We seek an approximation of the form
+
+    .. math::
+
+        \frac{a_0 + a_1 x + \cdots + a_q x^q}
+             {b_0 + b_1 x + \cdots + a_r x^r},
+
+    for orders :math:`(q, r)`, i.e. a Padé approximant at :math:`s = 0`.
+
+    This is an alternative approximation to the sum of exponentials (e.g.
+    :func:`soe_gamma_mpm`) with different compromises. In particular, the Padé
+    approximant of order :math:`r > 1` will exactly match the  higher-order
+    moments of the Gamma distribution. However, it can result in kernels that
+    have negative values and multiple local extrema in physical space (unlike
+    the original Gamma kernel).
+
+    Note that we construct the Padé approximant by performing a Taylor expansion
+    at :math:`s = 0`. This Taylor expansion has a radius of convergence of only
+    :math:`|s| < \alpha`. However, the approximant is expected to remain valid
+    even outside this range and provide a good approximation of the Gamma
+    function (but may require :math:`q > 1`).
+
+    :arg p: order of the polynomial in the numerator.
+    :arg q: order of the polynomial in the denominator.
+    :returns: a tuple ``(p, q)`` of polynomial coefficients for the numerator
+        and denominator. The coefficient order matches that of :mod:`numpy.polynomial`.
+    """
+
+    if p is None:
+        # NOTE: this has the best chance of giving a good approximation for a
+        # wider range of s values
+        p = q - 1
+
+    if p < 0 or not isinstance(p, int):
+        raise ValueError(f"order 'p' must be a positive integer: {p}")
+
+    if q < 0 or not isinstance(q, int):
+        raise ValueError(f"order 'q' must be a positive integer: {q}")
+
+    if q < p:
+        raise ValueError(f"order 'q' cannot be smaller than 'p': {q} < {p}")
+
+    # gather Taylor coefficients
+    from scipy.special import binom
+
+    k = np.arange(p + q + 1)
+    if float(gamma_p).is_integer():
+        taylor_coeffs = (-1.0) ** k * binom(gamma_p + k - 1, k) / alpha**k
+    else:
+        taylor_coeffs = binom(-gamma_p, k) / alpha**k
+
+    # evaluate Pade approximant
+    # NOTE: pade seems to return a `np.poly1d`, which has coefficients in a
+    # reverse order to `np.polynomial` classes, so we flip them for compatibility
+    # NOTE: this could cause issues: https://github.com/scipy/scipy/issues/20064
+    from scipy.interpolate import pade
+
+    ppoly, qpoly = pade(taylor_coeffs, q, p)
+    # assert ppoly.order <= qpoly.order
+
+    return np.flip(ppoly.coefficients), np.flip(qpoly.coefficients)
 
 
 # }}}
