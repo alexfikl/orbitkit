@@ -117,7 +117,7 @@ def process_autodoc_missing_reference(app, env, node, contnode):
     else:
         target = target.split(".")[-1]
         py_domain = env.get_domain("py")
-        return py_domain.resolve_xref(  # type: ignore[assignment,unused-ignore]
+        return py_domain.resolve_xref(
             env, node["refdoc"], app.builder, reftype, target, node, contnode
         )
 
