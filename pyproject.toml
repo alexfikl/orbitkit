@@ -54,7 +54,7 @@ urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
-test = [ "mypy", "pytest", "ruff", "scipy-stubs" ]
+test = [ "pytest", "ruff", "scipy-stubs", "ty" ]
 docs = [ "sphinx>=6", "sphinx-book-theme" ]
 clustering = [ "leidenalg>=0.10" ]
 codegen = [ "pymbolic>=2024.2", "sympy>=1.12" ]
@@ -123,27 +123,6 @@ addopts = [
     "--capture=no",
     "--verbose",
 ]
-
-[tool.mypy]
-strict = true
-python_version = "3.10"
-hide_error_codes = false
-warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = [
-    "diffrax.*",
-    "igraph.*",
-    "jax.*",
-    "jitcode.*",
-    "leidenalg.*",
-    "mpl_toolkits.*",
-    "numba.*",
-    "scienceplots.*",
-    "symengine.*",
-    "sympy.*",
-]
-ignore_missing_imports = true
 
 [tool.typos.default.extend-words]
 inh = "inh"
