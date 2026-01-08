@@ -5,13 +5,16 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass, replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.typing import DataclassInstanceT
 from orbitkit.utils import module_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 log = module_logger(__name__)
 
@@ -147,6 +150,69 @@ class Model(ABC):
             eqs.append(f"[{i:02d}]:\n\td{stringify(name)}/dt = {stringify(eq)}")
 
         return "\n".join(eqs)
+
+
+# }}}
+
+
+# {{{ linear_chain_trick
+
+
+@dataclass(frozen=True)
+class ExtendedLinearChainTrickModel(Model):
+    orig: Model
+    exprs: tuple[sym.Expression, ...]
+    equations: Mapping[str, sym.Expression]
+
+    @property
+    def n(self) -> int:
+        n = getattr(self.orig, "n", None)
+        if n is None:
+            raise AttributeError("n")
+
+        return n
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return (*self.orig.variables, *self.equations)
+
+    @property
+    def rattrs(self) -> set[str]:
+        return self.orig.rattrs
+
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
+        from orbitkit.symbolic.mappers import rename_variables
+
+        result = (*self.exprs, *self.equations.values())
+        return rename_variables(
+            result,
+            {vfrom: vto.name for vfrom, vto in zip(self.variables, args, strict=True)},
+        )
+
+
+def transform_distributed_delay_model(
+    model: Model,
+    n: int | tuple[int, ...] | None = None,
+) -> ExtendedLinearChainTrickModel:
+    """Transform the given *model* with distributed delays into one with only
+    constant delays or a system of ODEs.
+
+    See :func:`~orbitkit.models.linear_chain_tricks.transform_delay_kernels`.
+    """
+    from orbitkit.models.linear_chain_tricks import transform_delay_kernels
+
+    if n is None:
+        n = getattr(model, "n", None)
+
+    if n is None:
+        raise ValueError("must provide model size 'n'")
+
+    _, exprs = model.symbolify(n)
+    exprs, equations = transform_delay_kernels(exprs)
+
+    return ExtendedLinearChainTrickModel(orig=model, exprs=exprs, equations=equations)
 
 
 # }}}

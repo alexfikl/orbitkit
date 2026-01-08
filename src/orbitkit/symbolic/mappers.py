@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import replace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pymbolic.mapper import IdentityMapper as IdentityMapperBase
@@ -15,6 +16,10 @@ from pymbolic.typing import Expression as PymbolicExpression
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.typing import Array
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 
 # {{{ IdentityMapper
 
@@ -193,6 +198,36 @@ class FlattenMapper(FlattenMapperBase, IdentityMapper):
 
 def flatten(expr: sym.Expression | Array) -> sym.Expression | Array:
     return FlattenMapper()(expr)  # ty: ignore[invalid-argument-type,invalid-return-type]
+
+
+# }}}
+
+
+# {{{ RenameMapper
+
+
+class RenameMapper(IdentityMapper):
+    def __init__(self, mapping: Mapping[str, str]) -> None:
+        self.mapping = mapping
+
+    def map_variable(self, expr: sym.Variable) -> sym.Expression:
+        new_name = self.mapping.get(expr.name)
+        if new_name is None:
+            return expr
+
+        if new_name == expr.name:
+            return expr
+
+        return replace(expr, name=new_name)
+
+
+def rename_variables(
+    expr: tuple[sym.Expression, ...], mapping: Mapping[str, str]
+) -> tuple[sym.Expression, ...]:
+    result = RenameMapper(mapping)(expr)
+    assert isinstance(result, tuple)
+
+    return result  # ty: ignore[invalid-return-type]
 
 
 # }}}
