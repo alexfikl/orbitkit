@@ -35,7 +35,7 @@ justfmt:
 # {{{ linting
 
 [doc('Run all linting checks over the source code')]
-lint: typos reuse ruff mypy
+lint: typos reuse ruff ty
 
 [doc('Run typos over the source code and documentation')]
 typos:
@@ -52,24 +52,28 @@ ruff:
     ruff check
     @echo -e "\e[1;32mruff clean!\e[0m"
 
-[doc('Run mypy checks over the source code')]
-mypy:
-    {{ PYTHON }} -m mypy src examples tests
-    @echo -e "\e[1;32mmypy clean!\e[0m"
+[doc('Run ty checks over the source code')]
+ty:
+    ty check src examples tests
+    @echo -e "\e[1;32mty clean!\e[0m"
 
 # }}}
 # {{{ pin
 
+REQUIREMENTS_DIR := ".ci"
+
 [private]
 requirements_build_txt:
     uv pip compile --upgrade --universal --python-version "3.10" \
-        -o .ci/requirements-build.txt .ci/requirements-build.in
+        -o {{ REQUIREMENTS_DIR }}/requirements-build.txt \
+        {{ REQUIREMENTS_DIR }}/requirements-build.in
 
 [private]
 requirements_test_txt:
     uv pip compile --upgrade --universal --python-version '3.10' \
         --group test --group codegen --group visualization \
-        -o .ci/requirements-test.txt pyproject.toml
+        -o {{ REQUIREMENTS_DIR }}/requirements-test.txt \
+        pyproject.toml
 
 [private]
 requirements_txt:
@@ -92,13 +96,24 @@ develop:
         --editable .
 
 [doc("Editable install using pinned dependencies from requirements-test.txt")]
-pip-install:
-    {{ PYTHON }} -m pip install --verbose --requirement .ci/requirements-build.txt
+ci-install venv=".venv":
+    #!/usr/bin/env bash
+
+    # build a virtual environment
+    python -m venv {{ venv }}
+    source {{ venv }}/bin/activate
+
+    # install build dependencies (need to be first due to  --no-build-isolation)
+    {{ PYTHON }} -m pip install --requirement {{ REQUIREMENTS_DIR }}/requirements-build.txt
+
+    # install all pinned dependencies
     {{ PYTHON }} -m pip install \
         --verbose \
-        --requirement .ci/requirements-test.txt \
+        --requirement {{ REQUIREMENTS_DIR }}/requirements-test.txt \
         --no-build-isolation \
         --editable .
+
+    echo -e "\e[1;32mvenv setup completed: '{{ venv }}'!\e[0m"
 
 [doc("Remove various build artifacts")]
 clean:
@@ -107,7 +122,7 @@ clean:
 
 [doc("Remove various temporary files")]
 purge: clean
-    rm -rf .ruff_cache .pytest_cache .mypy_cache tags
+    rm -rf .ruff_cache .pytest_cache tags
 
 [doc("Regenerate ctags")]
 ctags:
