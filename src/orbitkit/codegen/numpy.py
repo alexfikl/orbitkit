@@ -69,8 +69,8 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         return f"{self.module}.reshape({aggregate}, shape={expr.shape})"
 
     def map_dot_product(self, expr: sym.DotProduct, enclosing_prec: int) -> str:
-        left = self.rec(expr.left, PREC_NONE)  # type: ignore[arg-type]
-        right = self.rec(expr.right, PREC_NONE)  # type: ignore[arg-type]
+        left = self.rec(expr.left, PREC_NONE)
+        right = self.rec(expr.right, PREC_NONE)
         return f"{self.module}.dot({left}, {right})"
 
 

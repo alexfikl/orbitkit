@@ -29,7 +29,7 @@ def _check_usetex(*, s: bool) -> bool:
         return False
 
     try:
-        return bool(matplotlib.checkdep_usetex(s))  # type: ignore[attr-defined]
+        return bool(matplotlib.checkdep_usetex(s))  # ty: ignore[unresolved-attribute]
     except AttributeError:
         # NOTE: simplified version from matplotlib
         # https://github.com/matplotlib/matplotlib/blob/ec85e725b4b117d2729c9c4f720f31cf8739211f/lib/matplotlib/__init__.py#L439=L456
@@ -263,7 +263,7 @@ def figure(
         if filename is not None:
             savefig(fig, filename, **kwargs)
         else:
-            mp.show(block=True)  # type: ignore[no-untyped-call,unused-ignore]
+            mp.show(block=True)
 
         mp.close(fig)
 
@@ -342,7 +342,7 @@ def savefig(
 
 
 def heatmap(
-    ax: mp.Axes,  # type: ignore[name-defined]
+    ax: mp.Axes,
     x: Array,
     y: Array,
     z: Array,
@@ -410,7 +410,7 @@ def heatmap(
 
 
 def rastergram(
-    ax: mp.Axes,  # type: ignore[name-defined]
+    ax: mp.Axes,
     t: Array,
     y: Array,
     *,

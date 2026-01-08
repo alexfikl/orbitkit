@@ -53,7 +53,7 @@ class DelayKernelReplacer(IdentityMapper):
                 z = prim.Variable(self.unique_name_generator(f"_{y.name}"))
 
                 if isinstance(func, sym.DiracDelayKernel):
-                    z = sym.CallDelay(y, func.tau)  # type: ignore[assignment]
+                    z = sym.CallDelay(y, func.tau)
                     equations = {}
                 elif isinstance(func, sym.UniformDelayKernel):
                     equations = transform_uniform_delay_kernel(func, y, z)
@@ -109,7 +109,7 @@ def transform_delay_kernels(
     from constantdict import constantdict
 
     mapper = DelayKernelReplacer()
-    expr = mapper(expr)  # type: ignore[assignment]
+    expr = mapper(expr)  # ty: ignore[invalid-assignment]
 
     alleqs = {}
     for eqs in mapper.var_to_eqs.values():
@@ -346,7 +346,7 @@ def soe_gamma_varpo(
 
     def residuals(loglambdas: Array) -> Array:
         A, ws = fit_weights(loglambdas)
-        return A @ ws - y  # type: ignore[no-any-return]
+        return A @ ws - y
 
     peak = max((p - 1) / alpha, np.min(np.diff(x)))
 

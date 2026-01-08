@@ -696,7 +696,7 @@ def generate_adjacency_fractal(
     mat = circulant(x).T
     np.fill_diagonal(mat, 0)
 
-    return mat  # type: ignore[no-any-return]
+    return mat
 
 
 def generate_adjacency_configuration(
@@ -738,7 +738,18 @@ def generate_adjacency_configuration(
     rng.shuffle(stubs)
 
     # create adjacency matrix
-    from itertools import batched  # type: ignore[attr-defined]
+    from itertools import islice
+
+    # TODO: replace with itertools.batched once we depend on Python >= 3.12
+    def batched(iterable, n, *, strict=False):
+        if n < 1:
+            raise ValueError("n must be at least one")
+
+        iterator = iter(iterable)
+        while batch := tuple(islice(iterator, n)):
+            if strict and len(batch) != n:
+                raise ValueError("batched(): incomplete batch")
+            yield batch
 
     result = np.zeros((n, n), dtype=dtype)
     for i, j in batched(stubs, n=2):
@@ -776,7 +787,7 @@ def generate_random_weights(
     if symmetric:
         w = (w + w.T) / 2
 
-    return mat * w  # type: ignore[no-any-return]
+    return mat * w
 
 
 def generate_random_gaussian_weights(
@@ -794,7 +805,7 @@ def generate_random_gaussian_weights(
         rng = np.random.default_rng()
 
     # generate some random points to compute distances
-    Sigma = rng.random(size=2, dtype=dtype)  # type: ignore[arg-type]
+    Sigma = rng.random(size=2, dtype=dtype)  # ty: ignore[no-matching-overload]
     Sigma @= Sigma.T
     x = rng.multivariate_normal(np.zeros(2, dtype=dtype), Sigma, size=mat.shape[0])
 
@@ -805,7 +816,7 @@ def generate_random_gaussian_weights(
     # compute Gaussian distances
     D = np.exp(-D / (2.0 * sigma**2))
 
-    return mat * D  # type: ignore[no-any-return]
+    return mat * D
 
 
 def generate_random_equal_row_sum(
@@ -899,7 +910,7 @@ def generate_symmetric_random_equal_row_sum(
         i += 1
 
     d = np.diag(r)
-    return d @ result @ d  # type: ignore[no-any-return]
+    return d @ result @ d
 
 
 def normalize_equal_row_sum(
@@ -925,7 +936,7 @@ def normalize_equal_row_sum(
     else:
         result = mat / fac.reshape(-1, 1)
 
-    return result  # type: ignore[no-any-return]
+    return result
 
 
 # }}}

@@ -74,7 +74,7 @@ y0 = jax.device_put(
 )
 
 result = diffeqsolve(
-    ODETerm(lambda t, y, args: source(t, y)),  # type: ignore[arg-type,unused-ignore]
+    ODETerm(lambda t, y, args: source(t, y)),
     Dopri5(),
     t0=tspan[0],
     t1=tspan[1],

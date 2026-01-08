@@ -229,12 +229,12 @@ class Pfeuty(Model):
         Is_gap = (
             self.K_gap
             * g_gap
-            * (prim.Product((self.M_gap, Vs)) - sym.DotProduct(self.A_gap, Vs))  # type: ignore[arg-type]
+            * (prim.Product((self.M_gap, Vs)) - sym.DotProduct(self.A_gap, Vs))
         )
         Id_gap = (
             self.K_gap
             * g_gap
-            * (prim.Product((self.M_gap, Vd)) - sym.DotProduct(self.A_gap, Vd))  # type: ignore[arg-type]
+            * (prim.Product((self.M_gap, Vd)) - sym.DotProduct(self.A_gap, Vd))
         )
 
         # put it all together

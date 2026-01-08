@@ -181,7 +181,7 @@ def execute_code(code: Code) -> Callable[..., Array]:
 
     weakref.finalize(func, make_finalize(filename))
 
-    return func  # type: ignore[no-any-return]
+    return func
 
 
 # }}}

@@ -45,7 +45,7 @@ class SymEngineMapper(PymbolicToSymEngineMapper):
 
             from pytools.obj_array import vectorize_n_args
 
-            return vectorize_n_args(func, *[self.rec(par) for par in expr.parameters])  # type: ignore[no-untyped-call]
+            return vectorize_n_args(func, *[self.rec(par) for par in expr.parameters])
         else:
             raise NotImplementedError(expr)
 
@@ -55,7 +55,7 @@ class SymEngineMapper(PymbolicToSymEngineMapper):
             assert expr.shape == result.shape
         else:
             # NOTE: needs unreleased version of pymbolic to remove type ignore
-            result = super().map_variable(expr)  # type: ignore[no-untyped-call,unused-ignore]
+            result = super().map_variable(expr)
 
         return result
 
@@ -68,8 +68,8 @@ class SymEngineMapper(PymbolicToSymEngineMapper):
         return np.reshape(aggregate, shape=expr.shape)
 
     def map_dot_product(self, expr: sym.DotProduct) -> SymEngineExpression:
-        left = self.rec(expr.left)  # type: ignore[arg-type]
-        right = self.rec(expr.right)  # type: ignore[arg-type]
+        left = self.rec(expr.left)  # ty: ignore[invalid-argument-type]
+        right = self.rec(expr.right)  # ty: ignore[invalid-argument-type]
 
         return np.dot(left, right)
 

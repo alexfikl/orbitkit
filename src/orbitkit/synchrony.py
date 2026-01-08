@@ -40,7 +40,7 @@ def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
     # Equation 11: compute chi
     chi = np.sqrt(varhat / np.mean(var))
 
-    return chi  # type: ignore[no-any-return]
+    return chi
 
 
 def kuramoto_order_parameter(theta: Array) -> Array:
@@ -66,7 +66,7 @@ def kuramoto_order_parameter(theta: Array) -> Array:
     :returns: an array of size ``(ntimesteps,)`` containing the order parameter
         :math:`r(t)`.
     """
-    return np.abs(np.mean(np.exp(1j * theta), axis=0))  # type: ignore[no-any-return]
+    return np.abs(np.mean(np.exp(1j * theta), axis=0))
 
 
 def global_kuramoto_order_parameter(theta: Array) -> float:
@@ -146,7 +146,7 @@ def kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> Array:
         )
 
     k = np.sum(mat != 0, axis=1).reshape(-1, 1)
-    return np.abs(np.sum(k * np.exp(1j * theta), axis=0) / np.sum(k))  # type: ignore[no-any-return]
+    return np.abs(np.sum(k * np.exp(1j * theta), axis=0) / np.sum(k))
 
 
 def global_kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> float:

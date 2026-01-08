@@ -37,9 +37,9 @@ class IdentityMapper(IdentityMapperBase[[]]):
         return type(expr)(subscripts=expr.subscripts, operands=operands)
 
     def map_dot_product(self, expr: sym.DotProduct, /) -> PymbolicExpression:
-        # NOTE: mypy is upset because left/right can also be ndarrays
-        left = self.rec_arith(expr.left)  # type: ignore[arg-type]
-        right = self.rec_arith(expr.right)  # type: ignore[arg-type]
+        # NOTE: ty is upset because left/right can also be ndarrays
+        left = self.rec_arith(expr.left)  # ty: ignore[invalid-argument-type]
+        right = self.rec_arith(expr.right)  # ty: ignore[invalid-argument-type]
         if left is expr.left and right is expr.right:
             return expr
 
@@ -113,8 +113,8 @@ class WalkMapper(WalkMapperBase[[]]):
         if not self.visit(expr):
             return
 
-        self.rec(expr.left)  # type: ignore[arg-type]
-        self.rec(expr.right)  # type: ignore[arg-type]
+        self.rec(expr.left)  # ty: ignore[invalid-argument-type]
+        self.rec(expr.right)  # ty: ignore[invalid-argument-type]
         self.post_visit(expr)
 
     def map_call_delay(self, expr: sym.CallDelay, /) -> None:
@@ -164,8 +164,8 @@ class StringifyMapper(StringifyMapperBase[Any]):
         return f"({aggregate}).reshape{expr.shape}"
 
     def map_dot_product(self, expr: sym.DotProduct, /, enclosing_prec: int) -> str:
-        left = self.rec(expr.left, PREC_NONE)  # type: ignore[arg-type]
-        right = self.rec(expr.right, PREC_NONE)  # type: ignore[arg-type]
+        left = self.rec(expr.left, PREC_NONE)
+        right = self.rec(expr.right, PREC_NONE)
         return f"dot({left}, {right})"
 
     def map_delay_kernel(self, expr: sym.DelayKernel, /, enclosing_prec: int) -> str:
@@ -178,7 +178,7 @@ class StringifyMapper(StringifyMapperBase[Any]):
 
 
 def stringify(expr: sym.Expression | Array) -> str:
-    return StringifyMapper()(expr)  # type: ignore[arg-type,unused-ignore]
+    return StringifyMapper()(expr)
 
 
 # }}}
@@ -192,7 +192,7 @@ class FlattenMapper(FlattenMapperBase, IdentityMapper):
 
 
 def flatten(expr: sym.Expression | Array) -> sym.Expression | Array:
-    return FlattenMapper()(expr)  # type: ignore[arg-type,return-value]
+    return FlattenMapper()(expr)  # ty: ignore[invalid-argument-type,invalid-return-type]
 
 
 # }}}

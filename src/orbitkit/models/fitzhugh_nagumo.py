@@ -105,7 +105,7 @@ class FitzHughNagumoOmelchenko(Model):
 
         def sum_g(a: sym.Expression, b: sym.Expression) -> sym.Expression:
             return sym.Contract(
-                prim.Product((  # type: ignore[arg-type]
+                prim.Product((  # ty: ignore[invalid-argument-type]
                     self.G,
                     a * (u.reshape(1, -1) - u.reshape(-1, 1))
                     + b * (v.reshape(1, -1) - v.reshape(-1, 1)),
@@ -114,7 +114,7 @@ class FitzHughNagumoOmelchenko(Model):
             )
 
         H, epsilon, a = self.H, self.epsilon, self.a
-        sigma_g = prim.Quotient(self.sigma, self.g)  # type: ignore[arg-type]
+        sigma_g = prim.Quotient(self.sigma, self.g)
         return (
             (u - u**3 / 3 - v + sigma_g * sum_g(H[0, 0], H[0, 1])) / epsilon,
             u + a + sigma_g * sum_g(H[1, 0], H[1, 1]),
