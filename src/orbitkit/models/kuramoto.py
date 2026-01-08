@@ -59,7 +59,7 @@ class Kuramoto(Model):
             from numbers import Real
 
             pi2 = np.pi / 2.0
-            if isinstance(self.alpha, Real) and not -pi2 <= self.alpha <= pi2:
+            if isinstance(self.alpha, Real) and not -pi2 <= float(self.alpha) <= pi2:
                 raise ValueError(
                     f"phase lag 'alpha' must be in [-pi/2, pi/2]: {self.alpha}"
                 )

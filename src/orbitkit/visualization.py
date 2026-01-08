@@ -248,9 +248,9 @@ def figure(
 
         for ax in fig.axes:
             assert isinstance(ax, Axes3D)
-            ax.xaxis.pane.fill = pane_fill
-            ax.yaxis.pane.fill = pane_fill
-            ax.zaxis.pane.fill = pane_fill
+            ax.xaxis.pane.fill = pane_fill  # ty: ignore[possibly-missing-attribute]
+            ax.yaxis.pane.fill = pane_fill  # ty: ignore[possibly-missing-attribute]
+            ax.zaxis.pane.fill = pane_fill  # ty: ignore[possibly-missing-attribute]
 
     try:
         yield fig
@@ -416,7 +416,7 @@ def rastergram(
     *,
     height: float | None = None,
     distance: float | None = None,
-    markerheight: float | None = 0.5,
+    markerheight: float = 0.5,
     markerwidth: float | None = None,
 ) -> None:
     """Plot the rastergram for the given signal.

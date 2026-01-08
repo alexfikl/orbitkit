@@ -9,11 +9,11 @@ import time
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 
-from orbitkit.typing import Array, PathLike, T
+from orbitkit.typing import Array, PathLike, Scalar, T
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -265,7 +265,7 @@ def stringify_eoc(*eocs: EOCRecorder) -> str:
 def visualize_eoc(
     filename: PathLike,
     *eocs: EOCRecorder,
-    order: float | tuple[float, float] | None = None,
+    order: Scalar | tuple[Scalar, Scalar] | None = None,
     abscissa: str | Literal[False] = "h",
     ylabel: str | Literal[False] = "Error",
     olabel: str | Literal[False] | None = None,
@@ -283,17 +283,15 @@ def visualize_eoc(
     if not eocs:
         raise ValueError("no EOCRecorders are provided")
 
-    from numbers import Number
-
     if order is not None:
-        if isinstance(order, Number) and order <= 0.0:
+        if isinstance(order, (int, float, np.floating)) and order <= 0.0:
             raise ValueError(f"'order' should be non-negative: {order}")
 
         if isinstance(order, tuple):
             if len(order) != 2:
                 raise ValueError(f"'order' should be a pair '(p, q)': {order}")
 
-            p, q = order
+            p, q = cast("tuple[Scalar, Scalar]", order)
             if p <= 0 or q <= 0:
                 raise ValueError(f"'order' should be non-negative: {order}")
 
@@ -350,7 +348,7 @@ def visualize_eoc(
         if order is not None and not eocs_have_order:
             max_h, min_e, max_e = extent
 
-            if isinstance(order, Number):
+            if isinstance(order, (int, float, np.floating)):
                 # NOTE: solves y = x^p
                 min_h = np.exp(np.log(max_h) + np.log(min_e / max_e) / order)
             elif isinstance(order, tuple):
@@ -440,7 +438,7 @@ def solve_scaling_line(
     ymin: float,
     ymax: float,
     *,
-    order: float | tuple[float, float],
+    order: Scalar | tuple[Scalar, Scalar],
 ) -> tuple[tuple[float, float], tuple[float, float]]:
     r"""Computes *xmin* such that *(xmin, ymin)* and *(xmax, ymax)* follow the law
 
@@ -450,9 +448,7 @@ def solve_scaling_line(
 
     for the given *order*.
     """
-    from numbers import Number
-
-    if isinstance(order, Number):
+    if isinstance(order, (int, float, np.floating)):
         order = (order, order)
 
     if not isinstance(order, tuple):
@@ -461,7 +457,8 @@ def solve_scaling_line(
     if len(order) != 2:
         raise ValueError(f"'order' not a pair (p, q): {order}")
 
-    p, q = order
+    p, q = cast("tuple[Scalar, Scalar]", order)
+
     if p < 0 or q < 0:
         raise ValueError(f"'order' must be non-negative: {order}")
 

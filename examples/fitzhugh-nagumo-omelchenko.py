@@ -46,7 +46,13 @@ source = target.lambdify_model(model, model.n)
 # {{{ evolve
 
 try:
-    from diffrax import Dopri5, ODETerm, PIDController, SaveAt, diffeqsolve
+    from diffrax import (  # ty: ignore[unresolved-import]
+        Dopri5,
+        ODETerm,
+        PIDController,
+        SaveAt,
+        diffeqsolve,
+    )
 except ImportError:
     log.error("This example requires `jax` and `diffrax`.")
     raise SystemExit(0) from None
