@@ -461,8 +461,8 @@ def pade_gamma(
     gamma_p: float,
     alpha: float,
     *,
-    p: int | None = None,
-    q: int = 6,
+    n: int | None = None,
+    m: int = 6,
 ) -> tuple[Array, Array]:
     r"""Create a Padé approximant for the Laplace transform of the
     :math:`\mathrm{Gamma}(t; p, \alpha)` kernel.
@@ -478,14 +478,14 @@ def pade_gamma(
 
     .. math::
 
-        \frac{a_0 + a_1 x + \cdots + a_q x^q}
-             {b_0 + b_1 x + \cdots + a_r x^r},
+        \frac{a_0 + a_1 x + \cdots + a_n x^n}
+             {b_0 + b_1 x + \cdots + a_m x^m},
 
-    for orders :math:`(q, r)`, i.e. a Padé approximant at :math:`s = 0`.
+    for orders :math:`(m, n)`, i.e. a Padé approximant at :math:`s = 0`.
 
     This is an alternative approximation to the sum of exponentials (e.g.
     :func:`soe_gamma_mpm`) with different compromises. In particular, the Padé
-    approximant of order :math:`r > 1` will exactly match the  higher-order
+    approximant of order :math:`n > 1` will exactly match the  higher-order
     moments of the Gamma distribution. However, it can result in kernels that
     have negative values and multiple local extrema in physical space (unlike
     the original Gamma kernel).
@@ -494,32 +494,38 @@ def pade_gamma(
     at :math:`s = 0`. This Taylor expansion has a radius of convergence of only
     :math:`|s| < \alpha`. However, the approximant is expected to remain valid
     even outside this range and provide a good approximation of the Gamma
-    function (but may require :math:`q > 1`).
+    function (but may require :math:`m > 1`).
 
-    :arg p: order of the polynomial in the numerator.
-    :arg q: order of the polynomial in the denominator.
+    .. warning::
+
+        This method seems to mostly work well for small orders :math:`p` of the
+        Gamma kernel. Thss kind of negates any benefits it may have, since ideally
+        we would use it for large :math:`p`.
+
+    :arg n: order of the polynomial in the numerator.
+    :arg m: order of the polynomial in the denominator.
     :returns: a tuple ``(p, q)`` of polynomial coefficients for the numerator
         and denominator. The coefficient order matches that of :mod:`numpy.polynomial`.
     """
 
-    if p is None:
+    if n is None:
         # NOTE: this has the best chance of giving a good approximation for a
         # wider range of s values
-        p = q - 1
+        n = m - 1
 
-    if p < 0 or not isinstance(p, int):
-        raise ValueError(f"order 'p' must be a positive integer: {p}")
+    if n < 0 or not isinstance(n, int):
+        raise ValueError(f"order 'n' must be a positive integer: {n}")
 
-    if q < 0 or not isinstance(q, int):
-        raise ValueError(f"order 'q' must be a positive integer: {q}")
+    if m < 0 or not isinstance(m, int):
+        raise ValueError(f"order 'm' must be a positive integer: {m}")
 
-    if q < p:
-        raise ValueError(f"order 'q' cannot be smaller than 'p': {q} < {p}")
+    if m < n:
+        raise ValueError(f"order 'm' cannot be smaller than 'n': {m} < {n}")
 
     # gather Taylor coefficients
     from scipy.special import binom
 
-    k = np.arange(p + q + 1)
+    k = np.arange(n + m + 1)
     if float(gamma_p).is_integer():
         taylor_coeffs = (-1.0) ** k * binom(gamma_p + k - 1, k) / alpha**k
     else:
@@ -531,7 +537,7 @@ def pade_gamma(
     # NOTE: this could cause issues: https://github.com/scipy/scipy/issues/20064
     from scipy.interpolate import pade
 
-    ppoly, qpoly = pade(taylor_coeffs, q, p)
+    ppoly, qpoly = pade(taylor_coeffs, m, n)
     # assert ppoly.order <= qpoly.order
 
     return np.flip(ppoly.coefficients), np.flip(qpoly.coefficients)

@@ -293,7 +293,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
 
 
 @pytest.mark.parametrize(
-    ("gamma_p", "alpha"),
+    ("p", "alpha"),
     [
         # NOTE: these should just work great
         (1.0, np.pi),
@@ -307,7 +307,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
     ],
 )
 @pytest.mark.parametrize(
-    ("p", "q"),
+    ("n", "m"),
     [
         (1, 3),
         (1, 6),
@@ -317,31 +317,30 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
         (8, 9),
     ],
 )
-def test_pade_gamma(gamma_p: float, alpha: float, p: int, q: int) -> None:
+def test_pade_gamma(p: float, alpha: float, n: int, m: int) -> None:
     from orbitkit.models.linear_chain_tricks import pade_gamma
 
-    pcoeff, qcoeff = pade_gamma(gamma_p, alpha, p=p, q=q)
+    pcoeff, qcoeff = pade_gamma(p, alpha, n=n, m=m)
     ppoly = np.polynomial.Polynomial(pcoeff)
     qpoly = np.polynomial.Polynomial(qcoeff)
 
     # test accuracy on [0, alpha]
-    n = 256
-    s = np.linspace(0, alpha, n)
-    gamma_ref = (alpha / (s + alpha)) ** gamma_p
+    s = np.linspace(0, alpha, 256)
+    gamma_ref = (alpha / (s + alpha)) ** p
     gamma_approx = ppoly(s) / qpoly(s)
 
     error = np.linalg.norm(gamma_approx - gamma_ref) / np.linalg.norm(gamma_ref)
-    log.info("Error[%g, %g, %d, %d]: %.8e", gamma_p, alpha, p, q, error)
+    log.info("Error[%g, %g, %d, %d]: %.8e", p, alpha, n, m, error)
     assert error < 1.0
 
     # test accuracy on [alpha, 5 alpha]
-    s = np.linspace(alpha, 5.0 * alpha, n)
-    gamma_ref = (alpha / (s + alpha)) ** gamma_p
+    s = np.linspace(alpha, 5.0 * alpha, s.size)
+    gamma_ref = (alpha / (s + alpha)) ** p
     gamma_approx = ppoly(s) / qpoly(s)
 
     error = np.linalg.norm(gamma_approx - gamma_ref) / np.linalg.norm(gamma_ref)
-    log.info("Error[%g, %g, %d, %d]: %.8e", gamma_p, alpha, p, q, error)
-    if gamma_p < 10.0:
+    log.info("Error[%g, %g, %d, %d]: %.8e", p, alpha, n, m, error)
+    if p < 10.0:
         assert error < 1.0
 
     if not ENABLE_VISUAL:
@@ -350,7 +349,7 @@ def test_pade_gamma(gamma_p: float, alpha: float, p: int, q: int) -> None:
     from orbitkit.visualization import figure
 
     with figure(
-        TEST_DIRECTORY / f"test_pade_gamma_{gamma_p:05.2f}_{alpha:02.2f}_{p}_{q}",
+        TEST_DIRECTORY / f"test_pade_gamma_{p:05.2f}_{alpha:02.2f}_{n}_{m}",
         normalize=True,
     ) as fig:
         ax = fig.gca()
@@ -358,7 +357,7 @@ def test_pade_gamma(gamma_p: float, alpha: float, p: int, q: int) -> None:
         ax.plot(s, gamma_approx)
         ax.plot(s, gamma_ref, "k--")
         ax.set_xlabel("$t$")
-        ax.set_ylabel(rf"$\mathrm{{Gamma}}(t; p={gamma_p:.2f}, \alpha={alpha:.2f})$")
+        ax.set_ylabel(rf"$\mathrm{{Gamma}}(t; p={p:.2f}, \alpha={alpha:.2f})$")
 
 
 # }}}
