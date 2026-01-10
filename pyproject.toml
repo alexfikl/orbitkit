@@ -102,6 +102,7 @@ lint.ignore = [
     "PLR0915", # too-many-local-statements
     "PLR0917", # too-many-positional
     "PLR2004", # magic-value-comparison
+    "RUF067",  # non-empty-init-module
     "S101",    # assert
     "S102",    # exec-builtin
     "UP037",   # quoted-annotation
