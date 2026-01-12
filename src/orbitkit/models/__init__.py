@@ -38,7 +38,7 @@ def ds_symbolic(
     if rattrs is None:
         rattrs = set()
 
-    def _ds_field_symbolic(
+    def _ds_field_symbolic(  # noqa: PLR0911
         attr: object, fname: str, *, rec: bool, rattrs: set[str]
     ) -> object:
         from pymbolic.primitives import ExpressionNode
@@ -51,9 +51,23 @@ def ds_symbolic(
                 )
             else:
                 return tuple(sym.Variable(f"{fname}_{i}") for i in range(len(attr)))
+        if isinstance(attr, dict):
+            if rec or fname in rattrs:
+                return {
+                    k: _ds_field_symbolic(
+                        attr[k],  # ty: ignore[invalid-argument-type]
+                        f"{fname}_{k}",
+                        rec=rec,
+                        rattrs=rattrs,
+                    )
+                    for k in attr
+                }
+            else:
+                return {k: sym.Variable(f"{fname}_{k}") for k in attr}
+
         elif isinstance(attr, np.ndarray):
             return sym.MatrixSymbol(fname, attr.shape)
-        elif isinstance(attr, ExpressionNode):
+        elif isinstance(attr, (int, float, np.number, ExpressionNode)):
             return attr
         else:
             return sym.Variable(fname)
@@ -178,7 +192,7 @@ class ExtendedLinearChainTrickModel(Model):
 
     @property
     def rattrs(self) -> set[str]:
-        return self.orig.rattrs
+        return {*self.orig.rattrs, "orig", "exprs", "equations"}
 
     def evaluate(
         self, t: sym.Expression, *args: sym.MatrixSymbol
