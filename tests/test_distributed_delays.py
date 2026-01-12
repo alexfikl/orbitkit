@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.linalg as la
@@ -21,9 +20,6 @@ from orbitkit.utils import (
     stringify_eoc,
 )
 from orbitkit.visualization import figure, set_plotting_defaults
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
@@ -56,21 +52,6 @@ class HomogeneousLinearModel(Model):
         (y,) = args
 
         return (-self.a * y + self.b * self.h(y),)
-
-
-@dataclass(frozen=True)
-class NonHomogeneousLinearModel(HomogeneousLinearModel):
-    y: Callable[[Array], Array]
-    g: Callable[[sym.Expression], sym.Expression]
-
-    def evaluate(
-        self, t: sym.Expression, *args: sym.MatrixSymbol
-    ) -> tuple[sym.Expression, ...]:
-        (result,) = super().evaluate(t, *args)
-        return (result + self.g(t),)
-
-    def solution(self, t: Array) -> Array:
-        return self.y(t)
 
 
 # }}}
@@ -163,11 +144,11 @@ def test_weak_gamma_homogeneous_solution() -> None:
 # }}}
 
 
-# {{{ test_distributed_delays_to_ode
+# {{{ test_weak_gamma_dde
 
 
 @pytest.mark.parametrize("alpha", [0.5, 1.5, 2.5])
-def test_weak_gamma_ode(alpha: float) -> None:
+def test_weak_gamma_dde(alpha: float) -> None:
     from orbitkit.models import transform_distributed_delay_model
 
     # {{{ construct model
@@ -273,7 +254,9 @@ def _uniform_characteristic_equation_prime(
     )
 
 
-def _uniform_root(model: HomogeneousLinearModel, *, atol: float = 1.0e-8) -> float:
+def _uniform_homogeneous_root(
+    model: HomogeneousLinearModel, *, atol: float = 1.0e-8
+) -> float:
     assert isinstance(model.h, sym.UniformDelayKernel)
 
     a = model.a
@@ -343,7 +326,7 @@ def test_uniform_homogeneous_solution() -> None:
             a = rng.uniform(b, b + 1)
             model = HomogeneousLinearModel(a=a, b=b, h=h)
 
-            lambda_star = _uniform_root(model, atol=atol)
+            lambda_star = _uniform_homogeneous_root(model, atol=atol)
             assert lambda_star < 0
 
             error_star = _uniform_characteristic_equation(
@@ -357,7 +340,7 @@ def test_uniform_homogeneous_solution() -> None:
         model = HomogeneousLinearModel(a=a, b=b, h=h)
 
         with pytest.raises(ValueError, match="unstable"):
-            lambda_star = _uniform_root(model, atol=atol)
+            lambda_star = _uniform_homogeneous_root(model, atol=atol)
 
         # check condition for negative roots with a < b
         for _ in range(32):
@@ -365,7 +348,7 @@ def test_uniform_homogeneous_solution() -> None:
             a = rng.uniform(-1, b)
             model = HomogeneousLinearModel(a=a, b=b, h=h)
 
-            lambda_star = _uniform_root(model, atol=atol)
+            lambda_star = _uniform_homogeneous_root(model, atol=atol)
             assert lambda_star < 0
 
             error_star = _uniform_characteristic_equation(
@@ -376,6 +359,37 @@ def test_uniform_homogeneous_solution() -> None:
 
 # }}}
 
+# {{{ test_uniform_dde
+
+
+@pytest.mark.parametrize("tau", [0.5, 1.0, 2.0, 3.0, 4.0])
+@pytest.mark.parametrize("epsilon", [0.01, 0.1, 0.2, 0.5, 0.75, 0.9, 0.98])
+def test_uniform_dde(tau: float, epsilon: float) -> None:
+    from orbitkit.models import transform_distributed_delay_model
+
+    # {{{ construct model
+
+    rng = np.random.default_rng(seed=42)
+
+    # NOTE: for this choice of (a, b), we should have only one negative root
+    b = rng.uniform()
+    a = rng.uniform(b, b + 1)
+
+    kernel = sym.UniformDelayKernel(epsilon, tau)
+    model = HomogeneousLinearModel(a=a, b=b, h=kernel)
+
+    log.info("Model: %s", type(model))
+    log.info("Equations:\n%s", model)
+
+    ext_model = transform_distributed_delay_model(model, 1)
+
+    log.info("Model: %s", type(ext_model))
+    log.info("Equations:\n%s", ext_model)
+
+    # }}}
+
+
+# }}}
 
 if __name__ == "__main__":
     import sys
