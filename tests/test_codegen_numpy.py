@@ -71,7 +71,7 @@ def test_symbolify(module_name: str, model_name: str) -> None:
 
     model = get_model_from_module(module_name, model_name, n)
     args, exprs = model.symbolify(n, full=True)
-    assert args[0].name == "t"
+    assert args[0].name == "__t"
 
     for i, (arg, expr) in enumerate(zip(args[1:], exprs, strict=True)):
         log.info("Eq%d:\n d%s/dt = %s", i, arg, expr)
