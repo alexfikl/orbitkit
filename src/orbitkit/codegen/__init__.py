@@ -87,7 +87,7 @@ class Target(ABC):
                 raise ValueError(f"model has size {model_n} for given size {n}")
 
         inputs, exprs = model.symbolify(n)
-        y = sym.MatrixSymbol("y", (sum(n),))
+        y = sym.MatrixSymbol("__y", (sum(n),))
 
         return self.generate_code(
             (inputs[0], y),
