@@ -93,7 +93,7 @@ def _weak_gamma_homogeneous_root(model: HomogeneousLinearModel) -> float:
     # NOTE:
     # - these are always real for b > 0
     # - lambda_m is always negative for -alpha < a < alpha
-    # - lambda_p is sometimes negative, so we try to pick it if possible
+    # - lambda_pif is sometimes negative, so we try to pick it if possible
     # - existence of solutions requires that Re(alpha + lambda) > 0.
 
     lambda_p = -0.5 * ((alpha + a) - ((alpha - a) ** 2 + 4 * alpha * b) ** 0.5)
@@ -126,38 +126,38 @@ def _weak_gamma_coefficients(
     return a, b
 
 
-@pytest.mark.parametrize("alpha", [1.0, 2.0, 3.0, 4.0, 5.0])
-def test_weak_gamma_homogeneous_solution(alpha: float) -> None:
-    rng = np.random.default_rng(seed=None)
+def test_weak_gamma_homogeneous_solution() -> None:
+    rng = np.random.default_rng(seed=42)
     t = np.linspace(0.0, 12.0, 512)
 
     # try out real solutions with at least one stable Re(lambda) < 0 root
-    for _ in range(12):
-        a = rng.uniform(-alpha, alpha)
-        b = rng.uniform(-((alpha - a) ** 2) / (4.0 * alpha), 0)
+    for alpha in [1.0, 2.0, 3.0, 4.0, 5.0]:
+        for _ in range(32):
+            a = rng.uniform(-alpha, alpha)
+            b = rng.uniform(-((alpha - a) ** 2) / (4.0 * alpha), 0)
+            model = HomogeneousLinearModel(a=a, b=b, h=sym.GammaDelayKernel(1.0, alpha))
+
+            lambda_star = _weak_gamma_homogeneous_root(model)
+            assert np.all(np.isfinite(np.exp(lambda_star * t)))
+
+            error_star = lambda_star + a - alpha * b / (alpha + lambda_star)
+            assert abs(error_star) < 5.0e-13
+
+        # try out a complex solution
+        a = rng.uniform(0, 1)
+        b = -((alpha - a) ** 2) / (4.0 * alpha) - 0.25
         model = HomogeneousLinearModel(a=a, b=b, h=sym.GammaDelayKernel(1.0, alpha))
 
-        lambda_star = _weak_gamma_homogeneous_root(model)
-        assert np.all(np.isfinite(np.exp(lambda_star * t)))
+        with pytest.raises(ValueError, match="complex"):
+            _weak_gamma_homogeneous_root(model)
 
-        error_star = lambda_star + a - alpha * b / (alpha + lambda_star)
-        assert abs(error_star) < 5.0e-13
+        # try out no negative real part solutions
+        a = -alpha - rng.uniform(0, 1)
+        b = rng.uniform(-((alpha - a) ** 2) / (4.0 * alpha), a)
+        model = HomogeneousLinearModel(a=a, b=b, h=sym.GammaDelayKernel(1.0, alpha))
 
-    # try out a complex solution
-    a = rng.uniform(0, 1)
-    b = -((alpha - a) ** 2) / (4.0 * alpha) - 0.25
-    model = HomogeneousLinearModel(a=a, b=b, h=sym.GammaDelayKernel(1.0, alpha))
-
-    with pytest.raises(ValueError, match="complex"):
-        _weak_gamma_homogeneous_root(model)
-
-    # try out no negative real part solutions
-    a = -alpha - rng.uniform(0, 1)
-    b = rng.uniform(-((alpha - a) ** 2) / (4.0 * alpha), a)
-    model = HomogeneousLinearModel(a=a, b=b, h=sym.GammaDelayKernel(1.0, alpha))
-
-    with pytest.raises(ValueError, match="unstable"):
-        _weak_gamma_homogeneous_root(model)
+        with pytest.raises(ValueError, match="unstable"):
+            _weak_gamma_homogeneous_root(model)
 
 
 # }}}
@@ -166,7 +166,7 @@ def test_weak_gamma_homogeneous_solution(alpha: float) -> None:
 # {{{ test_distributed_delays_to_ode
 
 
-@pytest.mark.parametrize("alpha", [0.5])
+@pytest.mark.parametrize("alpha", [0.5, 1.5, 2.5])
 def test_weak_gamma_ode(alpha: float) -> None:
     from orbitkit.models import transform_distributed_delay_model
 
@@ -250,7 +250,129 @@ def test_weak_gamma_ode(alpha: float) -> None:
 # }}}
 
 
-# {{{ test_distributed_delays_to_dde
+# {{{ test_uniform_homogeneous_solution
+
+
+def _uniform_characteristic_equation(
+    x: float, *, a: float, b: float, epsilon: float, tau: float
+) -> float:
+    return (
+        x + a - b / (epsilon * tau * x) * np.exp(-tau * x) * np.sinh(epsilon * tau * x)
+    )
+
+
+def _uniform_characteristic_equation_prime(
+    x: float, *, a: float, b: float, epsilon: float, tau: float
+) -> float:
+    tau_x = tau * x
+    eps_tau_x = epsilon * tau_x
+    return (
+        1
+        - b / x * np.exp(-tau_x) * np.cosh(eps_tau_x)
+        + b / (eps_tau_x * x) * (1 + tau_x) * np.exp(-tau_x) * np.sinh(eps_tau_x)
+    )
+
+
+def _uniform_root(model: HomogeneousLinearModel, *, atol: float = 1.0e-8) -> float:
+    assert isinstance(model.h, sym.UniformDelayKernel)
+
+    a = model.a
+    assert isinstance(a, (int, float))
+    b = model.b
+    assert isinstance(b, (int, float))
+    epsilon = model.h.epsilon
+    assert isinstance(epsilon, (int, float))
+    tau = model.h.tau
+    assert isinstance(tau, (int, float))
+
+    from functools import partial
+
+    from scipy.optimize import root_scalar
+    from scipy.special import lambertw
+
+    # NOTE: (this needs some actual math to back it up)
+    # * if a < b, the 0 branch has a chance of working
+    # * if a > b, the 0 branch seems to be positive, so we start with 1
+    k = 0 if a < b else 1
+    while k < 10:
+        result = root_scalar(
+            partial(
+                _uniform_characteristic_equation, a=a, b=b, epsilon=epsilon, tau=tau
+            ),
+            x0=np.real(lambertw(tau * b * np.exp(a * tau), k=k) / tau - a),
+            fprime=partial(
+                _uniform_characteristic_equation_prime,
+                a=a,
+                b=b,
+                epsilon=epsilon,
+                tau=tau,
+            ),
+            xtol=atol,
+            rtol=atol,
+        )
+        assert result.converged
+
+        if not np.iscomplex(result.root) and np.real(result.root) < 0:
+            return np.real(result.root)
+
+        k += 2
+
+    if np.iscomplex(result.root):
+        raise ValueError(f"solution is complex: lambda = {result.root}")
+
+    if np.real(result.root) > 0:
+        raise ValueError(f"solution is unstable: lambda = {result.root}")
+
+    return np.real(result.root)
+
+
+def test_uniform_homogeneous_solution() -> None:
+    rng = np.random.default_rng(seed=42)
+    atol = 1.0e-14
+
+    from itertools import product
+
+    for tau, eps in product(
+        [0.5, 1.0, 2.0, 3.0, 4.0],
+        [0.01, 0.1, 0.2, 0.5, 0.75, 0.9, 0.98],
+    ):
+        # check condition for negative roots with a > b
+        h = sym.UniformDelayKernel(eps, tau)
+        for _ in range(32):
+            b = rng.uniform()
+            a = rng.uniform(b, b + 1)
+            model = HomogeneousLinearModel(a=a, b=b, h=h)
+
+            lambda_star = _uniform_root(model, atol=atol)
+            assert lambda_star < 0
+
+            error_star = _uniform_characteristic_equation(
+                lambda_star, a=a, b=b, epsilon=eps, tau=tau
+            )
+            assert abs(error_star) < atol
+
+        # try out a positive root
+        b = rng.uniform()
+        a = rng.uniform(0, b)
+        model = HomogeneousLinearModel(a=a, b=b, h=h)
+
+        with pytest.raises(ValueError, match="unstable"):
+            lambda_star = _uniform_root(model, atol=atol)
+
+        # check condition for negative roots with a < b
+        for _ in range(32):
+            b = -rng.uniform()
+            a = rng.uniform(-1, b)
+            model = HomogeneousLinearModel(a=a, b=b, h=h)
+
+            lambda_star = _uniform_root(model, atol=atol)
+            assert lambda_star < 0
+
+            error_star = _uniform_characteristic_equation(
+                lambda_star, a=a, b=b, epsilon=eps, tau=tau
+            )
+            assert abs(error_star) < 5 * atol
+
 
 # }}}
 
