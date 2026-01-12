@@ -54,7 +54,6 @@ urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
-# NOTE: typing requirements
 test = [ "pytest", "ruff", "scipy-stubs", "ty" ]
 docs = [ "sphinx>=6", "sphinx-book-theme" ]
 clustering = [ "leidenalg>=0.10" ]
