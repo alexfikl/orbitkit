@@ -63,7 +63,7 @@ numpy==2.2.6 ; python_full_version < '3.11'
     #   matplotlib
     #   ml-dtypes
     #   scipy
-numpy==2.4.0 ; python_full_version >= '3.11'
+numpy==2.4.1 ; python_full_version >= '3.11'
     # via
     #   orbitkit (pyproject.toml)
     #   contourpy
@@ -110,7 +110,7 @@ pytools==2025.2.5
     # via pymbolic
 rich==14.2.0
     # via orbitkit (pyproject.toml)
-ruff==0.14.10
+ruff==0.14.11
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.0
     # via orbitkit (pyproject.toml:visualization)
@@ -120,7 +120,7 @@ scipy==1.15.3 ; python_full_version < '3.11'
     #   jax
     #   jaxlib
     #   jitcode
-scipy==1.16.3 ; python_full_version >= '3.11'
+scipy==1.17.0 ; python_full_version >= '3.11'
     # via
     #   orbitkit (pyproject.toml)
     #   jax
@@ -144,9 +144,9 @@ sympy==1.14.0
     # via orbitkit (pyproject.toml:codegen)
 texttable==1.7.0
     # via igraph
-tomli==2.3.0 ; python_full_version < '3.11'
+tomli==2.4.0 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.10
+ty==0.0.11
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.15.0
     # via
