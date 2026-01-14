@@ -98,7 +98,7 @@ def extract_variable_offset(ys: JiTCDDEExpression) -> int:
     assert isinstance(ys, np.ndarray), type(ys)
     assert ys.size > 0, ys.size
 
-    y = ys[-1]
+    y = ys[0]
     assert isinstance(y, sp.Function), type(y)
     assert len(y.args) == 1, y.size
 
