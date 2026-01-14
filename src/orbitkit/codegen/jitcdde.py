@@ -92,6 +92,22 @@ def make_input_variable(
     return y
 
 
+def extract_variable_offset(ys: JiTCDDEExpression) -> int:
+    import symengine as sp
+
+    assert isinstance(ys, np.ndarray), type(ys)
+    assert ys.size > 0, ys.size
+
+    y = ys[-1]
+    assert isinstance(y, sp.Function), type(y)
+    assert len(y.args) == 1, y.size
+
+    (idx,) = y.args
+    assert isinstance(idx, sp.Integer), type(idx)
+
+    return int(idx)
+
+
 @dataclass(frozen=True)
 class JiTCDDECodeGenerator(JiTCODECodeGenerator):
     pass
@@ -134,18 +150,24 @@ class JiTCDDETarget(JiTCODETarget):
         # create delayed variables using jitcdde
         from pymbolic.primitives import Call
 
-        func = sym.Variable("make_input_variable")
+        make_variable_func = sym.Variable("make_input_variable")
+        extract_offset_func = sym.Variable("extract_variable_offset")
+
         delay_assignments = []
-        offset = 0
         for expr, var in mapper.call_delay_to_variable.items():
             y = expr.aggregate
             assert isinstance(y, sym.Variable)
             assert isinstance(var, sym.MatrixSymbol)
 
             delay_assignments.append(
-                Assignment(var, Call(func, (y.attr("shape"), expr.tau, 0)))
+                Assignment(
+                    var,
+                    Call(
+                        make_variable_func,
+                        (y.attr("shape"), expr.tau, extract_offset_func(y)),
+                    ),
+                )
             )
-            offset += sum(var.shape)
 
         # generate code
         import symengine
@@ -166,7 +188,8 @@ class JiTCDDETarget(JiTCODETarget):
                 **code.context,
                 self.sym_module: symengine,
                 "vectorized": vectorized,
-                func.name: make_input_variable,
+                make_variable_func.name: make_input_variable,
+                extract_offset_func.name: extract_variable_offset,
             },
         )
 

@@ -363,10 +363,9 @@ def test_uniform_homogeneous_solution() -> None:
 # {{{ test_uniform_dde
 
 
+# FIXME: maybe too many?
 @pytest.mark.parametrize("tau", [0.5, 1.0, 2.0, 3.0, 4.0])
 @pytest.mark.parametrize("epsilon", [0.01, 0.1, 0.2, 0.5, 0.75, 0.9, 0.98])
-# @pytest.mark.parametrize("tau", [0.5])
-# @pytest.mark.parametrize("epsilon", [0.5])
 def test_uniform_dde(tau: float, epsilon: float) -> None:
     from orbitkit.models import transform_distributed_delay_model
 
@@ -429,7 +428,9 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
     dde.step_on_discontinuities()
     # dde.integrate_blindly(max_delay, step=dt)
 
-    dt = 1.0e-4
+    # TODO: perform an actual convergence study of some sort. What order does the
+    # JiTCDDE method even convert at? It implements the MATLAB method, IIRC
+    dt = 1.0e-2
     tspan = (0.0, 12.0)
 
     steps = np.arange(tspan[0], tspan[1] - dde.t, dt) + dde.t
@@ -443,7 +444,7 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
     y_ref = Y0 * np.exp(lambda_star * ts)
     error = la.norm(ys - y_ref) / la.norm(y_ref)
     log.info("tau %.2f epsilon %.3f error %.8g", tau, epsilon, error)
-    assert error < 1.0
+    assert error < 1.0e-4
 
     if not ENABLE_VISUAL:
         return
