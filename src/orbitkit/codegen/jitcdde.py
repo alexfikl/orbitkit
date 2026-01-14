@@ -148,13 +148,12 @@ class JiTCDDETarget(JiTCODETarget):
             },
         )
 
-    def compile(  # noqa: PLR6301
+    def compile(  # ty: ignore[invalid-method-override] # noqa: PLR6301
         self,
         f: Array,
         y: Array,
         *,
         max_delay: float,
-        method: str = "RK45",
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         module_location: str | pathlib.Path | None = None,
@@ -193,7 +192,7 @@ class JiTCDDETarget(JiTCODETarget):
                         newfilename,
                     )
 
-        dde.set_integrator(method, atol=atol, rtol=rtol)
+        dde.set_integration_parameters(rtol=rtol, atol=atol)
         return dde
 
 
