@@ -169,7 +169,7 @@ def test_weak_gamma_dde(alpha: float) -> None:
 
     # }}}
 
-    # {{{ construct solution
+    # {{{ construct ODE
 
     from orbitkit.codegen.numpy import NumpyTarget
 
@@ -354,6 +354,7 @@ def test_uniform_homogeneous_solution() -> None:
             error_star = _uniform_characteristic_equation(
                 lambda_star, a=a, b=b, epsilon=eps, tau=tau
             )
+
             assert abs(error_star) < 5 * atol
 
 
@@ -385,6 +386,16 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
 
     log.info("Model: %s", type(ext_model))
     log.info("Equations:\n%s", ext_model)
+
+    # }}}
+
+    # {{{ construct DDE
+
+    from orbitkit.codegen.jitcdde import JiTCDDETarget
+
+    target = JiTCDDETarget()
+    source = target.lambdify_model(ext_model, 1)
+    assert source is not None
 
     # }}}
 

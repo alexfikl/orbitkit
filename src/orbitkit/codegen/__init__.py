@@ -44,9 +44,31 @@ class Code:
         return self.source
 
 
+@dataclass
+class Assignment:
+    """A symbolic ``a = b`` assignment."""
+
+    assignee: sym.Variable
+    rvalue: sym.Expression
+
+
 # }}}
 
 # {{{ target
+
+
+def make_slice_assignments(
+    y: sym.Variable, inputs: tuple[sym.Variable, ...], n: tuple[int, ...]
+) -> tuple[Assignment, ...]:
+    from pymbolic.primitives import Slice
+
+    i = 0
+    result: list[Assignment] = []
+    for n_i, arg in zip(n, inputs, strict=True):
+        result.append(Assignment(arg, y[Slice((i, i + n_i, None))]))
+        i += n_i
+
+    return tuple(result)
 
 
 class Target(ABC):
@@ -86,14 +108,15 @@ class Target(ABC):
             if any(n_i != m_i for n_i, m_i in zip(n, model_n, strict=True)):
                 raise ValueError(f"model has size {model_n} for given size {n}")
 
+        # FIXME: all this implicitly assumes that inputs[0] is "t" and the rest
+        # are the actual variables. Should make this explicit
         inputs, exprs = model.symbolify(n)
         y = sym.MatrixSymbol("__y", (sum(n),))
 
         return self.generate_code(
             (inputs[0], y),
             exprs,
-            variables=inputs[1:],
-            sizes=n,
+            assignments=make_slice_assignments(y, inputs[1:], n),
             name=type(model).__name__,
             pretty=pretty,
         )
@@ -104,14 +127,16 @@ class Target(ABC):
         inputs: sym.Variable | tuple[sym.Variable, ...],
         exprs: sym.Expression | tuple[sym.Expression, ...],
         *,
-        variables: sym.Variable | tuple[sym.Variable, ...] | None = None,
-        sizes: int | tuple[int, ...] | None = None,
+        assignments: tuple[Assignment, ...] | None = None,
         name: str = "expr",
         pretty: bool = False,
     ) -> Code:
         """Generate code for an arbitrary expression *expr*.
 
-        :arg inputs: input variables required to evaluate the expression *expr*.
+        :arg inputs: input arguments to the generated function entrypoint.
+        :arg exprs: a set of expressions to generate code for. The resulting
+            function will return an array containing all the results.
+
         :arg name: an identifier for the generated function.
         :arg pretty: if *True*, some simple code formatting is performed.
         """

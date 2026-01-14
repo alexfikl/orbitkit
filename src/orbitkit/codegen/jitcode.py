@@ -6,26 +6,28 @@ from __future__ import annotations
 import pathlib
 import time
 from dataclasses import dataclass, replace
-from typing import Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
-import jitcode
 import numpy as np
-import symengine as sp
 from pymbolic import primitives as prim
 from pymbolic.interop.symengine import PymbolicToSymEngineMapper
 
 import orbitkit.symbolic.primitives as sym
-from orbitkit.codegen import Code
+from orbitkit.codegen import Assignment, Code
 from orbitkit.codegen.numpy import NumpyCodeGenerator, NumpyTarget
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
+
+if TYPE_CHECKING:
+    import jitcode
+    import symengine as sp
 
 log = module_logger(__name__)
 
 
 # {{{ mapper
 
-SymEngineExpression: TypeAlias = sp.Basic | np.ndarray[tuple[int, ...], np.dtype[Any]]
+SymEngineExpression: TypeAlias = "sp.Basic | np.ndarray[tuple[int, ...], np.dtype[Any]]"
 
 
 class SymEngineMapper(PymbolicToSymEngineMapper):
@@ -54,7 +56,6 @@ class SymEngineMapper(PymbolicToSymEngineMapper):
             result = self.input_map[expr.name]
             assert expr.shape == result.shape
         else:
-            # NOTE: needs unreleased version of pymbolic to remove type ignore
             result = super().map_variable(expr)
 
         return result
@@ -79,55 +80,68 @@ class SymEngineMapper(PymbolicToSymEngineMapper):
 
 # {{{ target
 
-JiTCODEExpression: TypeAlias = np.ndarray[tuple[int], np.dtype[Any]]
+JiTCODEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
+
+
+def make_input_variable(n: tuple[int, ...], offset: int = 0) -> JiTCODEExpression:
+    import jitcdde
+
+    y = np.empty(n, dtype=object)
+    for i, idx in enumerate(np.ndindex(y.shape)):
+        y[idx] = jitcdde.y(offset + i)
+
+    return y
 
 
 @dataclass(frozen=True)
 class JiTCODECodeGenerator(NumpyCodeGenerator):
-    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:  # noqa: PLR6301
-        return f"vectorized(sp.{expr.name})"
+    sym_module: str = "sp"
+
+    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
+        return f"vectorized({self.sym_module}.{expr.name})"
 
 
 @dataclass(frozen=True)
 class JiTCODETarget(NumpyTarget):
     module: ClassVar[str] = "np"
+    sym_module: ClassVar[str] = "sp"
     funcname: ClassVar[str] = "_lambdify_generated_func_jitcode_symengine"
 
     def _get_code_generator(self) -> NumpyCodeGenerator:
-        return JiTCODECodeGenerator(module=self.module)
+        return JiTCODECodeGenerator(module=self.module, sym_module=self.sym_module)
 
     def generate_code(
         self,
         inputs: sym.Variable | tuple[sym.Variable, ...],
         exprs: sym.Expression | tuple[sym.Expression, ...],
         *,
-        variables: sym.Variable | tuple[sym.Variable, ...] | None = None,
-        sizes: int | tuple[int, ...] | None = None,
+        assignments: tuple[Assignment, ...] | None = None,
         name: str = "expr",
         pretty: bool = False,
     ) -> Code:
-        if variables is None:
+        if assignments is None:
             raise NotImplementedError("JiTCODE cannot generate individual functions")
 
         import symengine
         from pytools.obj_array import vectorized
 
         code = super().generate_code(
-            inputs, exprs, variables=variables, sizes=sizes, name=name, pretty=pretty
+            inputs,
+            exprs,
+            assignments=assignments,
+            name=name,
+            pretty=pretty,
         )
+        log.debug("Code:\n%s", code.source)
+
         return replace(
             code,
-            context={**code.context, "sp": symengine, "vectorized": vectorized},
+            context={
+                **code.context,
+                self.sym_module: symengine,
+                "vectorized": vectorized,
+            },
         )
-
-    def make_input_variable(self, n: tuple[int, ...]) -> JiTCODEExpression:  # noqa: PLR6301
-        import jitcode
-
-        y = np.empty(np.sum(n), dtype=object)
-        for i in range(y.size):
-            y[i] = jitcode.y(i)
-
-        return y
 
     def compile(  # noqa: PLR6301
         self,

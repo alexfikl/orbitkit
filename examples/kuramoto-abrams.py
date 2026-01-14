@@ -7,7 +7,7 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.codegen.jitcode import JiTCODETarget
+from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
 from orbitkit.utils import module_logger, tictoc
 
@@ -56,7 +56,7 @@ y0 = np.hstack([
 ])
 
 with tictoc("evaluation"):
-    y = target.make_input_variable((n, n))
+    y = make_input_variable((n, n))
     source = source_func(jitcode.t, y)
 
 with tictoc("compile"):

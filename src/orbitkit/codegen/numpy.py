@@ -12,7 +12,7 @@ import pytools
 from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
 
 import orbitkit.symbolic.primitives as sym
-from orbitkit.codegen import Code, Target, execute_code
+from orbitkit.codegen import Assignment, Code, Target, execute_code
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -20,7 +20,9 @@ log = module_logger(__name__)
 
 # TODO: will need to make this into a proper compiler with statements and
 # assignments and whatnot at some point. The main driving force for that is
-# the need for CSE to save intermediate results..
+# the need for CSE to save intermediate results.. otherwise a lot of this stuff
+# is quite slow. See `JaxTarget` if that is an actual problem (or any other
+# target that isn't "eager").
 
 # {{{ numpy code generator
 
@@ -102,8 +104,7 @@ class NumpyTarget(Target):
         inputs: sym.Variable | tuple[sym.Variable, ...],
         exprs: sym.Expression | tuple[sym.Expression, ...],
         *,
-        variables: sym.Variable | tuple[sym.Variable, ...] | None = None,
-        sizes: int | tuple[int, ...] | None = None,
+        assignments: tuple[Assignment, ...] | None = None,
         name: str = "expr",
         pretty: bool = False,
     ) -> Code:
@@ -124,24 +125,9 @@ class NumpyTarget(Target):
             args=(*(arg.name for arg in inputs), *args),
         )
 
-        if variables is not None:
-            # FIXME: this is a bit hacky. we basically have some variables in the
-            # code that we need to define beforehand based on the input vector y.
-            # This seems brittle as we add more variables to the code..
-            if sizes is None:
-                raise ValueError("must provide variable 'sizes'")
-
-            if isinstance(variables, sym.Variable):
-                variables = (variables,)
-
-            if isinstance(sizes, int):
-                sizes = (sizes,) * len(variables)
-
-            i = 0
-            y = inputs[-1]
-            for n_i, arg in zip(sizes, variables, strict=True):
-                py(f"{arg.name} = {y.name}[{i}:{i + n_i}]")
-                i += n_i
+        if assignments is not None:
+            for assign in assignments:
+                py(f"{assign.assignee} = {cgen(assign.rvalue)}")
 
         if len(exprs) == 1:
             py(f"return {cgen(exprs[0])}")
@@ -154,6 +140,8 @@ class NumpyTarget(Target):
         if pretty:
             import ast
 
+            # NOTE: :shrug: ast seems to pretty-print things a bit, so we use it
+            # as a poor person's code formatter.
             source = ast.unparse(ast.parse(source))
 
         return Code(
