@@ -365,6 +365,8 @@ def test_uniform_homogeneous_solution() -> None:
 
 @pytest.mark.parametrize("tau", [0.5, 1.0, 2.0, 3.0, 4.0])
 @pytest.mark.parametrize("epsilon", [0.01, 0.1, 0.2, 0.5, 0.75, 0.9, 0.98])
+# @pytest.mark.parametrize("tau", [0.5])
+# @pytest.mark.parametrize("epsilon", [0.5])
 def test_uniform_dde(tau: float, epsilon: float) -> None:
     from orbitkit.models import transform_distributed_delay_model
 
@@ -391,16 +393,75 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
 
     # {{{ construct DDE
 
-    from orbitkit.codegen.jitcdde import JiTCDDETarget
+    # generate code
+    from orbitkit.codegen.jitcdde import JiTCDDETarget, make_input_variable
 
     target = JiTCDDETarget()
-    source = target.lambdify_model(ext_model, 1)
-    assert source is not None
+    source_func = target.lambdify_model(ext_model, 1)
+
+    # compile code
+    import jitcdde
+
+    y = make_input_variable((2,))
+    source = source_func(jitcdde.t, y)
+    log.info("\n%s", source)
+
+    dde = target.compile(source, y, max_delay=(1 + epsilon) * tau)
+
+    # set initial conditions
+    lambda_star = _uniform_homogeneous_root(model)
+    ta, tb = (1.0 - epsilon) * tau, (1.0 + epsilon) * tau
+
+    Y0 = rng.random()
+    Z0 = (
+        Y0
+        * (np.exp(-ta * lambda_star) - np.exp(-tb * lambda_star))
+        / ((tb - ta) * lambda_star)
+    )
+    log.info("lambda %.8e Y0 %g Z0 %g", lambda_star, Y0, Z0)
+
+    dde.past_from_function(lambda t: (Y0 * np.exp(lambda_star * t), Z0))
+    dde.delays = ((1.0 - epsilon) * tau, (1 + epsilon) * tau)
 
     # }}}
 
+    # handle discontinuities
+    dde.step_on_discontinuities()
+    # dde.integrate_blindly(max_delay, step=dt)
+
+    dt = 1.0e-4
+    tspan = (0.0, 12.0)
+
+    steps = np.arange(tspan[0], tspan[1] - dde.t, dt) + dde.t
+    ts = np.empty(steps.shape, dtype=Z0.dtype)
+    ys = np.empty(steps.shape, dtype=Z0.dtype)
+
+    for i, t in enumerate(dde.t + steps):
+        ts[i] = t
+        ys[i], _ = dde.integrate(t)
+
+    y_ref = Y0 * np.exp(lambda_star * ts)
+    error = la.norm(ys - y_ref) / la.norm(y_ref)
+    log.info("tau %.2f epsilon %.3f error %.8g", tau, epsilon, error)
+    assert error < 1.0
+
+    if not ENABLE_VISUAL:
+        return
+
+    with figure(
+        TEST_DIRECTORY / f"test_dde_uniform_{tau:.2f}_{epsilon:.3f}", normalize=True
+    ) as fig:
+        ax = fig.gca()
+
+        ax.plot(ts, ys)
+        ax.plot(ts, y_ref, "k--")
+        # ax.semilogy(ts, np.abs(ys - y_ref) + 1.0e-16)
+        ax.set_xlabel("$t$")
+        ax.set_ylabel("$y$")
+
 
 # }}}
+
 
 if __name__ == "__main__":
     import sys
