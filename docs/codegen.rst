@@ -17,3 +17,8 @@ JiTCODE
 -------
 
 .. automodule:: orbitkit.codegen.jitcode
+
+JiTCDDE
+-------
+
+.. automodule:: orbitkit.codegen.jitcdde
