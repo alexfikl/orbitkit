@@ -30,6 +30,18 @@ log = module_logger(__name__)
 
 
 class CallDelayReplacer(IdentityMapper):
+    """A mapper that replaces all :class:`~orbitkit.symbolic.primitives.CallDelay`
+    expressions in the expression tree with a simple
+    :class:`~pymbolic.primitives.Variable`.
+
+    The resulting mapping can be obtained from :attr:`call_delay_to_variable`.
+    """
+
+    call_delay_to_variable: dict[sym.CallDelay, sym.Variable]
+    """A mapping of replaced :class:`~orbitkit.symbolic.primitives.CallDelay`
+    expressions.
+    """
+
     def __init__(self, inputs: tuple[sym.Variable, ...]) -> None:
         from pytools import UniqueNameGenerator
 
@@ -49,10 +61,14 @@ class CallDelayReplacer(IdentityMapper):
             raise ValueError(f"variable '{y}' is not a known input")
 
         inp = self.name_to_inputs[y.name]
-        self.call_delay_to_variable[expr] = result = replace(
-            inp, name=self.unique_name_generator(f"_{y.name}")
-        )
-        return result
+        try:
+            return self.call_delay_to_variable[expr]
+        except KeyError:
+            self.call_delay_to_variable[expr] = result = replace(
+                inp, name=self.unique_name_generator(f"_{y.name}")
+            )
+
+            return result
 
 
 # }}}
@@ -65,7 +81,7 @@ JiTCDDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 
 
 def make_input_variable(
-    n: tuple[int, ...], tau: int | float = 0, offset: int = 0
+    n: int | tuple[int, ...], tau: int | float = 0, offset: int = 0
 ) -> JiTCDDEExpression:
     import jitcdde
 
@@ -110,6 +126,10 @@ class JiTCDDETarget(JiTCODETarget):
             *(assign.assignee for assign in assignments),
         ))
         exprs = mapper(exprs)  # ty: ignore[invalid-assignment]
+        if not mapper.call_delay_to_variable:
+            raise ValueError(
+                "code does not contain any delayed variables (use JiTCODETarget)"
+            )
 
         # create delayed variables using jitcdde
         from pymbolic.primitives import Call
@@ -118,10 +138,12 @@ class JiTCDDETarget(JiTCODETarget):
         delay_assignments = []
         offset = 0
         for expr, var in mapper.call_delay_to_variable.items():
+            y = expr.aggregate
+            assert isinstance(y, sym.Variable)
             assert isinstance(var, sym.MatrixSymbol)
 
             delay_assignments.append(
-                Assignment(var, Call(func, (var.shape, expr.tau, offset)))
+                Assignment(var, Call(func, (y.attr("shape"), expr.tau, 0)))
             )
             offset += sum(var.shape)
 

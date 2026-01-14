@@ -49,7 +49,9 @@ class Assignment:
     """A symbolic ``a = b`` assignment."""
 
     assignee: sym.Variable
+    """A variable to which the expression is assigned to."""
     rvalue: sym.Expression
+    """The expression on the right-hand side of the assignment."""
 
 
 # }}}
