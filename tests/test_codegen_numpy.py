@@ -32,7 +32,15 @@ def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
     A = np.ones((n, n)) - np.eye(n)
     model: Model
 
-    if module_name == "kuramoto":
+    if module_name == "fitzhugh_nagumo":
+        from orbitkit.models import fitzhugh_nagumo
+
+        model = replace(fitzhugh_nagumo.make_model_from_name(model_name), G=A)
+    elif module_name == "hiv":
+        from orbitkit.models import hiv
+
+        model = hiv.make_model_from_name(model_name)
+    elif module_name == "kuramoto":
         from orbitkit.models import kuramoto
 
         model = kuramoto.make_model_from_name(model_name)
@@ -57,14 +65,19 @@ def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
 @pytest.mark.parametrize(
     ("module_name", "model_name"),
     [
+        ("fitzhugh_nagumo", "Omelchenko2019Figure4a"),
+        ("hiv", "CulshawRuanWebb2003Figure44"),
         ("kuramoto", "Abrams2008Figure2a"),
+        ("pfeuty", "Pfeuty2007Figure2cl"),
+        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
         ("wang_rinzel", "WangRinzel1992Figure1a"),
         ("wang_rinzel", "WangRinzel1992Figure4a"),
-        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
-        ("pfeuty", "Pfeuty2007Figure2cl"),
+        # ("wilson_cowan", "")
     ],
 )
 def test_symbolify(module_name: str, model_name: str) -> None:
+    """Check that the models can be converted to fully symbolic."""
+
     pytest.importorskip("pymbolic")
 
     n = 32
@@ -91,14 +104,17 @@ def test_symbolify(module_name: str, model_name: str) -> None:
 @pytest.mark.parametrize(
     ("module_name", "model_name"),
     [
+        ("fitzhugh_nagumo", "Omelchenko2019Figure4a"),
         ("kuramoto", "Abrams2008Figure2a"),
+        ("pfeuty", "Pfeuty2007Figure2cl"),
+        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
         ("wang_rinzel", "WangRinzel1992Figure1a"),
         ("wang_rinzel", "WangRinzel1992Figure4a"),
-        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
-        ("pfeuty", "Pfeuty2007Figure2cl"),
     ],
 )
 def test_codegen_numpy(module_name: str, model_name: str) -> None:
+    """Check that the generated code works for these models."""
+
     pytest.importorskip("pymbolic")
 
     n = 32
@@ -144,6 +160,8 @@ def kuramoto(model: KuramotoAbrams, t: float, *thetas: Array) -> Array:
 
 @pytest.mark.parametrize("n", [32])
 def test_codegen_numpy_kuramoto(n: int) -> None:
+    """Check that the code gives the same result as a hand-written function."""
+
     pytest.importorskip("pymbolic")
     rng = np.random.default_rng(seed=42)
 
@@ -169,6 +187,41 @@ def test_codegen_numpy_kuramoto(n: int) -> None:
     log.info("Generated: %s", result)
     result = timeit(lambda: kuramoto(model, 0.0, ys[:n], ys[n:]))
     log.info("Hardcoded: %s", result)
+
+
+# }}}
+
+
+# {{{ test_codegen_numpy_array_arguments
+
+
+def test_codegen_numpy_array_arguments() -> None:
+    """Check that the generator extracts extra arrays."""
+    pytest.importorskip("pymbolic")
+
+    from orbitkit.models.wang_buzsaki import WangBuzsaki
+
+    n = 32
+    model = get_model_from_module("wang_buzsaki", "WangBuzsaki1996Figure3a", n)
+    assert isinstance(model, WangBuzsaki)
+    A = model.A
+    assert isinstance(A, np.ndarray)
+
+    from orbitkit.codegen.numpy import NumpyCodeGenerator
+
+    _, exprs = model.symbolify(n)
+
+    cgen = NumpyCodeGenerator()
+    result = cgen(exprs)
+    assert result is not None
+
+    # NOTE: the Wang-Buzsáki model has two free-floating arrays:
+    #   1. The matrix `A` that was added in `get_model_from_module`
+    #   2. The vector `M = sum(A, axis=1)`.
+    assert len(cgen.array_arguments) == 2
+    assert cgen.array_arguments.keys() == {"_arg", "_arg_0"}
+    assert np.allclose(cgen.array_arguments["_arg"], A)
+    assert np.allclose(cgen.array_arguments["_arg_0"], np.sum(A, axis=1))
 
 
 # }}}
