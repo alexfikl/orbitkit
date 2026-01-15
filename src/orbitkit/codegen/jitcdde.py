@@ -92,20 +92,24 @@ def make_input_variable(
     return y
 
 
-def extract_variable_offset(ys: JiTCDDEExpression) -> int:
+def make_delay_variable(
+    ys: JiTCDDEExpression, tau: int | float = 0
+) -> JiTCDDEExpression:
+    import jitcdde
     import symengine as sp
 
-    assert isinstance(ys, np.ndarray), type(ys)
-    assert ys.size > 0, ys.size
+    result = np.empty_like(ys)
+    for idx in np.ndindex(ys.shape):
+        y = ys[idx]
+        assert isinstance(y, sp.Function), type(y)
+        assert len(y.args) == 1, y.size
 
-    y = ys[0]
-    assert isinstance(y, sp.Function), type(y)
-    assert len(y.args) == 1, y.size
+        (i,) = y.args
+        assert isinstance(i, sp.Integer), type(i)
 
-    (idx,) = y.args
-    assert isinstance(idx, sp.Integer), type(idx)
+        result[idx] = jitcdde.y(i, jitcdde.t - tau)
 
-    return int(idx)
+    return result
 
 
 @dataclass(frozen=True)
@@ -150,8 +154,7 @@ class JiTCDDETarget(JiTCODETarget):
         # create delayed variables using jitcdde
         from pymbolic.primitives import Call
 
-        make_variable_func = sym.Variable("make_input_variable")
-        extract_offset_func = sym.Variable("extract_variable_offset")
+        make_delay_func = sym.Variable("make_delay_variable")
 
         delay_assignments = []
         for expr, var in mapper.call_delay_to_variable.items():
@@ -160,13 +163,7 @@ class JiTCDDETarget(JiTCODETarget):
             assert isinstance(var, sym.MatrixSymbol)
 
             delay_assignments.append(
-                Assignment(
-                    var,
-                    Call(
-                        make_variable_func,
-                        (y.attr("shape"), expr.tau, extract_offset_func(y)),
-                    ),
-                )
+                Assignment(var, Call(make_delay_func, (y, expr.tau)))
             )
 
         # generate code
@@ -188,8 +185,7 @@ class JiTCDDETarget(JiTCODETarget):
                 **code.context,
                 self.sym_module: symengine,
                 "vectorized": vectorized,
-                make_variable_func.name: make_input_variable,
-                extract_offset_func.name: extract_variable_offset,
+                make_delay_func.name: make_delay_variable,
             },
         )
 
