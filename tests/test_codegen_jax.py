@@ -55,6 +55,9 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
     ys = rng.random(d * n)
     result = source(0.0, ys)
 
+    import jax.numpy as jnp
+
+    assert isinstance(result, jnp.ndarray)
     assert np.all(np.isfinite(result))
     assert result.shape == (d * n,)
 
