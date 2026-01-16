@@ -49,6 +49,12 @@ def on_ci() -> bool:
 
 
 def enable_test_plotting() -> bool:
+    """Check if plotting is enabled.
+
+    This is controlled by the ``ORBITKIT_ENABLE_TEST_PLOTTING`` environment
+    variable. The name can change, so use this helper function instead, if possible.
+    """
+
     return get_environ_boolean("ORBITKIT_ENABLE_TEST_PLOTTING")
 
 
