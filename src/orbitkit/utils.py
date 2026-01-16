@@ -48,6 +48,10 @@ def on_ci() -> bool:
     )
 
 
+def enable_test_plotting() -> bool:
+    return get_environ_boolean("ORBITKIT_ENABLE_TEST_PLOTTING")
+
+
 # }}}
 
 
