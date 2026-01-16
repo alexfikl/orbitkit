@@ -128,8 +128,9 @@ class NumpyTarget(Target):
         if assignments is not None:
             for assign in assignments:
                 # FIXME: this can actually amass additional arrays. For now, we're
-                # just using it to go `V = y[0:10]`, but this need not be always the
-                # case. Can `PythonFunctionGenerator` change its arguments?
+                # just using it to go `V = y[0:10]`, but this need not always be the
+                # case. `PythonFunctionGenerator` cannot add additional args
+                # after the constructor, so this needs to be another one.
                 py(f"{assign.assignee} = {cgen(assign.rvalue)}")
 
         if len(exprs) == 1:
