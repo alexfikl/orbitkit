@@ -144,4 +144,16 @@ ctags:
 test *PYTEST_ADDOPTS:
     {{ PYTHON }} -m pytest {{ PYTEST_ADDOPTS }}
 
+[doc("Run examples with default options")]
+examples:
+    #!/usr/bin/env bash
+
+    set -o errexit -o errtrace -o nounset -o pipefail
+
+    for ex in `ls examples/*.py`; do
+        echo "::group::Running ${ex}";
+        {{ PYTHON }} ${ex};
+        echo "::endgroup::";
+    done
+
 # }}}
