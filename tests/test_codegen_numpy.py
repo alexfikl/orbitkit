@@ -4,21 +4,18 @@
 from __future__ import annotations
 
 import pathlib
-from dataclasses import replace
 
 import numpy as np
 import pymbolic.primitives as prim
 import pytest
 
-from orbitkit.models import Model
 from orbitkit.models.kuramoto import KuramotoAbrams
 from orbitkit.typing import Array
-from orbitkit.utils import get_environ_boolean, module_logger
+from orbitkit.utils import module_logger
 from orbitkit.visualization import set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
-ENABLE_VISUAL = get_environ_boolean("ORBITKIT_ENABLE_VISUAL")
 
 log = module_logger(__name__)
 set_plotting_defaults()
@@ -79,9 +76,9 @@ def test_symbolify(module_name: str, model_name: str) -> None:
     """Check that the models can be converted to fully symbolic."""
 
     pytest.importorskip("pymbolic")
+    from testlib import get_model_from_module
 
     n = 32
-
     model = get_model_from_module(module_name, model_name, n)
     args, exprs = model.symbolify(n, full=True)
     assert args[0].name == "__t"
@@ -116,14 +113,15 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
     """Check that the generated code works for these models."""
 
     pytest.importorskip("pymbolic")
+    from testlib import get_model_from_module
 
     n = 32
     rng = np.random.default_rng(seed=42)
 
-    from orbitkit.codegen.numpy import NumpyTarget
-
     model = get_model_from_module(module_name, model_name, n)
     d = len(model.variables)
+
+    from orbitkit.codegen.numpy import NumpyTarget
 
     target = NumpyTarget()
     source = target.lambdify_model(model, n)
@@ -163,16 +161,17 @@ def test_codegen_numpy_kuramoto(n: int) -> None:
     """Check that the code gives the same result as a hand-written function."""
 
     pytest.importorskip("pymbolic")
+    from testlib import get_model_from_module
+
     rng = np.random.default_rng(seed=42)
+
+    model = get_model_from_module("kuramoto", "Abrams2008Figure2c", n)
+    d = len(model.variables)
+    assert isinstance(model, KuramotoAbrams)
 
     from orbitkit.codegen.numpy import NumpyTarget
 
-    model = get_model_from_module("kuramoto", "Abrams2008Figure2c", n)
-    assert isinstance(model, KuramotoAbrams)
-
-    d = len(model.variables)
     target = NumpyTarget()
-
     source = target.lambdify_model(model, n)
     assert source is not None
 
@@ -199,6 +198,8 @@ def test_codegen_numpy_array_arguments() -> None:
     """Check that the generator extracts extra arrays."""
     pytest.importorskip("pymbolic")
 
+    from testlib import get_model_from_module
+
     from orbitkit.models.wang_buzsaki import WangBuzsaki
 
     n = 32
@@ -216,7 +217,7 @@ def test_codegen_numpy_array_arguments() -> None:
     assert result is not None
 
     # NOTE: the Wang-Buzsáki model has two free-floating arrays:
-    #   1. The matrix `A` that was added in `get_model_from_module`
+    #   1. The connection matrix `A`,
     #   2. The vector `M = sum(A, axis=1)`.
     assert len(cgen.array_arguments) == 2
     assert cgen.array_arguments.keys() == {"_arg", "_arg_0"}

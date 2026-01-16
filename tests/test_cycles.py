@@ -8,12 +8,11 @@ import pathlib
 import numpy as np
 import pytest
 
-from orbitkit.utils import get_environ_boolean, module_logger
+from orbitkit.utils import enable_test_plotting, module_logger
 from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
-ENABLE_VISUAL = get_environ_boolean("ORBITKIT_ENABLE_VISUAL")
 
 log = module_logger(__name__)
 set_plotting_defaults()
@@ -48,7 +47,7 @@ def test_cycles_welch_psd(method: str) -> None:
 
     assert np.max(result.deltas) < 20.0 * b
 
-    if not ENABLE_VISUAL:
+    if not enable_test_plotting():
         return
 
     with figure(TEST_DIRECTORY / f"test_cycles_{method}_psd", normalize=True) as fig:

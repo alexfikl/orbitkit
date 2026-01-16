@@ -10,12 +10,11 @@ import pytest
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.symbolic.mappers import WalkMapper
-from orbitkit.utils import get_environ_boolean, module_logger
+from orbitkit.utils import enable_test_plotting, module_logger
 from orbitkit.visualization import set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
-ENABLE_VISUAL = get_environ_boolean("ORBITKIT_ENABLE_VISUAL")
 
 log = module_logger(__name__)
 set_plotting_defaults()
@@ -259,7 +258,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
     else:
         raise AssertionError
 
-    if not ENABLE_VISUAL:
+    if not enable_test_plotting():
         return
 
     from orbitkit.visualization import figure
@@ -343,7 +342,7 @@ def test_pade_gamma(p: float, alpha: float, n: int, m: int) -> None:
     if p < 10.0:
         assert error < 1.0
 
-    if not ENABLE_VISUAL:
+    if not enable_test_plotting():
         return
 
     from orbitkit.visualization import figure

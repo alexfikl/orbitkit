@@ -15,7 +15,7 @@ from orbitkit.models import Model
 from orbitkit.typing import Array
 from orbitkit.utils import (
     EOCRecorder,
-    get_environ_boolean,
+    enable_test_plotting,
     module_logger,
     stringify_eoc,
 )
@@ -23,7 +23,6 @@ from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
-ENABLE_VISUAL = get_environ_boolean("ORBITKIT_ENABLE_VISUAL")
 
 log = module_logger(__name__)
 set_plotting_defaults()
@@ -213,7 +212,7 @@ def test_weak_gamma_dde(alpha: float) -> None:
 
     # }}}
 
-    if not ENABLE_VISUAL:
+    if not enable_test_plotting():
         return
 
     with figure(
@@ -446,7 +445,7 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
     log.info("tau %.2f epsilon %.3f error %.8g", tau, epsilon, error)
     assert error < 1.0e-4
 
-    if not ENABLE_VISUAL:
+    if not enable_test_plotting():
         return
 
     with figure(
