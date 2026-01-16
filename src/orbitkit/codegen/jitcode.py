@@ -27,12 +27,12 @@ log = module_logger(__name__)
 JiTCODEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 
 
-def make_input_variable(n: tuple[int, ...], offset: int = 0) -> JiTCODEExpression:
-    import jitcdde
+def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCODEExpression:
+    import jitcode
 
     y = np.empty(n, dtype=object)
     for i, idx in enumerate(np.ndindex(y.shape)):
-        y[idx] = jitcdde.y(offset + i)
+        y[idx] = jitcode.y(offset + i)
 
     return y
 
