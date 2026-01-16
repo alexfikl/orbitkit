@@ -12,7 +12,7 @@ import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.wang_buzsaki import make_model_from_name
 from orbitkit.typing import Array
-from orbitkit.utils import module_logger
+from orbitkit.utils import module_logger, on_ci
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
@@ -95,6 +95,9 @@ result = solve_ivp(
 # }}}
 
 # {{{ plot
+
+if on_ci():
+    raise SystemExit(0)
 
 try:
     import matplotlib.pyplot as mp  # noqa: F401

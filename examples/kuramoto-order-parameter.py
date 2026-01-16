@@ -10,7 +10,7 @@ import numpy as np
 
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.kuramoto import Kuramoto, make_model_from_name
-from orbitkit.utils import module_logger
+from orbitkit.utils import module_logger, on_ci
 
 log = module_logger(__name__)
 
@@ -79,6 +79,9 @@ for i in range(K.size):
 # }}}
 
 # {{{ plot
+
+if on_ci():
+    raise SystemExit(0)
 
 try:
     import matplotlib.pyplot as mp  # noqa: F401

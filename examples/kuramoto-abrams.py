@@ -78,6 +78,9 @@ with tictoc("evolve"):
 
 # {{{ plot
 
+if on_ci():
+    raise SystemExit(0)
+
 try:
     import matplotlib.pyplot as mp  # noqa: F401
 except ImportError:
