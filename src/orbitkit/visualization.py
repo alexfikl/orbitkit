@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from orbitkit.typing import Array, PathLike
-from orbitkit.utils import BOOLEAN_STATES, module_logger
+from orbitkit.utils import BOOLEAN_STATES, module_logger, on_ci
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as mp
@@ -73,6 +73,9 @@ def set_plotting_defaults(
     :arg overrides: a mapping of parameters to override the defaults. These
         can also be set separately after this function was called using ``rcParams``.
     """
+    if on_ci():
+        return
+
     try:
         import matplotlib.pyplot as mp
     except ImportError:
