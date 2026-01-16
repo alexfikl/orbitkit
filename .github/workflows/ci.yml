@@ -88,7 +88,7 @@ jobs:
 
   examples:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    name: Examples (pytest-${{ matrix.python-version }})
+    name: Examples
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
