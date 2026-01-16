@@ -9,7 +9,7 @@ import numpy as np
 
 from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
-from orbitkit.utils import module_logger, tictoc
+from orbitkit.utils import module_logger, on_ci, tictoc
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
@@ -33,6 +33,10 @@ log.info("Equations:\n%s", model)
 with tictoc("codegen"):
     target = JiTCODETarget()
     source_func = target.lambdify_model(model, (n, n))
+
+if on_ci():
+    log.warning("Example is very slow. Quitting..")
+    raise SystemExit(0)
 
 # }}}
 

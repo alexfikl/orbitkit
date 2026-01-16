@@ -34,6 +34,20 @@ def get_environ_boolean(name: str) -> bool:
     return BOOLEAN_STATES.get(value.lower(), False) if value else False
 
 
+def on_ci() -> bool:
+    """
+    :returns: *True* if the current running system is recognized as a CI.
+    """
+    return (
+        # NOTE: seems to be some new standard for CI?
+        get_environ_boolean("CI")
+        # NOTE: GitHub CI
+        or os.environ.get("GITHUB_ACTIONS") is not None
+        # NOTE: Gitlab CI
+        or os.environ.get("CI_PROJECT_DIR") is not None
+    )
+
+
 # }}}
 
 
