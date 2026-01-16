@@ -34,10 +34,6 @@ with tictoc("codegen"):
     target = JiTCODETarget()
     source_func = target.lambdify_model(model, (n, n))
 
-if on_ci():
-    log.warning("Example is very slow. Quitting..")
-    raise SystemExit(0)
-
 # }}}
 
 
@@ -60,7 +56,7 @@ y0 = np.hstack([
 ])
 
 with tictoc("evaluation"):
-    y = make_input_variable((n, n))
+    y = make_input_variable(2 * n)
     source = source_func(jitcode.t, y)
 
 with tictoc("compile"):
