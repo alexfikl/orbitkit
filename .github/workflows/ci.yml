@@ -81,7 +81,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
         cache-dependency-path: '.ci/requirements-test.txt'
-    - name: Main Script
+    - name: Run tests
       run: |
         just ci-info
         just ci-install .venv && source .venv/bin/activate
