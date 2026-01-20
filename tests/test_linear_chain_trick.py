@@ -49,6 +49,15 @@ def test_dirac_delay_distributor() -> None:
     expr = a + b * x[0] * x[1]
     assert delay(expr) == a + b * dirac(x[0]) * dirac(x[1])
 
+    # check calls
+    expr = a * sym.sin(x[1])
+    assert delay(expr) == a * sym.sin(dirac(x[1]))
+
+    # check no nesting
+    expr = a + b * (sym.sin(sym.UniformDelayKernel(0.5, 1.0)(x[0])))
+    with pytest.raises(ValueError, match="cannot distribute"):
+        delay(expr)
+
     # check that time and inputs are ignored if not provided
     delay = DiracDelayDistributor(tau)
 

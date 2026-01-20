@@ -55,6 +55,14 @@ class DiracDelayDistributor(IdentityMapper):
         self.time = time
         self.inputs = set(inputs) if inputs is not None else inputs
 
+    def map_call(self, expr: prim.Call) -> Expression:
+        # NOTE: do not allow other kernels in the expression
+        func = expr.function
+        if isinstance(func, sym.DelayKernel):
+            raise ValueError(f"cannot distribute over expression: {expr}")
+
+        return super().map_call(expr)
+
     def map_variable(self, expr: prim.Variable) -> Expression:
         # NOTE: we handle the following cases:
         # 1. If we hit the "time" variable, just set it to `t - tau`.

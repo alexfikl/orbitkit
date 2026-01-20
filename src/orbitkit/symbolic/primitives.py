@@ -229,7 +229,7 @@ class DiracDelayKernel(DelayKernel):
 
     @property
     def avg(self) -> Expression:
-        return self.avg
+        return self.tau
 
 
 @prim.expr_dataclass()
