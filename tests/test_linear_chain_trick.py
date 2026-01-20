@@ -20,6 +20,48 @@ log = module_logger(__name__)
 set_plotting_defaults()
 
 
+# {{{ test_dirac_delay_distributor
+
+
+def test_dirac_delay_distributor() -> None:
+    tau = sym.Variable("tau")
+    t = sym.Variable("t")
+    x = [sym.Variable("x"), sym.Variable("y")]
+
+    a = sym.Variable("a")
+    b = sym.Variable("b")
+
+    def dirac(y: sym.Expression) -> sym.Expression:
+        return sym.DiracDelayKernel(tau)(y)
+
+    from orbitkit.models.linear_chain_tricks import DiracDelayDistributor
+
+    delay = DiracDelayDistributor(tau, time=t, inputs=x)
+
+    # check that "constants" just get ignored
+    expr = a + b
+    assert expr == delay(expr)
+
+    # check that time gets expanded
+    expr = a + b * t
+    assert delay(expr) == a + b * (t - tau)
+
+    expr = a + b * x[0] * x[1]
+    assert delay(expr) == a + b * dirac(x[0]) * dirac(x[1])
+
+    # check that time and inputs are ignored if not provided
+    delay = DiracDelayDistributor(tau)
+
+    expr = a + b * t
+    assert delay(expr) == dirac(a) + dirac(b) * dirac(t)
+
+    expr = t + x[0] / x[1]
+    assert delay(expr) == dirac(t) + dirac(x[0]) / dirac(x[1])
+
+
+# }}}
+
+
 # {{{ test_linear_chain_trick
 
 
