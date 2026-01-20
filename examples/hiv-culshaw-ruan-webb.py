@@ -37,6 +37,8 @@ ext_model = transform_distributed_delay_model(model, 1)
 log.info("Model: %s", type(ext_model))
 log.info("Equations:\n%s", ext_model)
 
+# NOTE: Figure 5.2 and Figure 5.4 use the weak Gamma kernel, which is transformed
+# into a system of 3 ODEs, so we use `jitcode` instead of `jitcdde` for that.
 if figname in {"Figure52", "Figure54"}:
     from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable
 
@@ -63,6 +65,9 @@ log.info("\n%s", source)
 tspan = (0.0, 300.0)
 
 if figname in {"Figure52", "Figure54"}:
+    # NOTE: the extra variable in the new system is given by
+    #   z = (h * (C * I))(0) = C(0) * I(0)
+    # since we assume a constant history for the two variables.
     y0 = np.array([5.0e5, 500, 5.0e5 * 500])
 
     dde = target.compile(source, y)
@@ -119,5 +124,17 @@ with figure(
     ax.set_ylabel("$I(t)$")
     ax.set_xlim([-3.0e4, 2.1e6])
     ax.set_ylim([-3.0e4, 1.0e6])
+
+if figname in {"Figure52", "Figure54"}:
+    with figure(
+        dirname / f"hiv_culshaw_{figname.lower()}_aux",
+        figsize=(18, 6),
+        overwrite=True,
+    ) as fig:
+        ax = fig.gca()
+
+        ax.plot(ts, ys[2])
+        ax.set_xlabel("$t$")
+        ax.set_ylabel("$z(t)$")
 
 # }}}
