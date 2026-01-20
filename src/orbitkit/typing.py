@@ -17,11 +17,16 @@ PathLike: TypeAlias = os.PathLike[str] | str
 
 Array: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 """Array type alias for :class:`numpy.ndarray`."""
+Array1D: TypeAlias = np.ndarray[tuple[int], np.dtype[Any]]
+"""Array type alias for a 1D :class:`numpy.ndarray`."""
+Array2D: TypeAlias = np.ndarray[tuple[int, int], np.dtype[Any]]
+"""Array type alias for a 2D :class:`numpy.ndarray`."""
+
 Float: TypeAlias = float | np.floating[Any]
 """Type alias for admissible float types."""
 Scalar: TypeAlias = int | float | np.floating[Any]
 """Scalar type alias (generally a value convertible to a :class:`float`)."""
-ScalarLike: TypeAlias = Scalar | np.ndarray[tuple[int], np.dtype[np.generic]]
+ScalarLike: TypeAlias = Scalar | np.ndarray[tuple[()], np.dtype[np.number]]
 """A scalar-like value, which may include array of shape ``()``."""
 
 
