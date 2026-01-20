@@ -14,6 +14,12 @@ from orbitkit.utils import module_logger, on_ci, tictoc
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
+try:
+    import jitcode
+except ImportError:
+    log.error("This example requires `jitcdde`.")
+    raise SystemExit(0) from None
+
 # FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
 # quite sure what that's about, but the general trends seem to be the same.
 
@@ -39,8 +45,6 @@ with tictoc("codegen"):
 
 # {{{ evolve
 
-import jitcode
-
 tspan = (0.0, 1000.0)
 tmin_for_plot = 0.0
 
@@ -55,7 +59,7 @@ y0 = np.hstack([
     rng.normal(0.0, 2.0, size=n),
 ])
 
-with tictoc("evaluation"):
+with tictoc("codegen"):
     y = make_input_variable(2 * n)
     source = source_func(jitcode.t, y)
 
