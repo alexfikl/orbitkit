@@ -9,6 +9,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import numpy as np
+import pymbolic.primitives as prim
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code
@@ -29,42 +30,54 @@ log = module_logger(__name__)
 # {{{ gather mapper
 
 
-class CallDelayReplacer(IdentityMapper):
-    """A mapper that replaces all :class:`~orbitkit.symbolic.primitives.CallDelay`
-    expressions in the expression tree with a simple
-    :class:`~pymbolic.primitives.Variable`.
+class DiracDelayReplacer(IdentityMapper):
+    """A mapper that replaces all
+    :class:`~orbitkit.symbolic.primitives.DiracDelayKernel` call expressions in the
+    expression tree with a simple :class:`~pymbolic.primitives.Variable`.
 
-    The resulting mapping can be obtained from :attr:`call_delay_to_variable`.
+    The resulting mapping can be obtained from :attr:`dirac_to_variable`.
     """
 
-    call_delay_to_variable: dict[sym.CallDelay, sym.Variable]
-    """A mapping of replaced :class:`~orbitkit.symbolic.primitives.CallDelay`
-    expressions.
+    dirac_to_variable: dict[prim.Call, sym.Variable]
+    """A mapping of replaced :class:`~orbitkit.symbolic.primitives.DiracDelayKernel`
+    call expressions. Note that this class reserves the ``_ok_dde_dirac_`` prefix
+    for its variable names.
     """
 
     def __init__(self, inputs: tuple[sym.Variable, ...]) -> None:
         from pytools import UniqueNameGenerator
 
-        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_delay")
-        self.call_delay_to_variable = {}
+        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_ok_dde_dirac_")
+        self.dirac_to_variable = {}
         self.name_to_inputs = {inp.name: inp for inp in inputs}
 
-    def map_call_delay(self, expr: sym.CallDelay, /) -> PymbolicExpression:
-        y = expr.aggregate
-        if not isinstance(y, sym.Variable):
-            raise NotImplementedError(f"cannot delay non-variable expression: {y}")
+    def map_call(self, expr: prim.Call) -> PymbolicExpression:
+        func = expr.function
+        if not isinstance(func, sym.DelayKernel):
+            if isinstance(func, sym.DiracDelayKernel):
+                return super().map_call(expr)
+            else:
+                raise ValueError(f"found non-Dirac kernel: {expr}")
 
-        if not isinstance(expr.tau, (int, float)):
-            raise NotImplementedError(f"delay 'tau' must be a number: {expr.tau}")
+        assert isinstance(func, sym.DiracDelayKernel)
+
+        (y,) = expr.parameters
+        if not isinstance(y, sym.Variable):
+            raise NotImplementedError(
+                f"cannot delay non-Variable expression: {y} (type {type(y)})"
+            )
 
         if y.name not in self.name_to_inputs:
             raise ValueError(f"variable '{y}' is not a known input")
 
+        if not isinstance(func.tau, (int, float)):
+            raise NotImplementedError(f"delay 'tau' must be a number: {func.tau}")
+
         inp = self.name_to_inputs[y.name]
         try:
-            return self.call_delay_to_variable[expr]
+            return self.dirac_to_variable[expr]
         except KeyError:
-            self.call_delay_to_variable[expr] = result = replace(
+            self.dirac_to_variable[expr] = result = replace(
                 inp, name=self.unique_name_generator(f"_{y.name}")
             )
 
@@ -141,12 +154,12 @@ class JiTCDDETarget(JiTCODETarget):
             inputs = (inputs,)
 
         # gather all delayed variables
-        mapper = CallDelayReplacer((
+        mapper = DiracDelayReplacer((
             *inputs,
             *(assign.assignee for assign in assignments),
         ))
         exprs = mapper(exprs)  # ty: ignore[invalid-assignment]
-        if not mapper.call_delay_to_variable:
+        if not mapper.dirac_to_variable:
             raise ValueError(
                 "code does not contain any delayed variables (use JiTCODETarget)"
             )
@@ -157,13 +170,16 @@ class JiTCDDETarget(JiTCODETarget):
         make_delay_func = sym.Variable("make_delay_variable")
 
         delay_assignments = []
-        for expr, var in mapper.call_delay_to_variable.items():
-            y = expr.aggregate
-            assert isinstance(y, sym.Variable)
+        for expr, var in mapper.dirac_to_variable.items():
             assert isinstance(var, sym.MatrixSymbol)
 
+            kernel = expr.function
+            assert isinstance(kernel, sym.DiracDelayKernel)
+            (y,) = expr.parameters
+            assert isinstance(y, sym.Variable)
+
             delay_assignments.append(
-                Assignment(var, Call(make_delay_func, (y, expr.tau)))
+                Assignment(var, Call(make_delay_func, (y, kernel.tau)))
             )
 
         # generate code

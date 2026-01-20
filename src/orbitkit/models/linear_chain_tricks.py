@@ -15,7 +15,7 @@ from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping
 
     from pytools import UniqueNameGenerator
 
@@ -49,7 +49,7 @@ class DiracDelayDistributor(IdentityMapper):
         self,
         tau: sym.Expression,
         time: prim.Variable | None = None,
-        inputs: Sequence[prim.Variable] | None = None,
+        inputs: Collection[prim.Variable] | None = None,
     ) -> None:
         self.kernel = sym.DiracDelayKernel(tau)
         self.time = time
@@ -57,6 +57,8 @@ class DiracDelayDistributor(IdentityMapper):
 
     def map_call(self, expr: prim.Call) -> Expression:
         # NOTE: do not allow other kernels in the expression
+        # FIXME: this should be perfectly fine, but needs more work in
+        # DelayKernelReplacer as well to include extra variables.
         func = expr.function
         if isinstance(func, sym.DelayKernel):
             raise ValueError(f"cannot distribute over expression: {expr}")
@@ -108,13 +110,13 @@ class DelayKernelReplacer(IdentityMapper):
 
     unique_name_generator: UniqueNameGenerator
     """A unique name generator for new variables. This class reserves the prefix
-    ``_dde_`` for its variables.
+    ``_ok_dde_chain_`` for its variables.
     """
 
     def __init__(
         self,
         time: prim.Variable | None = None,
-        inputs: Sequence[prim.Variable] | None = None,
+        inputs: Collection[prim.Variable] | None = None,
     ) -> None:
         from pytools import UniqueNameGenerator
 
@@ -123,7 +125,7 @@ class DelayKernelReplacer(IdentityMapper):
 
         self.kernel_to_var_replace = {}
         self.var_to_eqs = {}
-        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_dde_tmp_")
+        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_ok_dde_chain_")
 
     def map_call(self, expr: prim.Call) -> Expression:
         func = expr.function
@@ -136,6 +138,8 @@ class DelayKernelReplacer(IdentityMapper):
                 return self.kernel_to_var_replace[expr]
             except KeyError:
                 (param,) = expr.parameters
+                assert isinstance(param, sym.Expression)
+
                 suffix = param.name if isinstance(param, prim.Variable) else ""
                 z = prim.Variable(self.unique_name_generator(suffix))
 
@@ -170,7 +174,7 @@ def transform_delay_kernels(
     expr: sym.Expression,
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[sym.Expression, Mapping[str, sym.Expression]]: ...
 
 
@@ -179,7 +183,7 @@ def transform_delay_kernels(
     expr: tuple[sym.Expression, ...],
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[tuple[sym.Expression, ...], Mapping[str, sym.Expression]]: ...
 
 
@@ -187,7 +191,7 @@ def transform_delay_kernels(
     expr: sym.Expression | tuple[sym.Expression, ...],
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[sym.Expression | tuple[sym.Expression, ...], Mapping[str, sym.Expression]]:
     """Replace all distributed delay kernels with additional differential equations.
 
@@ -234,7 +238,7 @@ def transform_dirac_delay_kernel(
     z: prim.Variable,
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     """Transform the Dirac kernel applied to the given *expr*.
 
@@ -242,7 +246,7 @@ def transform_dirac_delay_kernel(
     variables in the given *expr* and return the result. No additional equations
     are required.
     """
-    expr = DiracDelayDistributor(kernel.tau, time, inputs)(expr)
+    expr = DiracDelayDistributor(kernel.tau, time, inputs)(expr)  # ty: ignore[invalid-assignment]
 
     return expr, {}
 
@@ -253,7 +257,7 @@ def transform_uniform_delay_kernel(
     z: prim.Variable,
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the uniform kernel into additional delay differential equation.
 
@@ -281,11 +285,11 @@ def transform_uniform_delay_kernel(
 
 def transform_triangular_delay_kernel(
     kernel: sym.TriangularDelayKernel,
-    expr: prim.Expression,
+    expr: sym.Expression,
     z: prim.Variable,
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the triangular kernel into additional delay differential equations.
 
@@ -320,11 +324,11 @@ def transform_triangular_delay_kernel(
 
 def transform_gamma_delay_kernel(
     kernel: sym.GammaDelayKernel,
-    expr: prim.Expression,
+    expr: sym.Expression,
     z: prim.Variable,
     *,
     time: prim.Variable | None = None,
-    inputs: Sequence[prim.Variable] | None = None,
+    inputs: Collection[prim.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the Gamma kernel into additional ordinary differential equations.
 

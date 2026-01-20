@@ -6,6 +6,7 @@ from __future__ import annotations
 import pathlib
 
 import numpy as np
+import pymbolic.primitives as prim
 import pytest
 
 import orbitkit.symbolic.primitives as sym
@@ -76,13 +77,11 @@ def test_dirac_delay_distributor() -> None:
 
 class DelayFinder(WalkMapper):
     def __init__(self) -> None:
-        self.variables: set[sym.DiracDelayKernel] = set()
-        self.kernels: set[sym.DelayKernel] = set()
+        self.variables: set[prim.Call] = set()
+        self.kernels: set[prim.Call] = set()
 
     def visit(self, expr: object) -> bool:
-        from pymbolic.primitives import Call
-
-        if not isinstance(expr, Call):
+        if not isinstance(expr, prim.Call):
             return True
 
         func = expr.function

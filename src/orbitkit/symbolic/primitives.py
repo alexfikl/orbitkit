@@ -166,18 +166,6 @@ class MatrixSymbol(Variable):
         return Reshape(self, shape)
 
 
-@prim.expr_dataclass()
-class CallDelay(ExpressionNode):
-    r"""An expression for a delayed call :math:`(expr)(t - \tau)`."""
-
-    aggregate: Expression
-    """Expression that should be evaluated with delay :attr:`tau`."""
-    tau: Expression
-    """The expression for the delay. This is expected to evaluate to be
-    convertible or evaluate to float.
-    """
-
-
 # }}}
 
 

@@ -7,6 +7,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import pymbolic.primitives as prim
 from pymbolic.mapper import IdentityMapper as IdentityMapperBase
 from pymbolic.mapper import WalkMapper as WalkMapperBase
 from pymbolic.mapper.flattener import FlattenMapper as FlattenMapperBase
@@ -56,14 +57,6 @@ class IdentityMapper(IdentityMapperBase[[]]):
             return expr
 
         return type(expr)(aggregate=aggregate, shape=expr.shape)
-
-    def map_call_delay(self, expr: sym.CallDelay, /) -> PymbolicExpression:
-        aggregate = self.rec_arith(expr.aggregate)
-        tau = self.rec_arith(expr.tau)
-        if aggregate is expr.aggregate and tau is expr.tau:
-            return expr
-
-        return type(expr)(aggregate, tau)
 
     def map_dirac_delay_kernel(
         self, expr: sym.DiracDelayKernel, /
@@ -122,14 +115,6 @@ class WalkMapper(WalkMapperBase[[]]):
         self.rec(expr.right)  # ty: ignore[invalid-argument-type]
         self.post_visit(expr)
 
-    def map_call_delay(self, expr: sym.CallDelay, /) -> None:
-        if not self.visit(expr):
-            return
-
-        self.rec(expr.aggregate)
-        self.rec(expr.tau)
-        self.post_visit(expr)
-
     def map_delay_kernel(self, expr: sym.DelayKernel) -> None:
         if not self.visit(expr):
             return
@@ -148,12 +133,6 @@ class StringifyMapper(StringifyMapperBase[Any]):
 
         result = pretty_symbol(expr.name)
         return str(result)
-
-    def map_call_delay(self, expr: sym.CallDelay, /, enclosing_prec: int) -> str:
-        aggregate = self.rec(expr.aggregate, PREC_NONE)
-        tau = self.rec(expr.tau, PREC_NONE)
-
-        return f"{aggregate}(·-({tau}))"
 
     def map_numpy_array(  # noqa: PLR6301
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], /, enclosing_prec: int
@@ -180,6 +159,17 @@ class StringifyMapper(StringifyMapperBase[Any]):
             f"{self.rec(getattr(expr, f.name), enclosing_prec)}" for f in fields(expr)
         )
         return f"{type(expr).__name__}(·; {params})"
+
+    def map_call(self, expr: prim.Call, /, enclosing_prec: int) -> str:
+        if isinstance(expr.function, sym.DiracDelayKernel):
+            tau = self.rec(expr.function.tau, PREC_NONE)
+            param = self.rec(expr.parameters[0], PREC_NONE)
+            if not isinstance(expr.parameters[0], prim.Variable):
+                param = f"({param})"
+
+            return f"{param}(·-({tau}))"
+
+        return super().map_call(expr, enclosing_prec)
 
 
 def stringify(expr: sym.Expression | Array) -> str:
