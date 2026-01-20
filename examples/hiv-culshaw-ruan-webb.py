@@ -9,6 +9,7 @@ import numpy as np
 
 from orbitkit.models import transform_distributed_delay_model
 from orbitkit.models.hiv import CulshawRuanWebb, make_model_from_name
+from orbitkit.symbolic.primitives import DiracDelayKernel
 from orbitkit.utils import module_logger, on_ci
 
 log = module_logger(__name__)
@@ -73,9 +74,13 @@ if figname in {"Figure52", "Figure54"}:
     dde = target.compile(source, y)
     dde.set_initial_value(y0, tspan[0])
 else:
+    assert isinstance(target, JiTCDDETarget)
+    assert isinstance(model.h, DiracDelayKernel)
+    assert isinstance(model.h.tau, (int, float))
+
     y0 = np.array([5.0e5, 500])
 
-    dde = target.compile(source, y, max_delay=model.h.tau)  # ty: ignore[unresolved-attribute,unknown-argument]
+    dde = target.compile(source, y, max_delay=model.h.tau)
     dde.constant_past(y0, time=tspan[0])
     dde.step_on_discontinuities()
 
