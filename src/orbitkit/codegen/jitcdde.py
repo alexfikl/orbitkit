@@ -40,14 +40,14 @@ class DiracDelayReplacer(IdentityMapper):
 
     dirac_to_variable: dict[prim.Call, sym.Variable]
     """A mapping of replaced :class:`~orbitkit.symbolic.primitives.DiracDelayKernel`
-    call expressions. Note that this class reserves the ``_ok_dde_dirac_`` prefix
+    call expressions. Note that this class reserves the ``_ok_dde_delay_`` prefix
     for its variable names.
     """
 
     def __init__(self, inputs: tuple[sym.Variable, ...]) -> None:
         from pytools import UniqueNameGenerator
 
-        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_ok_dde_dirac_")
+        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_ok_dde_delay_")
         self.dirac_to_variable = {}
         self.name_to_inputs = {inp.name: inp for inp in inputs}
 
@@ -78,7 +78,7 @@ class DiracDelayReplacer(IdentityMapper):
             return self.dirac_to_variable[expr]
         except KeyError:
             self.dirac_to_variable[expr] = result = replace(
-                inp, name=self.unique_name_generator(f"_{y.name}")
+                inp, name=self.unique_name_generator(f"{y.name}")
             )
 
             return result

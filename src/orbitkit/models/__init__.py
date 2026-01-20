@@ -141,7 +141,7 @@ class Model(ABC):
         if not all(n[0] == n_i for n_i in n[1:]):
             raise NotImplementedError(f"only uniform sizes are supported: {n}")
 
-        t = sym.Variable("__t")
+        t = sym.Variable("t")
         args = [sym.MatrixSymbol(name, (n_i,)) for n_i, name in zip(n, x, strict=True)]
 
         model = self

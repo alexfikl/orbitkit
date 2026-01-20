@@ -113,12 +113,16 @@ class Target(ABC):
         # FIXME: all this implicitly assumes that inputs[0] is "t" and the rest
         # are the actual variables. Should make this explicit
         inputs, exprs = model.symbolify(n)
+        t = sym.Variable("__t")
         y = sym.MatrixSymbol("__y", (sum(n),))
 
         return self.generate_code(
-            (inputs[0], y),
+            (t, y),
             exprs,
-            assignments=make_slice_assignments(y, inputs[1:], n),
+            assignments=(
+                Assignment(inputs[0], t),
+                *make_slice_assignments(y, inputs[1:], n),
+            ),
             name=type(model).__name__,
             pretty=pretty,
         )
