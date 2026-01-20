@@ -193,7 +193,7 @@ class JiTCDDETarget(JiTCODETarget):
             name=name,
             pretty=pretty,
         )
-        log.info("Code:\n%s", code.source)
+        log.debug("Code:\n%s", code.source)
 
         return replace(
             code,

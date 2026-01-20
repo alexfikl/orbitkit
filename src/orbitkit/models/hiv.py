@@ -79,6 +79,21 @@ class CulshawRuanWebb(Model):
             k_Ip * self.h(I * C) - mu_I * I,
         )
 
+    def fixed_points(self) -> dict[str, tuple[sym.Expression, sym.Expression]]:
+        """
+        :returns: the three fixed points of the model.
+        """
+
+        # NOTE: see page 5 from [CulshawRuanWebb2003].
+        r, C_M, k_I, mu_C, mu_I = self.r, self.C_M, self.k_I, self.mu_C, self.mu_I
+        r_C = r - mu_C
+        k_Ip = self.k_I * self.f
+
+        Cbar = mu_I / k_Ip
+        Ibar = r_C * (k_Ip * C_M - mu_I) / (k_Ip * (k_I * C_M + r_C))
+
+        return {"E_0": (0, 0), "E_1": (C_M, 0), "Ebar": (Cbar, Ibar)}
+
 
 # }}}
 
@@ -102,8 +117,11 @@ def _make_hiv_culshaw_2003(kernel: sym.DelayKernel, k_Ip: float) -> CulshawRuanW
 
 
 HIV_MODEL = {
+    # NOTE: the paper does not mention what value of k_I' is used in Figure 3.2, so
+    # this is chosen based on some numerical experiments and looks good enough.
+    # The value must be > 1.5 10^-7.
     "CulshawRuanWebb2003Figure32": _make_hiv_culshaw_2003(
-        sym.DiracDelayKernel(0.4), 1.5 * 1.0e-7
+        sym.DiracDelayKernel(0.01), 10.0 * 1.0e-7
     ),
     "CulshawRuanWebb2003Figure42": _make_hiv_culshaw_2003(
         sym.DiracDelayKernel(0.4), 1.0e-6
