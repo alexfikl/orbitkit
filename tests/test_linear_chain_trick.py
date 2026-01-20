@@ -25,18 +25,24 @@ set_plotting_defaults()
 
 class DelayFinder(WalkMapper):
     def __init__(self) -> None:
-        self.variables: set[sym.CallDelay] = set()
+        self.variables: set[sym.DiracDelayKernel] = set()
         self.kernels: set[sym.DelayKernel] = set()
 
     def visit(self, expr: object) -> bool:
-        if isinstance(expr, sym.CallDelay):
-            self.variables.add(expr)
-        elif isinstance(expr, sym.DelayKernel):
-            self.kernels.add(expr)
-        else:
+        from pymbolic.primitives import Call
+
+        if not isinstance(expr, Call):
             return True
 
-        return False
+        func = expr.function
+        if isinstance(func, sym.DiracDelayKernel):
+            self.variables.add(expr)
+            return False
+        elif isinstance(func, sym.DelayKernel):
+            self.kernels.add(expr)
+            return False
+        else:
+            return True
 
 
 @pytest.mark.parametrize(

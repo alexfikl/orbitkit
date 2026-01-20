@@ -210,6 +210,10 @@ gamma = Function("gamma")
 class DelayKernel(ExpressionNode):
     """A general delay kernel for distributed delay equations."""
 
+    @property
+    def avg(self) -> Expression:
+        raise AttributeError(f"kernel {self} does not define an average delay")
+
 
 @prim.expr_dataclass()
 class DiracDelayKernel(DelayKernel):
@@ -222,6 +226,10 @@ class DiracDelayKernel(DelayKernel):
 
     tau: Expression
     """Average delay of the kernel."""
+
+    @property
+    def avg(self) -> Expression:
+        return self.avg
 
 
 @prim.expr_dataclass()
@@ -240,6 +248,10 @@ class GammaDelayKernel(DelayKernel):
     """Shape parameter of the distribution."""
     alpha: Expression
     """Rate parameter of the distribution."""
+
+    @property
+    def avg(self) -> Expression:
+        return self.p / self.alpha
 
 
 @prim.expr_dataclass()
@@ -260,6 +272,10 @@ class UniformDelayKernel(DelayKernel):
     """Parameter controlling the width of the plateau."""
     tau: Expression
     """Average delay of the kernel."""
+
+    @property
+    def avg(self) -> Expression:
+        return self.tau
 
 
 @prim.expr_dataclass()
@@ -282,6 +298,10 @@ class TriangularDelayKernel(DelayKernel):
     """Parameter controlling the width of the base of the triangle."""
     tau: Expression
     """Average delay of the kernel."""
+
+    @property
+    def avg(self) -> Expression:
+        return self.tau
 
 
 # }}}

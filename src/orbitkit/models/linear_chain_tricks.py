@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias, overload
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 import pymbolic.primitives as prim
@@ -15,7 +15,7 @@ from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from pytools import UniqueNameGenerator
 
@@ -24,43 +24,129 @@ log = module_logger(__name__)
 
 # {{{ apply
 
-Variable: TypeAlias = "sym.Variable | sym.CallDelay"
+
+class DiracDelayDistributor(IdentityMapper):
+    """Distributes the Dirac delay kernel over a given expression graph.
+
+    Note that this is done symbolically by applying the kernel to all variables.
+    This is generally correct, since the Dirac kernel distributes insides functions
+    and other operations directly.
+    """
+
+    kernel: sym.DiracDelayKernel
+    """The kernel to distributed over the expression."""
+    time: prim.Variable | None
+    r"""The name of the time variable in the expression, if any. If provided, every
+    instance of :math:`t` is directly replaced by :math:`t - \tau`.
+    """
+    inputs: set[prim.Variable] | None
+    """A set of input variables over which to distribute the kernel. If given,
+    any variables not in this set are assumed to be constants, so that the Dirac
+    kernel has no effect.
+    """
+
+    def __init__(
+        self,
+        tau: sym.Expression,
+        time: prim.Variable | None = None,
+        inputs: Sequence[prim.Variable] | None = None,
+    ) -> None:
+        self.kernel = sym.DiracDelayKernel(tau)
+        self.time = time
+        self.inputs = set(inputs) if inputs is not None else inputs
+
+    def map_variable(self, expr: prim.Variable) -> Expression:
+        # NOTE: we handle the following cases:
+        # 1. If we hit the "time" variable, just set it to `t - tau`.
+        # 2. If we hit one of the inputs, apply the kernel to it.
+        # 3. If we hit another variable, leave it alone, i.e. assume constant.
+
+        if self.time is not None and expr == self.time:
+            return expr - self.kernel.avg
+
+        if self.inputs is None:
+            return self.kernel(expr)
+
+        if expr in self.inputs:
+            return self.kernel(expr)
+        else:
+            # NOTE: we assume that all our delay kernels are probability
+            # distributions, so they sum up to 1 if we apply them to a constant
+            return expr
 
 
 class DelayKernelReplacer(IdentityMapper):
-    kernel_to_var_replace: dict[prim.Call, Variable]
-    var_to_eqs: dict[Variable, dict[str, sym.Expression]]
-    unique_name_generator: UniqueNameGenerator
+    """Replace delay kernels in the expression with constant (or no) delay variables.
 
-    def __init__(self) -> None:
+    See :func:`transform_delay_kernels`.
+    """
+
+    time: prim.Variable | None
+    """The name of the time variable in the expression, if any."""
+    inputs: set[prim.Variable] | None
+    """A set of input variables over in the expression. If given, any variables
+    not in this set are assumed to be constants.
+    """
+
+    kernel_to_var_replace: dict[prim.Call, sym.Expression]
+    """A mapping from delay kernel calls to the variables that replaced them. This
+    attribute is mainly used as a cache for deduplication.
+    """
+    var_to_eqs: dict[sym.Expression, dict[str, sym.Expression]]
+    r"""A mapping from new variables to a set of equations required to solve
+    for those new variables, of the form :math:`\dot{z}_k = f_k(t, z)`. This
+    set of equations will generally contain one equation for each variables.
+    """
+
+    unique_name_generator: UniqueNameGenerator
+    """A unique name generator for new variables. This class reserves the prefix
+    ``_dde_`` for its variables.
+    """
+
+    def __init__(
+        self,
+        time: prim.Variable | None = None,
+        inputs: Sequence[prim.Variable] | None = None,
+    ) -> None:
         from pytools import UniqueNameGenerator
+
+        self.time = time
+        self.inputs = set(inputs) if inputs is not None else inputs
 
         self.kernel_to_var_replace = {}
         self.var_to_eqs = {}
-        self.unique_name_generator = UniqueNameGenerator()
+        self.unique_name_generator = UniqueNameGenerator(forced_prefix="_dde_tmp_")
 
     def map_call(self, expr: prim.Call) -> Expression:
         func = expr.function
 
         if isinstance(func, sym.DelayKernel):
+            if len(expr.parameters) != 1:
+                raise ValueError(f"expected only one parameter in {func} call")
+
             try:
                 return self.kernel_to_var_replace[expr]
             except KeyError:
-                (y,) = expr.parameters
-                assert isinstance(y, prim.Variable)
-
-                # NOTE: we're naming variables like `_z_n`
-                z = prim.Variable(self.unique_name_generator(f"_{y.name}"))
+                (param,) = expr.parameters
+                suffix = param.name if isinstance(param, prim.Variable) else ""
+                z = prim.Variable(self.unique_name_generator(suffix))
 
                 if isinstance(func, sym.DiracDelayKernel):
-                    z = sym.CallDelay(y, func.tau)
-                    equations = {}
+                    z, equations = transform_dirac_delay_kernel(
+                        func, param, z, time=self.time, inputs=self.inputs
+                    )
                 elif isinstance(func, sym.UniformDelayKernel):
-                    equations = transform_uniform_delay_kernel(func, y, z)
+                    z, equations = transform_uniform_delay_kernel(
+                        func, param, z, time=self.time, inputs=self.inputs
+                    )
                 elif isinstance(func, sym.TriangularDelayKernel):
-                    equations = transform_triangular_delay_kernel(func, y, z)
+                    z, equations = transform_triangular_delay_kernel(
+                        func, param, z, time=self.time, inputs=self.inputs
+                    )
                 elif isinstance(func, sym.GammaDelayKernel):
-                    equations = transform_gamma_delay_kernel(func, y, z)
+                    z, equations = transform_gamma_delay_kernel(
+                        func, param, z, time=self.time, inputs=self.inputs
+                    )
                 else:
                     raise TypeError(f"unsupported delay kernel: {type(func)}") from None
 
@@ -74,17 +160,26 @@ class DelayKernelReplacer(IdentityMapper):
 @overload
 def transform_delay_kernels(
     expr: sym.Expression,
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
 ) -> tuple[sym.Expression, Mapping[str, sym.Expression]]: ...
 
 
 @overload
 def transform_delay_kernels(
     expr: tuple[sym.Expression, ...],
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
 ) -> tuple[tuple[sym.Expression, ...], Mapping[str, sym.Expression]]: ...
 
 
 def transform_delay_kernels(
     expr: sym.Expression | tuple[sym.Expression, ...],
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
 ) -> tuple[sym.Expression | tuple[sym.Expression, ...], Mapping[str, sym.Expression]]:
     """Replace all distributed delay kernels with additional differential equations.
 
@@ -108,7 +203,7 @@ def transform_delay_kernels(
     """
     from constantdict import constantdict
 
-    mapper = DelayKernelReplacer()
+    mapper = DelayKernelReplacer(time, inputs)
     expr = mapper(expr)  # ty: ignore[invalid-assignment]
 
     alleqs = {}
@@ -125,17 +220,39 @@ def transform_delay_kernels(
 # {{{ linear chain tricks
 
 
+def transform_dirac_delay_kernel(
+    kernel: sym.DiracDelayKernel,
+    expr: sym.Expression,
+    z: prim.Variable,
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
+) -> tuple[sym.Expression, dict[str, sym.Expression]]:
+    """Transform the Dirac kernel applied to the given *expr*.
+
+    The Dirac kernel is a limit case, where we simply distribute it over the
+    variables in the given *expr* and return the result. No additional equations
+    are required.
+    """
+    expr = DiracDelayDistributor(kernel.tau, time, inputs)(expr)
+
+    return expr, {}
+
+
 def transform_uniform_delay_kernel(
     kernel: sym.UniformDelayKernel,
-    y: prim.Variable,
+    expr: sym.Expression,
     z: prim.Variable,
-) -> dict[str, sym.Expression]:
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
+) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the uniform kernel into additional delay differential equation.
 
     .. math::
 
         \dot{z} = \frac{1}{2 \epsilon \tau} (
-            y(t - (1 - \epsilon) \tau) - y(t - (1 + \epsilon) \tau)
+            expr(t - (1 - \epsilon) \tau) - expr(t - (1 + \epsilon) \tau)
         ).
 
     :returns: a mapping of variable names to equations. One of these variable
@@ -143,20 +260,25 @@ def transform_uniform_delay_kernel(
     """
     epsilon, tau = kernel.epsilon, kernel.tau
 
-    return {
+    def dirac(tau: sym.Expression, expr: sym.Expression):
+        return DiracDelayDistributor(tau, time=time, inputs=inputs)(expr)
+
+    return z, {
         z.name: (
-            sym.CallDelay(y, (1 - epsilon) * tau)
-            - sym.CallDelay(y, (1 + epsilon) * tau)
+            (dirac((1 - epsilon) * tau, expr) - dirac((1 + epsilon) * tau, expr))
+            / (2 * epsilon * tau)
         )
-        / (2 * epsilon * tau)
     }
 
 
 def transform_triangular_delay_kernel(
     kernel: sym.TriangularDelayKernel,
-    y: prim.Variable,
+    expr: prim.Expression,
     z: prim.Variable,
-) -> dict[str, sym.Expression]:
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
+) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the triangular kernel into additional delay differential equations.
 
     .. math::
@@ -173,22 +295,29 @@ def transform_triangular_delay_kernel(
         names is the provided *z* variable and others can be derived from it.
     """
     epsilon, tau = kernel.epsilon, kernel.tau
-    w = prim.Variable(f"{z.name}s")
-    return {
+
+    def dirac(tau: sym.Expression, expr: sym.Expression):
+        return DiracDelayDistributor(tau, time=time, inputs=inputs)(expr)
+
+    w = prim.Variable(f"{z.name}_tr")
+    return z, {
         z.name: w / (epsilon * tau) ** 2,
         w.name: (
-            sym.CallDelay(y, (1 - epsilon) * tau)
-            - 2 * sym.CallDelay(y, tau)
-            + sym.CallDelay(y, (1 + epsilon) * tau)
+            dirac((1 - epsilon) * tau, expr)
+            - 2 * dirac(tau, expr)
+            + dirac((1 + epsilon) * tau, expr)
         ),
     }
 
 
 def transform_gamma_delay_kernel(
     kernel: sym.GammaDelayKernel,
-    y: prim.Variable,
+    expr: prim.Expression,
     z: prim.Variable,
-) -> dict[str, sym.Expression]:
+    *,
+    time: prim.Variable | None = None,
+    inputs: Sequence[prim.Variable] | None = None,
+) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the Gamma kernel into additional ordinary differential equations.
 
     .. math::
@@ -205,13 +334,13 @@ def transform_gamma_delay_kernel(
     p, alpha = kernel.p, kernel.alpha
 
     if p == 1:
-        return {z.name: alpha * (y - z)}
+        return z, {z.name: alpha * (expr - z)}
     elif isinstance(p, int):
-        zs = (z, *(prim.Variable(f"{z.name}s_{k}") for k in range(p - 1)))
+        zs = (z, *(prim.Variable(f"{z.name}_g{p}_{k}") for k in range(p - 1)))
 
-        return {
+        return z, {
             **{zs[k].name: alpha * (zs[k + 1] - zs[k]) for k in range(p - 1)},
-            zs[p - 1].name: alpha * (y - zs[p - 1]),
+            zs[p - 1].name: alpha * (expr - zs[p - 1]),
         }
     else:
         raise NotImplementedError(
