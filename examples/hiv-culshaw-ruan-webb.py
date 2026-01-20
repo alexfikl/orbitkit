@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Alexandru Fikl <alexfikl@gmail.com>
+# SPDX-FileCopyrightText: 2026 Alexandru Fikl <alexfikl@gmail.com>
 # SPDX-License-Identifier: MIT
 
 from __future__ import annotations
