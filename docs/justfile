@@ -1,5 +1,5 @@
 SPHINXOPTS := "-W --keep-going -n"
-SPHINXBUILD := "python `which sphinx-build`"
+SPHINXBUILD := "python -m sphinx"
 SOURCEDIR := "."
 BUILDDIR := "_build"
 

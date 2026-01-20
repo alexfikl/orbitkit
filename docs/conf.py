@@ -237,14 +237,25 @@ intersphinx_mapping = {
     "sympy": ("https://docs.sympy.org/latest/", None),
 }
 
+# fmt: off
 custom_type_links = {
     # numpy
     "DTypeLike": ("numpy", "numpy.typing.DTypeLike", "obj"),
     "np.random.Generator": ("numpy", "numpy.random.Generator", "class"),
+    # pytools
+    "UniqueNameGenerator": ("pytools", "pytools.UniqueNameGenerator", "class"),
+    # pymbolic
+    "prim.Variable": ("pymbolic", "pymbolic.primitives.Variable", "class"),
+    "prim.Call": ("pymbolic", "pymbolic.primitives.Call", "class"),
     # orbitkit
     "Array": (None, "orbitkit.typing.Array", "obj"),
     "Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
     "sym.Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
+    "sym.DiracDelayKernel": (None, "orbitkit.symbolic.primitives.DiracDelayKernel", "class"),  # noqa: E501
+    "sym.UniformDelayKernel": (None, "orbitkit.symbolic.primitives.UniformDelayKernel", "class"),  # noqa: E501
+    "sym.TriangularDelayKernel": (None, "orbitkit.symbolic.primitives.TriangularDelayKernel", "class"),  # noqa: E501
+    "sym.GammaDelayKernel": (None, "orbitkit.symbolic.primitives.GammaDelayKernel", "class"),  # noqa: E501
 }
+# fmt: on
 
 # }}}
