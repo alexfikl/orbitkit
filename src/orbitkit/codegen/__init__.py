@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.typing import Array
+from orbitkit.typing import Array, Scalar
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -213,6 +213,22 @@ def execute_code(code: Code) -> Callable[..., Array]:
     weakref.finalize(func, make_finalize(filename))
 
     return func
+
+
+# }}}
+
+
+# {{{ lambdify
+
+
+def lambdify(
+    x: sym.Variable, expr: sym.Expression
+) -> Callable[[Scalar | Array], Scalar | Array]:
+    from orbitkit.codegen.numpy import NumpyTarget
+
+    target = NumpyTarget()
+    code = target.generate_code((x,), (expr,))
+    return target.lambdify(code)
 
 
 # }}}
