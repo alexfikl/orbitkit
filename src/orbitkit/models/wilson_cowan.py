@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal, TypeAlias
 
 import numpy as np
 
@@ -154,6 +155,18 @@ class WilsonCowan1(Model):
 
 # {{{
 
+# FIXME: would be nice if scipy offered these
+Methods: TypeAlias = Literal[
+    "bisect",
+    "brentq",
+    "brenth",
+    "ridder",
+    "toms748",
+    "newton",
+    "secant",
+    "halley",
+]
+
 
 def get_wilson_cowan_fixed_point(
     sE: SigmoidRate,
@@ -162,7 +175,7 @@ def get_wilson_cowan_fixed_point(
     forcing: tuple[float, float],
     *,
     rtol: float = 1.0e-8,
-    method: str | None = None,
+    method: Methods | None = None,
 ) -> tuple[float, float]:
     r"""Find a synchronized fixed point of the one delay Wilson-Cowan system
     :class:`WilsonCowan1`.
@@ -227,8 +240,8 @@ def get_wilson_cowan_fixed_point(
     def solve_for_i(E: float) -> float:
         result = so.root_scalar(
             lambda x: x - sigmoid(c * E - d * x + q, *sIp),
-            method=method,
-            fprime=lambda x: 1 + d_sigmoid(c * E - d * x + q, *sIp) * d,
+            method=method,  # ty: ignore[invalid-argument-type]
+            fprime=lambda x: 1 + d_sigmoid(c * E - d * x + q, *sIp) * d,  # ty: ignore[invalid-argument-type]
             bracket=(0, 1),
             rtol=rtol,
         )
@@ -245,8 +258,8 @@ def get_wilson_cowan_fixed_point(
 
     result = so.root_scalar(
         root_func,
-        method=method,
-        fprime=root_jac,
+        method=method,  # ty: ignore[invalid-argument-type]
+        fprime=root_jac,  # ty: ignore[invalid-argument-type]
         bracket=(0, 1),
         rtol=rtol,
     )
