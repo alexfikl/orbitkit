@@ -172,19 +172,19 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
 )
 def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
     from orbitkit.models.rate_functions import SigmoidRate
-    from orbitkit.models.wilson_cowan import WilsonCowan1, WilsonCowanParameter
+    from orbitkit.models.wilson_cowan import WilsonCowan1, WilsonCowanPopulation
 
     rng = np.random.default_rng(seed=42)
 
     n = 10
     s = SigmoidRate(1, 0, sym.Variable("sigma"))
-    Ep = WilsonCowanParameter(
+    Ep = WilsonCowanPopulation(
         sigmoid=s,
         kernels=(knl, knl),
         weights=(rng.random((n, n)), rng.random((10, 10))),
         forcing=rng.random(10),
     )
-    Ip = WilsonCowanParameter(
+    Ip = WilsonCowanPopulation(
         sigmoid=s,
         kernels=(knl, knl),
         weights=(rng.random((n, n)), rng.random((10, 10))),

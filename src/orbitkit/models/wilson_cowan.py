@@ -5,20 +5,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
+
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.models.rate_functions import RateFunction
+from orbitkit.models.rate_functions import RateFunction, SigmoidRate
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
-# {{{ DelayedWilsonCowan1
+# {{{ WilsonCowan1
 
 
 @dataclass(frozen=True)
-class WilsonCowanParameter:
+class WilsonCowanPopulation:
     sigmoid: RateFunction
     """Sigmoid activation function."""
     kernels: tuple[sym.DelayKernel, ...]
@@ -83,9 +85,9 @@ class WilsonCowan1(Model):
     delay kernels.
     """
 
-    E: WilsonCowanParameter
+    E: WilsonCowanPopulation
     """Excitatory population parameters."""
-    I: WilsonCowanParameter  # noqa: E741
+    I: WilsonCowanPopulation  # noqa: E741
     """Excitatory population parameters."""
 
     if __debug__:
@@ -145,6 +147,113 @@ class WilsonCowan1(Model):
             -E + self.E.sigmoid(W_EE * h_EE(E) - W_EI * h_EI(I) + P),
             -I + self.I.sigmoid(W_IE * h_IE(E) - W_II * h_II(I) + Q),
         )
+
+
+# }}}
+
+
+# {{{
+
+
+def get_wilson_cowan_fixed_point(
+    sE: SigmoidRate,
+    sI: SigmoidRate,
+    weights: tuple[float, float, float, float],
+    forcing: tuple[float, float],
+    *,
+    rtol: float = 1.0e-8,
+    method: str | None = None,
+) -> tuple[float, float]:
+    r"""Find a synchronized fixed point of the one delay Wilson-Cowan system
+    :class:`WilsonCowan1`.
+
+    To find a synchronized fixed point, we assume that all the weight matrices
+    have equal row sums, given by the *weights* tuple. We also assume that the
+    forcing term is uniform and is given by the *forcing* tuple. Under these
+    assumptions and regardless of the delay, we have that a fixed point of the
+    system must satisfy:
+
+    .. math::
+
+        \begin{aligned}
+            E^\star & = S_E(a E^\star - b I^\star + p), \\
+            I^\star & = S_I(c I^\star - d I^\star + q).
+        \end{aligned}
+
+    This system has at least one real solution in :math:`(0, 1)` (and at most 3
+    such solutions).
+
+    :arg sE: parameters for the sigmoid rate function used in the :math:`E` equation.
+    :arg sI: parameters for the sigmoid rate function used in the :math:`I` equation.
+    :arg weights: a tuple ``(a, b, c, d)`` for the row sums of all the weight matrices.
+    :arg forcing: a tuple ``(p, q)`` for the forcing terms.
+
+    :arg method: one of the methods support by :func:`scipy.optimize.root_scalar`.
+    :returns: a fixed point of the system as a tuple ``(Estar, Istar)``.
+    """
+
+    sEp: tuple[float, float, float] = sE.a, sE.theta, sE.sigma  # ty: ignore[invalid-assignment]
+    sIp: tuple[float, float, float] = sI.a, sI.theta, sI.sigma  # ty: ignore[invalid-assignment]
+
+    a, b, c, d = weights
+    p, q = forcing
+
+    # NOTE: We essentially have two equations here
+    #
+    #   E = S_E(a E - b I + p)
+    #   I = S_I(c E - d I + q)
+    #
+    # which we solve by nested 1d root finding. This should be pretty robust and
+    # lets us take advantage of two properties of our problem:
+    #
+    #   1. We know that the solutions are in (0, 1)
+    #   2. We know that the sigmoids are nice and increasing.
+    #
+    # FIXME: This problem can have 1 or 3 solutions, depending on how the lines
+    # intersect the sigmoid. This function only finds one of them, which is not
+    # great. To find more, we could
+    #   * do a bit of analysis to see when this is the case.
+    #   * better bracket the solutions?
+
+    import scipy.optimize as so
+
+    def sigmoid(y: float, a: float, theta: float, sigma: float) -> float:
+        return a / (1.0 + np.exp(-(y - theta) / sigma))
+
+    def d_sigmoid(y: float, a: float, theta: float, sigma: float) -> float:
+        s = sigmoid(y, a, theta, sigma)
+        return s * (1 - s) / sigma
+
+    def solve_for_i(E: float) -> float:
+        result = so.root_scalar(
+            lambda x: x - sigmoid(c * E - d * x + q, *sIp),
+            method=method,
+            fprime=lambda x: 1 + d_sigmoid(c * E - d * x + q, *sIp) * d,
+            bracket=(0, 1),
+            rtol=rtol,
+        )
+
+        return result.root
+
+    def root_func(E: float) -> float:
+        I = solve_for_i(E)  # noqa: E741
+        return E - sigmoid(a * E - b * I + p, *sEp)
+
+    def root_jac(E: float) -> float:
+        I = solve_for_i(E)  # noqa: E741
+        return 1.0 + d_sigmoid(a * E - b * I + p, *sEp) * a
+
+    result = so.root_scalar(
+        root_func,
+        method=method,
+        fprime=root_jac,
+        bracket=(0, 1),
+        rtol=rtol,
+    )
+    E = result.root
+    I = solve_for_i(E)  # noqa: E741
+
+    return E, I
 
 
 # }}}
