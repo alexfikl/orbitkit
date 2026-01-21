@@ -94,22 +94,33 @@ JiTCDDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 
 
 def make_input_variable(
-    n: int | tuple[int, ...], tau: int | float = 0, offset: int = 0
+    n: int | tuple[int, ...], tau: int | float | Array = 0, offset: int = 0
 ) -> JiTCDDEExpression:
     import jitcdde
 
+    if isinstance(tau, (int, float)):
+        tau = np.full(n, tau)
+
     y = np.empty(n, dtype=object)
     for i, idx in enumerate(np.ndindex(y.shape)):
-        y[idx] = jitcdde.y(offset + i, jitcdde.t - tau)
+        y[idx] = jitcdde.y(offset + i, jitcdde.t - tau[idx])
 
     return y
 
 
 def make_delay_variable(
-    ys: JiTCDDEExpression, tau: int | float = 0
+    ys: JiTCDDEExpression, tau: int | float | Array = 0
 ) -> JiTCDDEExpression:
     import jitcdde
     import symengine as sp
+
+    if isinstance(tau, (int, float)):
+        tau = np.full(ys.shape, tau)
+
+    if tau.shape != ys.shape:
+        raise ValueError(
+            f"'tau' shape does not match inputs: {tau.shape} (expected {ys.shape})"
+        )
 
     result = np.empty_like(ys)
     for idx in np.ndindex(ys.shape):
@@ -120,7 +131,7 @@ def make_delay_variable(
         (i,) = y.args
         assert isinstance(i, sp.Integer), type(i)
 
-        result[idx] = jitcdde.y(i, jitcdde.t - tau)
+        result[idx] = jitcdde.y(i, jitcdde.t - tau[idx])
 
     return result
 
