@@ -8,7 +8,7 @@ from typing import Literal, TypeAlias
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.models.rate_functions import RateFunction, SigmoidRate
+from orbitkit.models.rate_functions import RateFunction
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -167,8 +167,8 @@ Methods: TypeAlias = Literal[
 
 
 def get_wilson_cowan_fixed_point(
-    sE: SigmoidRate,
-    sI: SigmoidRate,
+    sE: RateFunction,
+    sI: RateFunction,
     weights: tuple[float, float, float, float],
     forcing: tuple[float, float],
     *,
@@ -205,10 +205,8 @@ def get_wilson_cowan_fixed_point(
     from orbitkit.codegen import lambdify
 
     x = sym.Variable("x")
-    sigmoidE = lambdify(x, sE(x))
-    d_sigmoidE = lambdify(x, sE.diff(x))
-    sigmoidI = lambdify(x, sI(x))
-    d_sigmoidI = lambdify(x, sI.diff(x))
+    sE_func, sE_prime = lambdify(x, sE(x)), lambdify(x, sE.diff(x))
+    sI_func, sI_prime = lambdify(x, sI(x)), lambdify(x, sI.diff(x))
 
     a, b, c, d = weights
     p, q = forcing
@@ -234,9 +232,9 @@ def get_wilson_cowan_fixed_point(
 
     def solve_for_i(E: float) -> float:
         result = so.root_scalar(
-            lambda x: x - sigmoidI(c * E - d * x + q),
+            lambda x: x - sI_func(c * E - d * x + q),
             method=method,  # ty: ignore[invalid-argument-type]
-            fprime=lambda x: 1 + d_sigmoidI(c * E - d * x + q) * d,  # ty: ignore[invalid-argument-type]
+            fprime=lambda x: 1 + sI_prime(c * E - d * x + q) * d,  # ty: ignore[invalid-argument-type]
             bracket=(0, 1),
             rtol=rtol,
         )
@@ -245,11 +243,11 @@ def get_wilson_cowan_fixed_point(
 
     def root_func(E: float) -> float:
         I = solve_for_i(E)  # noqa: E741
-        return E - sigmoidE(a * E - b * I + p)  # ty: ignore[invalid-return-type]
+        return E - sE_func(a * E - b * I + p)  # ty: ignore[invalid-return-type]
 
     def root_jac(E: float) -> float:
         I = solve_for_i(E)  # noqa: E741
-        return 1.0 + d_sigmoidE(a * E - b * I + p) * a
+        return 1.0 + sE_prime(a * E - b * I + p) * a
 
     result = so.root_scalar(
         root_func,
