@@ -6,8 +6,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
-import numpy as np
-
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.models.rate_functions import RateFunction, SigmoidRate
@@ -204,9 +202,13 @@ def get_wilson_cowan_fixed_point(
     :arg method: one of the methods support by :func:`scipy.optimize.root_scalar`.
     :returns: a fixed point of the system as a tuple ``(Estar, Istar)``.
     """
+    from orbitkit.codegen import lambdify
 
-    sEp: tuple[float, float, float] = sE.a, sE.theta, sE.sigma  # ty: ignore[invalid-assignment]
-    sIp: tuple[float, float, float] = sI.a, sI.theta, sI.sigma  # ty: ignore[invalid-assignment]
+    x = sym.Variable("x")
+    sigmoidE = lambdify(x, sE(x))
+    d_sigmoidE = lambdify(x, sE.diff(x))
+    sigmoidI = lambdify(x, sI(x))
+    d_sigmoidI = lambdify(x, sI.diff(x))
 
     a, b, c, d = weights
     p, q = forcing
@@ -230,18 +232,11 @@ def get_wilson_cowan_fixed_point(
 
     import scipy.optimize as so
 
-    def sigmoid(y: float, a: float, theta: float, sigma: float) -> float:
-        return a / (1.0 + np.exp(-(y - theta) / sigma))
-
-    def d_sigmoid(y: float, a: float, theta: float, sigma: float) -> float:
-        s = sigmoid(y, a, theta, sigma)
-        return s * (1 - s) / sigma
-
     def solve_for_i(E: float) -> float:
         result = so.root_scalar(
-            lambda x: x - sigmoid(c * E - d * x + q, *sIp),
+            lambda x: x - sigmoidI(c * E - d * x + q),
             method=method,  # ty: ignore[invalid-argument-type]
-            fprime=lambda x: 1 + d_sigmoid(c * E - d * x + q, *sIp) * d,  # ty: ignore[invalid-argument-type]
+            fprime=lambda x: 1 + d_sigmoidI(c * E - d * x + q) * d,  # ty: ignore[invalid-argument-type]
             bracket=(0, 1),
             rtol=rtol,
         )
@@ -250,11 +245,11 @@ def get_wilson_cowan_fixed_point(
 
     def root_func(E: float) -> float:
         I = solve_for_i(E)  # noqa: E741
-        return E - sigmoid(a * E - b * I + p, *sEp)
+        return E - sigmoidE(a * E - b * I + p)  # ty: ignore[invalid-return-type]
 
     def root_jac(E: float) -> float:
         I = solve_for_i(E)  # noqa: E741
-        return 1.0 + d_sigmoid(a * E - b * I + p, *sEp) * a
+        return 1.0 + d_sigmoidE(a * E - b * I + p) * a
 
     result = so.root_scalar(
         root_func,
