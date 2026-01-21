@@ -61,28 +61,40 @@ class IdentityMapper(IdentityMapperBase[[]]):
     def map_dirac_delay_kernel(
         self, expr: sym.DiracDelayKernel, /
     ) -> PymbolicExpression:
-        return type(expr)(tau=self.rec_arith(expr.tau))
+        tau = self.rec_arith(expr.tau)
+        if tau is expr.tau:
+            return expr
+
+        return type(expr)(tau=tau)
 
     def map_uniform_delay_kernel(
         self, expr: sym.UniformDelayKernel, /
     ) -> PymbolicExpression:
-        return type(expr)(
-            epsilon=self.rec_arith(expr.epsilon),
-            tau=self.rec_arith(expr.tau),
-        )
+        epsilon = self.rec_arith(expr.epsilon)
+        tau = self.rec_arith(expr.tau)
+        if epsilon is expr.epsilon and tau is expr.tau:
+            return expr
+
+        return type(expr)(epsilon=epsilon, tau=tau)
 
     def map_triangular_delay_kernel(
         self, expr: sym.TriangularDelayKernel, /
     ) -> PymbolicExpression:
-        return type(expr)(
-            epsilon=self.rec_arith(expr.epsilon),
-            tau=self.rec_arith(expr.tau),
-        )
+        epsilon = self.rec_arith(expr.epsilon)
+        tau = self.rec_arith(expr.tau)
+        if epsilon is expr.epsilon and tau is expr.tau:
+            return expr
+
+        return type(expr)(epsilon=epsilon, tau=tau)
 
     def map_gamma_delay_kernel(
         self, expr: sym.GammaDelayKernel, /
     ) -> PymbolicExpression:
-        return type(expr)(p=expr.p, alpha=self.rec_arith(expr.alpha))
+        alpha = self.rec_arith(expr.alpha)
+        if alpha is expr.alpha:
+            return expr
+
+        return type(expr)(p=expr.p, alpha=alpha)
 
 
 # }}}
