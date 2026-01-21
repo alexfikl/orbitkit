@@ -204,6 +204,15 @@ class DelayKernel(ExpressionNode):
 
 
 @prim.expr_dataclass()
+class ZeroDelayKernel(DelayKernel):
+    """A dummy kernel that gives no delay."""
+
+    @property
+    def avg(self) -> Expression:
+        return 0
+
+
+@prim.expr_dataclass()
 class DiracDelayKernel(DelayKernel):
     r"""A delay kernel based on the Dirac distribution.
 

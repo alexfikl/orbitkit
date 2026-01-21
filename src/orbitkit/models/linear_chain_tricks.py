@@ -134,12 +134,15 @@ class DelayKernelReplacer(IdentityMapper):
             if len(expr.parameters) != 1:
                 raise ValueError(f"expected only one parameter in {func} call")
 
+            (param,) = expr.parameters
+            assert isinstance(param, sym.Expression)
+
+            if isinstance(func, sym.ZeroDelayKernel):
+                return param
+
             try:
                 return self.kernel_to_var_replace[expr]
             except KeyError:
-                (param,) = expr.parameters
-                assert isinstance(param, sym.Expression)
-
                 suffix = param.name if isinstance(param, prim.Variable) else ""
                 z = prim.Variable(self.unique_name_generator(suffix))
 

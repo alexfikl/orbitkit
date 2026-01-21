@@ -58,6 +58,9 @@ class IdentityMapper(IdentityMapperBase[[]]):
 
         return type(expr)(aggregate=aggregate, shape=expr.shape)
 
+    def map_zero_delay_kernel(self, expr: sym.ZeroDelayKernel, /) -> PymbolicExpression:  # noqa: PLR6301
+        return expr
+
     def map_dirac_delay_kernel(
         self, expr: sym.DiracDelayKernel, /
     ) -> PymbolicExpression:
