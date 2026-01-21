@@ -18,6 +18,9 @@ class RateFunction(Protocol):
     def __call__(self, V: sym.Expression) -> sym.Expression:
         """Evaluate the rate function for the given membrane potential."""
 
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        """Evaluate the derivative of the rate function at the given potential."""
+
 
 @dataclass(frozen=True)
 class ExponentialRate:
@@ -34,6 +37,9 @@ class ExponentialRate:
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
         return self.a * sym.exp(-(V - self.theta) / self.sigma)
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        return -self.a / self.sigma * sym.exp(-(V - self.theta) / self.sigma)
 
 
 @dataclass(frozen=True)
@@ -53,6 +59,10 @@ class SigmoidRate:
     def __call__(self, V: sym.Expression) -> sym.Expression:
         return self.a / (1.0 + sym.exp(-(V - self.theta) / self.sigma))
 
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        f = self(V) / self.a
+        return self.a / self.sigma * f * (1 - f)
+
 
 @dataclass(frozen=True)
 class Expm1Rate:
@@ -70,6 +80,10 @@ class Expm1Rate:
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
         return self.a / (1.0 - sym.exp(-(V - self.theta) / self.sigma))
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        f = self(V) / self.a
+        return self.a / self.sigma * f * (1 - f)
 
 
 @dataclass(frozen=True)
@@ -90,6 +104,13 @@ class LinearExpm1Rate:
     def __call__(self, V: sym.Expression) -> sym.Expression:
         return (self.a * V + self.b) / (1.0 - sym.exp(-(V - self.theta) / self.sigma))
 
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        f = self.a * V + self.b
+        g = 1.0 / (1.0 - sym.exp(-(V - self.theta) / self.sigma))
+
+        # NOTE: just a product rule on f * g
+        return self.a * g + f / self.sigma * g * (1 - g)
+
 
 @dataclass(frozen=True)
 class TanhRate:
@@ -107,3 +128,6 @@ class TanhRate:
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
         return self.a * (1.0 + sym.tanh((V - self.theta) / self.sigma))
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        return self.a / self.sigma * sym.sech((V - self.theta) / self.sigma) ** 2
