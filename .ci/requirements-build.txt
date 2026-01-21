@@ -12,11 +12,11 @@ pip==25.3
     # via -r .ci/requirements-build.in
 pluggy==1.6.0
     # via hatchling
-setuptools==80.9.0
+setuptools==80.10.1
     # via -r .ci/requirements-build.in
 tomli==2.4.0 ; python_full_version < '3.11'
     # via hatchling
-trove-classifiers==2026.1.12.15
+trove-classifiers==2026.1.14.14
     # via hatchling
 wheel==0.45.1
     # via -r .ci/requirements-build.in

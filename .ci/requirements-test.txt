@@ -22,11 +22,11 @@ iniconfig==2.3.0
     # via pytest
 jax==0.6.2 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml:backends)
-jax==0.8.2 ; python_full_version >= '3.11'
+jax==0.9.0 ; python_full_version >= '3.11'
     # via orbitkit (pyproject.toml:backends)
 jaxlib==0.6.2 ; python_full_version < '3.11'
     # via jax
-jaxlib==0.8.2 ; python_full_version >= '3.11'
+jaxlib==0.9.0 ; python_full_version >= '3.11'
     # via jax
 jinja2==3.1.6
     # via jitcxde-common
@@ -110,7 +110,7 @@ pygments==2.19.2
     #   rich
 pymbolic==2025.1
     # via orbitkit (pyproject.toml:codegen)
-pyparsing==3.3.1
+pyparsing==3.3.2
     # via matplotlib
 pytest==9.0.2
     # via orbitkit (pyproject.toml:test)
@@ -120,7 +120,7 @@ pytools==2025.2.5
     # via pymbolic
 rich==14.2.0
     # via orbitkit (pyproject.toml)
-ruff==0.14.11
+ruff==0.14.13
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.0
     # via orbitkit (pyproject.toml:visualization)
@@ -138,9 +138,9 @@ scipy==1.17.0 ; python_full_version >= '3.11'
     #   jitcode
 scipy-stubs==1.15.3.0 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml:test)
-scipy-stubs==1.17.0.0 ; python_full_version >= '3.11'
+scipy-stubs==1.17.0.1 ; python_full_version >= '3.11'
     # via orbitkit (pyproject.toml:test)
-setuptools==80.9.0
+setuptools==80.10.1
     # via jitcxde-common
 siphash24==1.8
     # via pytools
@@ -157,7 +157,7 @@ texttable==1.7.0
     # via igraph
 tomli==2.4.0 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.11
+ty==0.0.12
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.15.0
     # via
