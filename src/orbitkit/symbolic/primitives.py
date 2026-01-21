@@ -185,6 +185,8 @@ exp = Function("exp")
 """The exponential function."""
 tanh = Function("tanh")
 """The hyperbolic tangent function."""
+sech = Function("sech")
+"""The hyperbolic secant function."""
 gamma = Function("gamma")
 """The Gamma function."""
 
