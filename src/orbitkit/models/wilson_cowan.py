@@ -236,6 +236,7 @@ def get_wilson_cowan_fixed_point(
             method=method,  # ty: ignore[invalid-argument-type]
             fprime=lambda x: 1 + sI_prime(c * E - d * x + q) * d,  # ty: ignore[invalid-argument-type]
             bracket=(0, 1),
+            x0=(0.5, 0.5),
             rtol=rtol,
         )
 
@@ -254,6 +255,7 @@ def get_wilson_cowan_fixed_point(
         method=method,  # ty: ignore[invalid-argument-type]
         fprime=root_jac,  # ty: ignore[invalid-argument-type]
         bracket=(0, 1),
+        x0=(0.5, 0.5),
         rtol=rtol,
     )
     E = result.root
