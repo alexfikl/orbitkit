@@ -173,7 +173,7 @@ class WangBuzsaki(Model):
         # compute synaptic current
         g_syn, E_syn = param.g_syn, param.E_syn
         I_syn = (
-            g_syn * (V - E_syn) * prim.Quotient(sym.DotProduct(self.A, s), self.M_syn)
+            g_syn * (V - E_syn) * prim.Quotient(sym.DotProduct(self.A, s), self.M_syn)  # ty: ignore[invalid-argument-type]
         )
 
         # put it all together

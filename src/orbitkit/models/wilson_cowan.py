@@ -231,10 +231,10 @@ def get_wilson_cowan_fixed_point(
     import scipy.optimize as so
 
     def solve_for_i(E: float) -> float:
-        result = so.root_scalar(
+        result = so.root_scalar(  # ty: ignore[no-matching-overload]
             lambda x: x - sI_func(c * E - d * x + q),
-            method=method,  # ty: ignore[invalid-argument-type]
-            fprime=lambda x: 1 + sI_prime(c * E - d * x + q) * d,  # ty: ignore[invalid-argument-type]
+            method=method,
+            fprime=lambda x: 1 + sI_prime(c * E - d * x + q) * d,
             bracket=(0, 1),
             x0=(0.5, 0.5),
             rtol=rtol,
@@ -250,10 +250,10 @@ def get_wilson_cowan_fixed_point(
         I = solve_for_i(E)  # noqa: E741
         return 1.0 + sE_prime(a * E - b * I + p) * a
 
-    result = so.root_scalar(
+    result = so.root_scalar(  # ty: ignore[no-matching-overload]
         root_func,
-        method=method,  # ty: ignore[invalid-argument-type]
-        fprime=root_jac,  # ty: ignore[invalid-argument-type]
+        method=method,
+        fprime=root_jac,
         bracket=(0, 1),
         x0=(0.5, 0.5),
         rtol=rtol,

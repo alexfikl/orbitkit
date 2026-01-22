@@ -114,7 +114,7 @@ class FitzHughNagumoOmelchenko(Model):
             )
 
         H, epsilon, a = self.H, self.epsilon, self.a
-        sigma_g = prim.Quotient(self.sigma, self.g)
+        sigma_g = prim.Quotient(self.sigma, self.g)  # ty: ignore[invalid-argument-type]
         return (
             (u - u**3 / 3 - v + sigma_g * sum_g(H[0, 0], H[0, 1])) / epsilon,
             u + a + sigma_g * sum_g(H[1, 0], H[1, 1]),
