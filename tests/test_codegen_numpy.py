@@ -175,9 +175,9 @@ def test_codegen_numpy_array_arguments() -> None:
 
     from orbitkit.codegen.numpy import NumpyCodeGenerator
 
-    _, exprs = model.symbolify(n)
+    inputs, exprs = model.symbolify(n)
 
-    cgen = NumpyCodeGenerator()
+    cgen = NumpyCodeGenerator(inputs={inp.name for inp in inputs})
     result = cgen(exprs)
     assert result is not None
 
@@ -188,6 +188,7 @@ def test_codegen_numpy_array_arguments() -> None:
     assert cgen.array_arguments.keys() == {"_arg", "_arg_0"}
     assert np.allclose(cgen.array_arguments["_arg"], A)
     assert np.allclose(cgen.array_arguments["_arg_0"], np.sum(A, axis=1))
+    assert len(cgen.parameters) == 0
 
 
 # }}}

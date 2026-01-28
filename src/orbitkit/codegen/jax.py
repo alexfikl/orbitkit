@@ -28,11 +28,29 @@ class JaxTarget(NumpyTarget):
 
         return jnp
 
-    def lambdify(self, code: Code) -> Callable[..., Array]:
+    def lambdify(
+        self,
+        code: Code,
+        *,
+        parameters: dict[str, Any] | None = None,
+    ) -> Callable[..., Array]:
         import jax
 
         func = execute_code(code)
         cargs = tuple(jax.device_put(arg) for arg in code.args)
+
+        if code.parameters:
+            if parameters is None:
+                raise ValueError(f"missing parameters: {code.parameters}")
+
+            params = []
+            for name in code.parameters:
+                if name not in parameters:
+                    raise ValueError(f"missing parameter: '{name}'")
+
+                params.append(jax.device_put(parameters[name]))
+
+            cargs = (*cargs, *params)
 
         def wrapper(*args: Array) -> Array:
             return func(*args, *cargs)

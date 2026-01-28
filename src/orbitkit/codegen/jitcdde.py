@@ -20,6 +20,7 @@ from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     import jitcdde
+    import symengine as sp
     from pymbolic.typing import Expression as PymbolicExpression
 
     from orbitkit.codegen.numpy import NumpyCodeGenerator
@@ -146,8 +147,10 @@ class JiTCDDETarget(JiTCODETarget):
     sym_module: ClassVar[str] = "sp"
     funcname: ClassVar[str] = "_lambdify_generated_func_jitcdde_symengine"
 
-    def _get_code_generator(self) -> NumpyCodeGenerator:
-        return JiTCDDECodeGenerator(module=self.module, sym_module=self.sym_module)
+    def _get_code_generator(self, inputs: set[str]) -> NumpyCodeGenerator:
+        return JiTCDDECodeGenerator(
+            inputs=inputs, module=self.module, sym_module=self.sym_module
+        )
 
     def generate_code(
         self,
@@ -222,6 +225,7 @@ class JiTCDDETarget(JiTCODETarget):
         y: Array,
         *,
         max_delay: float,
+        parameters: tuple[sp.Symbol, ...] = (),
         module_location: str | None = None,
         verbose: bool = False,
     ) -> jitcdde.jitcdde:
@@ -232,6 +236,7 @@ class JiTCDDETarget(JiTCODETarget):
             n=y.size,
             verbose=verbose,
             max_delay=max_delay,
+            control_pars=parameters,
             module_location=module_location,
         )
 
@@ -241,6 +246,7 @@ class JiTCDDETarget(JiTCODETarget):
         y: Array,
         *,
         max_delay: float,
+        parameters: dict[str, float] | None = None,
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         module_location: str | pathlib.Path | None = None,
@@ -249,12 +255,23 @@ class JiTCDDETarget(JiTCODETarget):
         if module_location is not None:
             module_location = pathlib.Path(module_location)
 
+        if parameters:
+            import symengine as sp
+
+            names_and_values = sorted(parameters.items())
+            control_pars = tuple(sp.Symbol(name) for name, _ in names_and_values)
+            control_vals = tuple(value for _, value in names_and_values)
+        else:
+            control_pars = ()
+            control_vals = ()
+
         if module_location and module_location.exists():
             dde = self._make_integrator(
                 f,
                 y,
                 verbose=verbose,
                 max_delay=max_delay,
+                parameters=control_pars,
                 module_location=str(module_location),
             )
         else:
@@ -262,6 +279,7 @@ class JiTCDDETarget(JiTCODETarget):
                 f,
                 y,
                 max_delay=max_delay,
+                parameters=control_pars,
                 verbose=verbose,
             )
 
@@ -279,6 +297,9 @@ class JiTCDDETarget(JiTCODETarget):
                     )
 
         dde.set_integration_parameters(rtol=rtol, atol=atol)
+        if control_vals:
+            dde.set_parameters(control_vals)
+
         return dde
 
 
@@ -303,6 +324,7 @@ class JiTCDDELyapunovTarget(JiTCDDETarget):
         y: Array,
         *,
         max_delay: float,
+        parameters: tuple[sp.Symbol, ...] = (),
         module_location: str | None = None,
         verbose: bool = False,
     ) -> jitcdde.jitcdde:
@@ -314,6 +336,7 @@ class JiTCDDELyapunovTarget(JiTCDDETarget):
             n_lyap=self.nlyapunov,
             verbose=verbose,
             max_delay=max_delay,
+            control_pars=parameters,
             module_location=module_location,
         )
 

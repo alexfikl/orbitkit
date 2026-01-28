@@ -51,8 +51,10 @@ class JiTCODETarget(NumpyTarget):
     sym_module: ClassVar[str] = "sp"
     funcname: ClassVar[str] = "_lambdify_generated_func_jitcode_symengine"
 
-    def _get_code_generator(self) -> NumpyCodeGenerator:
-        return JiTCODECodeGenerator(module=self.module, sym_module=self.sym_module)
+    def _get_code_generator(self, inputs: set[str]) -> NumpyCodeGenerator:
+        return JiTCODECodeGenerator(
+            inputs=inputs, module=self.module, sym_module=self.sym_module
+        )
 
     def generate_code(
         self,

@@ -31,10 +31,15 @@ log = module_logger(__name__)
 class NumpyCodeGenerator(StringifyMapper[Any]):
     """A code generator that stringifies a symbolic :mod:`pymbolic` expression."""
 
+    inputs: set[str]
+    """A set of known input variables."""
     module: str = "np"
     """Name of the :mod:`numpy` module. This can be changed for :mod:`numpy`
     compatible module with some work (e.g. from JAX).
     """
+
+    parameters: set[str] = field(init=False, default_factory=set)
+    """A set of additional variables that are not known inputs."""
     array_arguments: dict[str, Array] = field(init=False, default_factory=dict)
     """A mapping of unique names to arrays that have been found in the expression
     graph. These need to be added as arguments or defined as variables on code
@@ -49,10 +54,16 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     def handle_unsupported_expression(self, expr: object, enclosing_prec: int) -> str:
         raise NotImplementedError(f"{type(self)} cannot handle {type(expr)}: {expr}")
 
+    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:
+        if expr.name not in self.inputs:
+            self.parameters.add(expr.name)
+
+        return super().map_variable(expr, enclosing_prec)
+
     def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
         return f"{self.module}.{expr.name}"
 
-    def map_numpy_array(self, expr: Array, enclosing_prec: int) -> str:
+    def map_numpy_array(self, expr: Array, /, enclosing_prec: int) -> str:
         for name, ary in self.array_arguments.items():
             if ary is expr:
                 return name
@@ -62,15 +73,15 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
 
         return name
 
-    def map_contract(self, expr: sym.Contract, enclosing_prec: int) -> str:
+    def map_contract(self, expr: sym.Contract, /, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
         return f"{self.module}.sum({aggregate}, axis={expr.axes})"
 
-    def map_reshape(self, expr: sym.Reshape, enclosing_prec: int) -> str:
+    def map_reshape(self, expr: sym.Reshape, /, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
         return f"{self.module}.reshape({aggregate}, shape={expr.shape})"
 
-    def map_dot_product(self, expr: sym.DotProduct, enclosing_prec: int) -> str:
+    def map_dot_product(self, expr: sym.DotProduct, /, enclosing_prec: int) -> str:
         left = self.rec(expr.left, PREC_NONE)
         right = self.rec(expr.right, PREC_NONE)
         return f"{self.module}.dot({left}, {right})"
@@ -96,8 +107,8 @@ class NumpyTarget(Target):
     def _get_module(self) -> Any:  # noqa: PLR6301
         return np
 
-    def _get_code_generator(self) -> NumpyCodeGenerator:
-        return NumpyCodeGenerator(module=self.module)
+    def _get_code_generator(self, inputs: set[str]) -> NumpyCodeGenerator:
+        return NumpyCodeGenerator(inputs=inputs, module=self.module)
 
     def generate_code(
         self,
@@ -114,24 +125,30 @@ class NumpyTarget(Target):
         if isinstance(exprs, sym.Expression):
             exprs = (exprs,)
 
-        cgen = self._get_code_generator()
+        if assignments is None:
+            assignments = ()
+
+        cgen = self._get_code_generator(
+            {inp.name for inp in inputs}
+            | {assign.assignee.name for assign in assignments}
+        )
         expressions = ", ".join(cgen(expr) for expr in exprs)
 
         from pytools.py_codegen import PythonFunctionGenerator
 
         args = sorted(cgen.array_arguments)
+        params = sorted(cgen.parameters)
         py = PythonFunctionGenerator(
             self.funcname,
-            args=(*(arg.name for arg in inputs), *args),
+            args=(*(arg.name for arg in inputs), *params, *args),
         )
 
-        if assignments is not None:
-            for assign in assignments:
-                # FIXME: this can actually amass additional arrays. For now, we're
-                # just using it to go `V = y[0:10]`, but this need not always be the
-                # case. `PythonFunctionGenerator` cannot add additional args
-                # after the constructor, so this needs to be another one.
-                py(f"{assign.assignee} = {cgen(assign.rvalue)}")
+        for assign in assignments:
+            # FIXME: this can actually amass additional arrays. For now, we're
+            # just using it to go `V = y[0:10]`, but this need not always be the
+            # case. `PythonFunctionGenerator` cannot add additional args
+            # after the constructor, so this needs to be another one.
+            py(f"{assign.assignee} = {cgen(assign.rvalue)}")
 
         if len(exprs) == 1:
             py(f"return {cgen(exprs[0])}")
@@ -153,15 +170,35 @@ class NumpyTarget(Target):
             entrypoint=self.funcname,
             source=source,
             inputs=inputs,
+            parameters=tuple(params),
             args=tuple(cgen.array_arguments[k] for k in args),
             context={self.module: self._get_module()},
         )
 
-    def lambdify(self, code: Code) -> Callable[..., Array]:  # noqa: PLR6301
+    def lambdify(  # noqa: PLR6301
+        self,
+        code: Code,
+        *,
+        parameters: dict[str, Any] | None = None,
+    ) -> Callable[..., Array]:
         func = execute_code(code)
+        cargs = code.args
+
+        if code.parameters:
+            if parameters is None:
+                raise ValueError(f"missing parameters: {code.parameters}")
+
+            params = []
+            for name in code.parameters:
+                if name not in parameters:
+                    raise ValueError(f"missing parameter: '{name}'")
+
+                params.append(parameters[name])
+
+            cargs = (*cargs, *params)
 
         def wrapper(*args: Array) -> Array:
-            return func(*args, *code.args)
+            return func(*args, *cargs)
 
         return wrapper
 
