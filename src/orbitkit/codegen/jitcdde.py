@@ -216,7 +216,26 @@ class JiTCDDETarget(JiTCODETarget):
             },
         )
 
-    def compile(  # ty: ignore[invalid-method-override] # noqa: PLR6301
+    def _make_integrator(  # noqa: PLR6301
+        self,
+        f: Array,
+        y: Array,
+        *,
+        max_delay: float,
+        module_location: str | None = None,
+        verbose: bool = False,
+    ) -> jitcdde.jitcdde:
+        import jitcdde
+
+        return jitcdde.jitcdde(
+            f,
+            n=y.size,
+            verbose=verbose,
+            max_delay=max_delay,
+            module_location=module_location,
+        )
+
+    def compile(  # ty: ignore[invalid-method-override]
         self,
         f: Array,
         y: Array,
@@ -227,23 +246,22 @@ class JiTCDDETarget(JiTCODETarget):
         module_location: str | pathlib.Path | None = None,
         verbose: bool = False,
     ) -> jitcdde.jitcdde:
-        import jitcdde
-
         if module_location is not None:
             module_location = pathlib.Path(module_location)
 
         if module_location and module_location.exists():
-            dde = jitcdde.jitcdde(
+            dde = self._make_integrator(
                 f,
-                n=y.size,
+                y,
                 verbose=verbose,
                 max_delay=max_delay,
                 module_location=str(module_location),
             )
         else:
-            dde = jitcdde.jitcdde(
+            dde = self._make_integrator(
                 f,
-                n=y.size,
+                y,
+                max_delay=max_delay,
                 verbose=verbose,
             )
 
@@ -262,6 +280,42 @@ class JiTCDDETarget(JiTCODETarget):
 
         dde.set_integration_parameters(rtol=rtol, atol=atol)
         return dde
+
+
+# }}}
+
+# {{{ Lyapunov
+
+
+class JiTCDDELyapunovTarget(JiTCDDETarget):
+    nlyapunov: int
+    """Number of Lyapunov exponents to calculate."""
+
+    def __init__(self, nlyapunov: int = 1) -> None:
+        if nlyapunov <= 0:
+            raise ValueError(f"invalid number of Lyapunov exponents: {nlyapunov}")
+
+        self.nlyapunov: int = nlyapunov
+
+    def _make_integrator(
+        self,
+        f: Array,
+        y: Array,
+        *,
+        max_delay: float,
+        module_location: str | None = None,
+        verbose: bool = False,
+    ) -> jitcdde.jitcdde:
+        import jitcdde
+
+        return jitcdde.jitcdde_lyap(
+            f,
+            n=y.size,
+            n_lyap=self.nlyapunov,
+            verbose=verbose,
+            max_delay=max_delay,
+            module_location=module_location,
+        )
 
 
 # }}}

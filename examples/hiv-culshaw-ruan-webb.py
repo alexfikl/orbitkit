@@ -19,7 +19,7 @@ try:
     import jitcdde
     import jitcode
 except ImportError:
-    log.error("This example requires `jitcdde` and 'jitcode'.")
+    log.error("This example requires 'jitcdde' and 'jitcode'.")
     raise SystemExit(0) from None
 
 # FIXME: Figure 5.4 does not match [CulshawRuanWebb2003] very well. Increasing
@@ -109,7 +109,7 @@ dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
 with figure(
-    dirname / f"hiv_culshaw_{figname.lower()}",
+    dirname / f"hiv_crw_{figname.lower()}",
     figsize=(18, 6),
     overwrite=True,
 ) as fig:
@@ -132,7 +132,7 @@ with figure(
 
 if figname in {"Figure52", "Figure54"}:
     with figure(
-        dirname / f"hiv_culshaw_{figname.lower()}_aux",
+        dirname / f"hiv_crw_{figname.lower()}_aux",
         figsize=(18, 6),
         overwrite=True,
     ) as fig:
