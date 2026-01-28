@@ -246,25 +246,18 @@ class JiTCDDETarget(JiTCODETarget):
         y: Array,
         *,
         max_delay: float,
-        parameters: dict[str, float] | None = None,
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
+        parameters: tuple[str, ...] = (),
         module_location: str | pathlib.Path | None = None,
         verbose: bool = False,
     ) -> jitcdde.jitcdde:
+        import symengine as sp
+
         if module_location is not None:
             module_location = pathlib.Path(module_location)
 
-        if parameters:
-            import symengine as sp
-
-            names_and_values = sorted(parameters.items())
-            control_pars = tuple(sp.Symbol(name) for name, _ in names_and_values)
-            control_vals = tuple(value for _, value in names_and_values)
-        else:
-            control_pars = ()
-            control_vals = ()
-
+        control_pars = tuple(sp.Symbol(param) for param in parameters)
         if module_location and module_location.exists():
             dde = self._make_integrator(
                 f,
@@ -296,9 +289,9 @@ class JiTCDDETarget(JiTCODETarget):
                         newfilename,
                     )
 
+        # NOTE: we cannot add parameters here because JiTCDDE will try to compile
+        # things and it won't fine the initial conditions.. it's up to the user.
         dde.set_integration_parameters(rtol=rtol, atol=atol)
-        if control_vals:
-            dde.set_parameters(control_vals)
 
         return dde
 

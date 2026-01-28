@@ -17,6 +17,8 @@ from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import jitcode
 
 log = module_logger(__name__)
@@ -89,6 +91,26 @@ class JiTCODETarget(NumpyTarget):
             },
         )
 
+    def lambdify(
+        self,
+        code: Code,
+        *,
+        parameters: dict[str, Any] | None = None,
+    ) -> Callable[..., Array]:
+        # NOTE: if we need extra parameters, just add them as symbols. These
+        # will be added properly according to JiTCODE in the compile function.
+        if code.parameters:
+            import symengine as sp
+
+            if parameters is None:
+                parameters = {}
+
+            for param in code.parameters:
+                if param not in parameters:
+                    parameters[param] = sp.Symbol(param)
+
+        return super().lambdify(code, parameters=parameters)
+
     def compile(  # noqa: PLR6301
         self,
         f: Array,
@@ -97,18 +119,23 @@ class JiTCODETarget(NumpyTarget):
         method: str = "RK45",
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
+        parameters: tuple[str, ...] = (),
         module_location: str | pathlib.Path | None = None,
         verbose: bool = False,
     ) -> jitcode.jitcode:
         import jitcode
+        import symengine as sp
 
         if module_location is not None:
             module_location = pathlib.Path(module_location)
+
+        control_pars = tuple(sp.Symbol(param) for param in parameters)
 
         if module_location and module_location.exists():
             ode = jitcode.jitcode(
                 f,
                 n=y.size,
+                control_pars=control_pars,
                 verbose=verbose,
                 module_location=str(module_location),
             )
@@ -116,6 +143,7 @@ class JiTCODETarget(NumpyTarget):
             ode = jitcode.jitcode(
                 f,
                 n=y.size,
+                control_pars=control_pars,
                 verbose=verbose,
             )
 
@@ -132,7 +160,10 @@ class JiTCODETarget(NumpyTarget):
                         newfilename,
                     )
 
+        # NOTE: we cannot add parameters here because JiTCODE will try to compile
+        # things and it won't fine the initial conditions.. it's up to the user.
         ode.set_integrator(method, atol=atol, rtol=rtol)
+
         return ode
 
 
