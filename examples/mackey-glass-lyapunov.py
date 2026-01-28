@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import pathlib
+from dataclasses import replace
 
 import numpy as np
 
+import orbitkit.symbolic.primitives as sym
 from orbitkit.models import transform_distributed_delay_model
 from orbitkit.models.mackey_glass import MackeyGlass1, make_model_from_name
 from orbitkit.symbolic.primitives import DiracDelayKernel
@@ -26,6 +28,8 @@ except ImportError:
 
 figname = "Figure2b"
 model = make_model_from_name(f"MackeyGlass1977{figname}")
+model = replace(model, k=sym.Variable("k"))
+
 assert isinstance(model, MackeyGlass1)
 assert isinstance(model.h, DiracDelayKernel)
 assert isinstance(model.h.tau, (int, float))
@@ -39,44 +43,45 @@ log.info("Equations:\n%s", ext_model)
 
 from orbitkit.codegen.jitcdde import JiTCDDELyapunovTarget, make_input_variable
 
-target = JiTCDDELyapunovTarget(nlyapunov=4)
+target = JiTCDDELyapunovTarget(nlyapunov=1)
 source_func = target.lambdify_model(ext_model, model.n)
 
 y = make_input_variable(1)
 source = source_func(jitcdde.t, y)
 log.info("\n%s", source)
 
+tau = model.h.tau
+dde = target.compile(source, y, max_delay=tau, parameters=("k",))
+
 # }}}
 
 # {{{ evolve
 
-tspan = (0.0, 1600.0)
-y0 = np.array([0.1])
-
-dde = target.compile(source, y, max_delay=model.h.tau)
-dde.constant_past(y0, time=tspan[0])
-dde.step_on_discontinuities()
-
 dt = 0.01
-ts = np.arange(tspan[0] + dde.t, tspan[1], dt)
+tspan = (0.0, 1600.0)
+
+y0 = np.array([0.1])
+ts = np.arange(tspan[0] + tau, tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
 lyap_loc = np.empty((target.nlyapunov, *ts.shape), dtype=y0.dtype)
 weights = np.empty(ts.shape, dtype=y0.dtype)
-
-for i in range(ts.size):
-    ys[:, i], lyap_loc[:, i], weights[i] = dde.integrate(ts[i])
-
-# compute global Lyapunov exponent
-weights = weights.reshape(1, -1)
-lyap = np.cumsum(lyap_loc * weights, axis=1) / np.cumsum(weights).reshape(1, -1)
-assert lyap.shape == (target.nlyapunov, *ts.shape)
-
-# compute largest Lyapunov exponent after transients
 m = int(0.25 * ts.size)
-for i in range(target.nlyapunov):
-    llyap = np.average(lyap_loc[i, -m:], weights=weights[0, -m:])
-    log.info("%d. Lyapunov exponent: %+.8e", i, llyap)
+
+ks = [7.0, 7.75, 8.50, 8.79, 9.65, 9.69715, 9.6975, 9.76, 10.0, 20.0]
+llyap = np.empty(len(ks))
+
+for i, k in enumerate(ks):
+    dde.constant_past(y0, time=tspan[0])
+    dde.set_parameters((k,))
+    dde.step_on_discontinuities()
+
+    for n in range(ts.size):
+        _, lyap_loc[:, n], weights[n] = dde.integrate(ts[i])
+
+    # compute largest Lyapunov exponent after transients
+    llyap[i] = np.average(lyap_loc[0, -m:], weights=weights[-m:])
+    log.info("k %.5f lyapunov exponent: %+.8e", k, llyap[i])
 
 # }}}
 
@@ -96,29 +101,16 @@ dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
 with figure(
-    dirname / f"mackey_glass_{figname.lower()}_lyapunov",
-    figsize=(18, 6),
-    overwrite=True,
-) as fig:
-    ax = fig.gca()
-
-    ax.plot(ts, ys[0])
-
-    ax.set_xlabel("$t$")
-    ax.set_ylabel("$P(t)$")
-
-with figure(
     dirname / f"mackey_glass_{figname.lower()}_lyapunov_exponent",
     figsize=(18, 6),
     overwrite=True,
 ) as fig:
     ax = fig.gca()
 
-    ax.plot(ts[m:], lyap[0, m:])
+    ax.plot(ks, llyap)
     ax.axhline(0.0, color="k", ls="--")
-    ax.axvline(ts[-m], color="k", ls=":")
 
     ax.set_xlabel("$t$")
-    ax.set_ylabel(r"$\lambda(t)$")
+    ax.set_ylabel(r"$\lambda_{\text{max}}(t)$")
 
 # }}}
