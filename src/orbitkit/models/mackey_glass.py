@@ -71,7 +71,7 @@ class MackeyGlass2(MackeyGlass1):
     .. math::
 
         \frac{\mathrm{d} P}{\mathrm{d} t} =
-            \frac{\beta_0 \theta^k (h \ast P)^k}{\theta^k + (h \ast P)^k} - \gamma P.
+            \frac{\beta_0 \theta^k (h \ast P)}{\theta^k + (h \ast P)^k} - \gamma P.
     """
 
     def evaluate(
@@ -80,9 +80,7 @@ class MackeyGlass2(MackeyGlass1):
         (P,) = args
 
         beta, gamma, theta, k = self.beta, self.gamma, self.theta, self.k
-        return (
-            beta * theta**k * self.h(P) ** k / (theta**k + self.h(P) ** k) - gamma * P,
-        )
+        return (beta * theta**k * self.h(P) / (theta**k + self.h(P) ** k) - gamma * P,)
 
 
 # }}}
@@ -109,6 +107,7 @@ def _make_mackey_glass_1979_figure6(k: float) -> Model:
 MACKEY_GLASS_MODEL = {
     "MackeyGlass1977Figure2b": _make_mackey_glass_1977_figure2(6.0),
     "MackeyGlass1977Figure2c": _make_mackey_glass_1977_figure2(20.0),
+    # https://doi.org/10.1111/j.1749-6632.1979.tb29471.x
     "MackeyGlass1979Figure6a": _make_mackey_glass_1979_figure6(7.0),
     "MackeyGlass1979Figure6b": _make_mackey_glass_1979_figure6(7.75),
     "MackeyGlass1979Figure6c": _make_mackey_glass_1979_figure6(8.50),
