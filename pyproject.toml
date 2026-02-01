@@ -116,6 +116,9 @@ lint.isort.required-imports = [
     "from __future__ import annotations",
 ]
 
+[tool.typos.default.extend-words]
+inh = "inh"
+
 [tool.pytest.ini_options]
 testpaths = "tests"
 addopts = [
@@ -124,6 +127,3 @@ addopts = [
     "--capture=no",
     "--verbose",
 ]
-
-[tool.typos.default.extend-words]
-inh = "inh"
