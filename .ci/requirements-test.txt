@@ -71,7 +71,7 @@ numpy==2.2.6 ; python_full_version < '3.11'
     #   matplotlib
     #   ml-dtypes
     #   scipy
-numpy==2.4.1 ; python_full_version >= '3.11'
+numpy==2.4.2 ; python_full_version >= '3.11'
     # via
     #   orbitkit (pyproject.toml)
     #   chspy
@@ -118,9 +118,9 @@ python-dateutil==2.9.0.post0
     # via matplotlib
 pytools==2025.2.5
     # via pymbolic
-rich==14.2.0
+rich==14.3.1
     # via orbitkit (pyproject.toml)
-ruff==0.14.13
+ruff==0.14.14
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.0
     # via orbitkit (pyproject.toml:visualization)
@@ -138,9 +138,9 @@ scipy==1.17.0 ; python_full_version >= '3.11'
     #   jitcode
 scipy-stubs==1.15.3.0 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml:test)
-scipy-stubs==1.17.0.1 ; python_full_version >= '3.11'
+scipy-stubs==1.17.0.2 ; python_full_version >= '3.11'
     # via orbitkit (pyproject.toml:test)
-setuptools==80.10.1
+setuptools==80.10.2
     # via jitcxde-common
 siphash24==1.8
     # via pytools
@@ -157,7 +157,7 @@ texttable==1.7.0
     # via igraph
 tomli==2.4.0 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.13
+ty==0.0.14
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.15.0
     # via
