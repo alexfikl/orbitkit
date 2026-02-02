@@ -36,3 +36,13 @@ dynamical systems, but they're usually a lot bigger. For some Python examples, s
 However, there are many others in various programming languages.
 `DynamicalSystems.jl <https://github.com/JuliaDynamics/DynamicalSystems.jl>`__
 is a particularly good example of state-of-the-art methods.
+
+Acknowledgments
+===============
+
+Work on ``orbitkit`` was sponsored, in part, by
+
+* the CNCS-UEFISCDI (Romania), under Project No. ROSUA-2024-0002.
+
+The views and opinions expressed herein do not necessarily reflect those of the
+funding agencies.
