@@ -170,8 +170,17 @@ class StringifyMapper(StringifyMapperBase[Any]):
     def map_delay_kernel(self, expr: sym.DelayKernel, /, enclosing_prec: int) -> str:
         from dataclasses import fields
 
+        # FIXME: this is a bit hacky, but it's easier than implementing separate
+        # methods for these two kernels only, so it's fine for now..
+        if isinstance(expr, (sym.WeakGammaDelayKernel, sym.StrongGammaDelayKernel)):
+            exclude = {"p"}
+        else:
+            exclude = {}
+
         params = ", ".join(
-            f"{self.rec(getattr(expr, f.name), enclosing_prec)}" for f in fields(expr)
+            f"{self.rec(getattr(expr, f.name), enclosing_prec)}"
+            for f in fields(expr)
+            if f.name not in exclude
         )
         return f"{type(expr).__name__}(·; {params})"
 
