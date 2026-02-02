@@ -253,6 +253,20 @@ class GammaDelayKernel(DelayKernel):
         return self.p / self.alpha
 
 
+class WeakGammaDelayKernel(GammaDelayKernel):
+    """The :class:`GammaDelayKernel` with :math:`p = 1`."""
+
+    def __init__(self, alpha: Expression) -> None:
+        super().__init__(1, alpha)
+
+
+class StrongGammaDelayKernel(GammaDelayKernel):
+    """The :class:`GammaDelayKernel` with :math:`p = 2`."""
+
+    def __init__(self, alpha: Expression) -> None:
+        super().__init__(2, alpha)
+
+
 @prim.expr_dataclass()
 class UniformDelayKernel(DelayKernel):
     r"""A delay kernel based on the uniform distribution.
