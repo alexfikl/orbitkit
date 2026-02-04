@@ -174,8 +174,7 @@ def _get_wilson_cowan_fixed_point(
     weights: tuple[float, float, float, float],
     forcing: tuple[float, float],
     *,
-    bracket: tuple[float, float] | None = None,
-    x0: tuple[float, float] | None = None,
+    bracket: tuple[float, float],
     rtol: float = 1.0e-8,
     method: Methods | None = "brentq",
 ) -> tuple[float, float] | None:
@@ -187,10 +186,6 @@ def _get_wilson_cowan_fixed_point(
 
     a, b, c, d = weights
     p, q = forcing
-
-    x1 = 0.0
-    if x0 is None:
-        x0 = (0.5, 0.5)
 
     # NOTE: We essentially have two equations here
     #
@@ -211,55 +206,86 @@ def _get_wilson_cowan_fixed_point(
 
     import scipy.optimize as so
 
-    def solve_for_i(E: float) -> float:
+    def root_func_E(E: float, I: float) -> float:  # noqa: E741,N802
+        return E - sE_func(a * E - b * I + p)  # ty: ignore[invalid-return-type]
+
+    def root_jac_E(E: float, I: float) -> float:  # noqa: E741,N802
+        return 1.0 - a * sE_prime(a * E - b * I + p)
+
+    def solve_for_I(E: float) -> float:  # noqa: N802
         result = so.root_scalar(  # ty: ignore[no-matching-overload]
             lambda x: x - sI_func(c * E - d * x + q),
-            method=method,
             fprime=lambda x: 1 + d * sI_prime(c * E - d * x + q),
+            method=method,
             bracket=(0, 1),
-            x0=x0[1],
+            x0=0.5,
+            x1=0.0,
             rtol=rtol,
         )
 
         return result.root
 
+    # {{{ root_scalar
+
     def root_func(E: float) -> float:
-        I = solve_for_i(E)  # noqa: E741
-        return E - sE_func(a * E - b * I + p)  # ty: ignore[invalid-return-type]
+        return root_func_E(E, solve_for_I(E))
 
     def root_jac(E: float) -> float:
-        I = solve_for_i(E)  # noqa: E741
-        return 1.0 - a * sE_prime(a * E - b * I + p)
+        return root_jac_E(E, solve_for_I(E))
 
-    # NOTE: do not use a bracketing method if it can't work
-    if bracket is not None:
-        fa, fb = root_func(bracket[0]), root_func(bracket[1])
-        if fa * fb >= 0.0:
-            x0 = (bracket[0], x0[1])
-            x1 = bracket[1]
+    # }}}
 
-            # NOTE: the secant method seems to work reasonably well when we have
-            # two roots, at least in the unit tests (where `newton` fails)..
-            method = "secant"
-            bracket = None
+    # {{{ minimize_scalar
 
-    result = so.root_scalar(  # ty: ignore[no-matching-overload]
-        root_func,
-        method=method,
-        fprime=root_jac,
-        bracket=bracket,
-        x0=x0[0],
-        x1=x1,
-        rtol=rtol,
-        maxiter=1024,
-    )
+    def root_func_sqr(E: float) -> float:
+        return 0.5 * root_func_E(E, solve_for_I(E)) ** 2
 
-    if not result.converged:
-        return None
+    def root_jac_sqr(E: float) -> float:
+        I = solve_for_I(E)  # noqa: E741
+        return root_func_E(E, I) * root_jac_E(E, I)
 
-    E = result.root
-    I = solve_for_i(E)  # noqa: E741
+    # }}}
 
+    fa, fb = root_func(bracket[0]), root_func(bracket[1])
+    if fa * fb >= 0.0:
+        # NOTE: this seems to not converge quite as nicely to the roots, which
+        # sometimes leads find more roots that are close but not that close. For
+        # safety, we bump the user tolerance a bit and hope for the best.
+        rtol *= 1.0e-2
+
+        result = so.minimize_scalar(
+            root_func_sqr,
+            bracket=bracket,  # ty: ignore[invalid-argument-type]
+            tol=rtol,
+            options={"xtol": rtol},
+            # options={"xatol": 1.0e-4 * rtol},
+        )
+        if not result.success:
+            return None
+
+        # NOTE: we could find a minimum which isn't a root of the equation, in
+        # which case we should just call it a failure
+        if abs(result.fun) > rtol:
+            return None
+
+        E = result.x
+    else:
+        result = so.root_scalar(  # ty: ignore[no-matching-overload]
+            root_func,
+            fprime=root_jac,
+            method=method,
+            bracket=bracket,
+            x0=bracket[0],
+            x1=bracket[1],
+            rtol=rtol,
+        )
+
+        if not result.converged:
+            return None
+
+        E = result.root
+
+    I = solve_for_I(E)  # noqa: E741
     return E, I
 
 
@@ -303,25 +329,16 @@ def get_wilson_cowan_fixed_points(
     :returns: an array of shape ``(n, 2)`` for each of the fixed points.
     """
 
-    from itertools import product
-
     E = np.linspace(0.0, 1.0, npoints)
-    I = np.linspace(0.0, 1.0, npoints)  # noqa: E741
 
     fp = []
-    for i, j in product(range(npoints - 1), range(npoints - 1)):
-        if method in {"bisect", "ridder", "brentq", "brenth", "toms748"}:
-            bracket = (E[i], E[i + 1])
-        else:
-            bracket = None
-
+    for i in range(npoints - 1):
         result = _get_wilson_cowan_fixed_point(
             sE,
             sI,
             weights,
             forcing,
-            bracket=bracket,
-            x0=(0.5 * (E[i] + E[i + 1]), 0.5 * (I[j] + I[j + 1])),
+            bracket=(E[i], E[i + 1]),
             rtol=rtol,
             method=method,
         )
