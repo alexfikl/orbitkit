@@ -410,7 +410,7 @@ def test_generate_gap_junction_probability(n: int, m: int) -> None:
         _generate_random_gap_junction_clusters,  # noqa: PLC2701
     )
 
-    rng = np.random.default_rng(seed=None)
+    rng = np.random.default_rng(seed=42)
 
     avgsize = 9
     maxsize = 21
