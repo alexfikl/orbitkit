@@ -560,6 +560,20 @@ def test_generate_adjacency_fractal(nlevels: int) -> None:
 
 # {{{ test_make_graph_laplacian_undirected
 
+ADJACENCY_SYMMETRIC = frozenset({
+    "lattice",
+    "strogatzwatts",
+    "ring1",
+    "ring",
+    "erdosrenyi",
+    "bus2",
+    "configuration",
+    "ring2",
+    "bus",
+    "startree",
+    "bus1",
+})
+
 
 @pytest.mark.parametrize("normalize", [True, False])
 def test_make_graph_laplacian_undirected(normalize: bool) -> None:  # noqa: FBT001
@@ -569,19 +583,6 @@ def test_make_graph_laplacian_undirected(normalize: bool) -> None:  # noqa: FBT0
     )
 
     rng = np.random.default_rng(seed=42)
-    ADJACENCY_SYMMETRIC = frozenset({
-        "lattice",
-        "strogatzwatts",
-        "ring1",
-        "ring",
-        "erdosrenyi",
-        "bus2",
-        "configuration",
-        "ring2",
-        "bus",
-        "startree",
-        "bus1",
-    })
     atol = 2.0e-14
 
     n = 128
@@ -650,6 +651,44 @@ def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # n
 
 
 # }}}
+
+
+# {{{ test_generate_graph_laplacian_weights
+
+
+def test_generate_graph_laplacian_weights() -> None:
+    from orbitkit.adjacency import (
+        apply_graph_laplacian,
+        make_adjacency_matrix_from_name,
+    )
+    from orbitkit.typing import Array
+
+    def f_sin(x: Array) -> Array:
+        return 2.0 + np.sin(x)
+
+    def f_inv(x: Array) -> Array:
+        return 1.0 / (2.0 + x)
+
+    rng = np.random.default_rng(seed=42)
+    atol = 2.0e-14
+    n = 128
+
+    for topology in ADJACENCY_SYMMETRIC:
+        mat = make_adjacency_matrix_from_name(n, topology, rng=rng)
+        W = apply_graph_laplacian(mat, f_inv)
+        x = np.ones(W.shape[1])
+
+        assert np.allclose(W, W.T)
+
+        w_eigs = np.linalg.eigvals(W)
+        assert np.all(w_eigs.real > -atol)
+
+        error = np.linalg.norm(W @ x - f_inv(0) * x)  # ty: ignore[invalid-argument-type]
+        assert error < atol
+
+
+# }}}
+
 
 if __name__ == "__main__":
     import sys

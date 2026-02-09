@@ -992,8 +992,13 @@ def generate_symmetric_random_equal_row_sum(
     return d @ result @ d
 
 
-def generate_graph_laplacian_weights(mat: Array, f: Callable[[Array], Array]) -> Array:
-    r"""Generate weights based on the graph Laplacian of *mat*.
+def apply_graph_laplacian(
+    mat: Array,
+    f: Callable[[Array], Array],
+    *,
+    out: bool | None = None,
+) -> Array:
+    r"""Apply the function *f* to the graph Laplacian of the adjacency matrix *mat*.
 
     We set the weights to be :math:`\boldsymbol{W} = f(\boldsymbol{L})`. Applying
     the function to the graph Laplacian is done spectrally, i.e. given the eigen
@@ -1001,16 +1006,40 @@ def generate_graph_laplacian_weights(mat: Array, f: Callable[[Array], Array]) ->
 
     .. math ::
 
-        \boldsymbol{W} = \boldsymbol{U} f(\boldsymbol{\Lambda}) \boldsymbol{U}^*.
+        \boldsymbol{W} = \boldsymbol{U} f(\boldsymbol{\Lambda}) \boldsymbol{U}^{-1}.
 
     Note that, if the adjacency matrix is not symmetric, this may result in
-    a complex weight matrix
+    a complex weight matrix.
     """
 
-    L = make_graph_laplacian_directed(mat)
-    sigma, U = np.linalg.eig(L)
+    if out is None:
+        L = make_graph_laplacian_undirected(mat)
+        sigma, U = np.linalg.eigh(L)
+        Uinv = U.T
+    else:
+        L = make_graph_laplacian_directed(mat, out=out)
+        sigma, U = np.linalg.eig(L)
+        Uinv = np.linalg.inv(U)
 
-    return U @ np.diag(f(sigma)) @ U.T
+    return U @ np.diag(f(sigma)) @ Uinv
+
+
+def generate_graph_laplacian_weights(
+    mat: Array,
+    f: Callable[[Array], Array],
+    *,
+    out: bool | None = None,
+) -> Array:
+    r"""Generate weights based on the graph Laplacian of *mat*.
+
+    This functionu uses :func:`apply_graph_laplacian` to get a set of weights.
+    It then ensures that diagonal is zero and the weights are positive.
+    """
+
+    W = apply_graph_laplacian(mat, f, out=out)
+    np.fill_diagonal(W, 0.0)
+
+    return W
 
 
 def normalize_equal_row_sum(
