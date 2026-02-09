@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import enum
 import pathlib
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
@@ -465,15 +466,45 @@ def rastergram(
 # {{{ dot
 
 
+@enum.unique
+class DotLayout(enum.Enum):
+    """A list of `layout engines <https://graphviz.org/docs/layouts/>`__."""
+
+    Neato = enum.auto()
+    """Spring-type layout engine."""
+    Dot = enum.auto()
+    """Hierarchical or layered drawings of directed graphs."""
+    FDP = enum.auto()
+    """Force-Directed Placement layout engine."""
+    SFDP = enum.auto()
+    """A scalable FDP layout engine."""
+    Circo = enum.auto()
+    """A circular layout engine."""
+    TwoPi = enum.auto()
+    """A radial layout engine."""
+    Osage = enum.auto()
+    """An engine for clustered graphs."""
+    Patchwork = enum.auto()
+    """Draws map of clustered graph using a squarified treemap layout."""
+
+
 def write_dot_from_adjacency(
     filename: PathLike,
     mat: Array,
     *,
     nodenames: Iterable[str] | None = None,
     nodecolors: Iterable[str] | None = None,
-    layout: str = "neato",
+    layout: DotLayout = DotLayout.Neato,
     overwrite: bool = False,
 ) -> None:
+    """Write a *.dot* file for the given adjacency matrix *mat*.
+
+    :arg nodenames: a list of labels used for the nodes. Defaults to using
+        the node index.
+    :arg nodecolor: a list of colors for each node given as hexadeximal strings,
+        i.e. ``#000000``. An alpha component can also be included.
+    :arg layout: the layout used by dot to render the graph.
+    """
     filename = pathlib.Path(filename)
     if not overwrite and filename.exists():
         raise FileExistsError(f"output file '{filename}' already exists")
@@ -493,7 +524,7 @@ def write_dot_from_adjacency(
         )
 
     if nodecolors is None:  # noqa: SIM108
-        nodecolors = ("white",) * n
+        nodecolors = ("#000000",) * n
     else:
         nodecolors = tuple(nodecolors)
 
@@ -504,7 +535,7 @@ def write_dot_from_adjacency(
 
     with open(filename, "w", encoding="utf-8") as outf:
         outf.write("graph G {\n")
-        outf.write(f"    layout={layout};\n")
+        outf.write(f"    layout={layout.name.lower()};\n")
         outf.write("    overlap=false;\n")
         outf.write('    sep="+0.5";\n')
         outf.write("\n")
