@@ -196,6 +196,8 @@ ADJACENCY_TYPES = frozenset({
     "star",
     "startree",
     "strogatzwatts",
+    "barabasialbert",
+    "distancedecay",
 })
 
 
@@ -245,6 +247,11 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
     elif topology == "strogatzwatts":
         k = 2 if k is None else k
         return generate_adjacency_strogatz_watts(n, k=k, dtype=dtype, rng=rng)
+    elif topology == "barabasialbert":
+        k = 2 if k is None else k
+        return generate_adjacency_barabasi_albert(n, k, dtype=dtype, rng=rng)
+    elif topology == "distancedecay":
+        return generate_adjacency_distance_decay(n, dtype=dtype, rng=rng)
     elif topology == "configuration":
         return generate_adjacency_configuration(n, dtype=dtype, rng=rng)
     elif topology == "gapjunctions":
@@ -570,6 +577,132 @@ def generate_adjacency_strogatz_watts(
             result[i, jnew] = result[jnew, i] = 1
 
     return result
+
+
+def generate_adjacency_barabasi_albert(
+    n: int,
+    m: int,
+    *,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array:
+    """Generate a random Barabási-Albert adjacency matrix.
+
+    :arg m: number of edges each new node should attach to :math:`m < n`.
+    """
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
+    if m < 0:
+        raise ValueError(f"negative number of edges is now allowed: '{m}'")
+
+    if m >= n:
+        raise ValueError(f"invalid sizes (m >= n): {m} >= {n}")
+
+    if dtype is None:
+        dtype = np.int32
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    mat = np.zeros((n, n), dtype=dtype)
+
+    # construct an initial dense block of m + 1 nodes with m edges
+    mat[: m + 1, : m + 1] = 1
+    np.fill_diagonal(mat, 0)
+
+    # iteratively add more nodes
+    for i in range(m + 1, n):
+        # construct probability based on degree: larger degree nodes get a larger
+        # probability of additional connections => even bigger group!
+        d = np.sum(mat[:i, :i], axis=1)
+        p = d / np.sum(d)
+
+        # randomly choose some connections
+        j = rng.choice(i, size=m, replace=False, p=p)
+        mat[i, j] = 1
+        mat[j, i] = 1
+
+    return mat
+
+
+def generate_adjacency_distance_decay(
+    n: int,
+    *,
+    xlim: tuple[float, float] = (0, 1),
+    ylim: tuple[float, float] | None = None,
+    beta: float = 1.0,
+    sigma: float | None = None,
+    symmetric: bool = False,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array:
+    r"""Construct a random adjacency matrix based on distance.
+
+    This function generates (uniform) random points in the given limits *xlim*
+    and *ylim*. From these, we construct probabilities
+
+    .. math ::
+
+        p_{ij} = \beta \exp\left(-\frac{\|x_i - x_j\|}{\sigma}\right)
+
+    These are then used to determine the structure of the adjacency matrix by
+    additional random sampling. If *symmetric* is *true*, the matrix is forcibly
+    symmetrized.
+
+    :arg xlim: limits for the x coordinate.
+    :arg ylim: limits for the y coordinate (defaults to the x coordinate limits).
+    :arg beta: a probability scaling that must be in :math:`(0, 1]`.
+    :arg sigma: variance-like parameter that controls how probable connections to
+        farther away vertices is. Defaults to 0.1 of the domain size.
+    """
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
+    if not 0.0 < beta <= 1.0:
+        raise ValueError(f"'beta' must be in (0, 1]: {beta}")
+
+    if xlim[0] > xlim[1]:
+        xlim = (xlim[1], xlim[0])
+
+    if ylim is None:
+        ylim = xlim
+
+    if ylim[0] > ylim[1]:
+        ylim = (ylim[1], ylim[0])
+
+    if sigma is None:
+        sigma = 0.2 * max(xlim[1] - xlim[0], ylim[1] - ylim[0])
+
+    if sigma <= 0.0:
+        raise ValueError(f"'sigma' cannot be negative: {sigma}")
+
+    if dtype is None:
+        dtype = np.int32
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # generate some random points
+    x = np.stack([
+        rng.uniform(xlim[0], xlim[1], size=n),
+        rng.uniform(ylim[0], ylim[1], size=n),
+    ])
+    d = np.sqrt(np.sum((x[:, None, :] - x[:, :, None]) ** 2, axis=0))
+
+    # probabilities
+    p = beta * np.exp(-d / sigma)
+
+    # adjacency
+    mat = rng.random((n, n))
+    mat = (mat < p).astype(dtype)
+
+    np.fill_diagonal(mat, 0)
+    if symmetric:
+        tril = np.tril_indices(n, k=-1)
+        mat[tril] = mat.T[tril]
+
+    return mat
 
 
 def _generate_random_gap_junction_clusters(

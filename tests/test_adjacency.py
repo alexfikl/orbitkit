@@ -390,6 +390,118 @@ def test_generate_adjacency_strogatz_watts(k: int) -> None:
 # }}}
 
 
+# {{{ test_generate_adjacency_barabasi_albert
+
+
+@pytest.mark.parametrize(("n", "m"), [(100, 1), (100, 4), (100, 10)])
+def test_generate_adjacency_barabasi_albert(n: int, m: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_barabasi_albert
+
+    dtype = np.dtype(np.uint8)
+    rng = np.random.default_rng(seed=42)
+
+    mat = generate_adjacency_barabasi_albert(n, m, dtype=dtype, rng=rng)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    assert np.allclose(mat, mat.T)
+
+    # check total number of edges
+    edges = m * (m + 1) // 2 + (n - m - 1) * m
+    assert np.sum(mat) // 2 == edges
+
+    # check all nodes have a degree m
+    degrees = np.sum(mat, axis=1)
+    assert np.min(degrees) >= m
+
+    # check degree clustering: we know that the degree scales roughly as
+    #   d ~ m * sqrt(n)
+    # in our case, this is > 100 for a Barabási-Albert graph. We check that it's
+    # larger than 4 * m to ensure it's not a boring old Erdős-Rényi graph.
+    # NOTE: https://doi.org/10.1017/S0963548304006133
+    assert np.max(degrees) > 4 * m
+
+    early_nodes_avg = np.mean(degrees[:10])
+    late_nodes_avg = np.mean(degrees[-10:])
+    assert early_nodes_avg > late_nodes_avg
+
+
+def test_generate_adjacency_barabasi_albert_edge_cases() -> None:
+    from orbitkit.adjacency import generate_adjacency_barabasi_albert
+
+    rng = np.random.default_rng(seed=42)
+    n = 100
+    m = 5
+
+    with pytest.raises(ValueError, match="negative dimension"):
+        _ = generate_adjacency_barabasi_albert(-1, m, rng=rng)
+
+    with pytest.raises(ValueError, match="negative number of edges"):
+        _ = generate_adjacency_barabasi_albert(n, -1, rng=rng)
+
+    with pytest.raises(ValueError, match="invalid size"):
+        _ = generate_adjacency_barabasi_albert(n, 2 * n, rng=rng)
+
+
+# }}}
+
+
+# {{{ test_generate_adjacency_distance_decay
+
+
+@pytest.mark.parametrize("n", [128, 256, 512])
+@pytest.mark.parametrize("symmetric", [True, False])
+def test_generate_adjacency_distance_decay(n: int, symmetric: bool) -> None:  # noqa: FBT001
+    from orbitkit.adjacency import generate_adjacency_distance_decay
+
+    dtype = np.dtype(np.uint8)
+    rng = np.random.default_rng(seed=42)
+
+    mat = generate_adjacency_distance_decay(
+        n, symmetric=symmetric, dtype=dtype, rng=rng
+    )
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+
+    # check symmetry
+    if symmetric:
+        assert np.array_equal(mat, mat.T)
+
+    # check sparsity: matrix should be very sparse for sigma small
+    mat = generate_adjacency_distance_decay(
+        n, sigma=0.01, symmetric=symmetric, dtype=dtype, rng=rng
+    )
+    assert np.mean(mat) < 0.01
+
+
+def test_generate_adjacency_distance_decay_edge_cases() -> None:
+    from orbitkit.adjacency import generate_adjacency_distance_decay
+
+    rng = np.random.default_rng(seed=42)
+    n = 512
+
+    with pytest.raises(ValueError, match="negative dimensions"):
+        _ = generate_adjacency_distance_decay(-1, rng=rng)
+
+    with pytest.raises(ValueError, match="'beta' must be"):
+        _ = generate_adjacency_distance_decay(n, beta=2.0, rng=rng)
+
+    with pytest.raises(ValueError, match="'sigma' cannot"):
+        _ = generate_adjacency_distance_decay(n, sigma=-1.0, rng=rng)
+
+    rng = np.random.default_rng(seed=42)
+    mat0 = generate_adjacency_distance_decay(n, xlim=(1.0, 0.0), rng=rng)
+    rng = np.random.default_rng(seed=42)
+    mat1 = generate_adjacency_distance_decay(n, xlim=(0.0, 1.0), rng=rng)
+
+    assert np.allclose(mat0, mat1)
+
+
+# }}}
+
 # {{{ test_generate_adjacency_gap_junction
 
 
