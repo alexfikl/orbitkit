@@ -54,4 +54,4 @@ Links
 
 * `Code <https://github.com/alexfikl/orbitkit>`__.
 * `Documentation <https://orbitkit.readthedocs.io>`__.
-* License: MIT (see `LICENSES/MIT.txt`).
+* License: MIT (see ``LICENSES/MIT.txt``).
