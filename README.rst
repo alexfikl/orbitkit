@@ -10,7 +10,11 @@
     :alt: REUSE
     :target: https://api.reuse.software/info/github.com/alexfikl/orbitkit
 
-|badge-ci| |badge-rtd| |badge-reuse|
+.. |badge-mit| image:: https://img.shields.io/badge/License-MIT-blue.svg
+    :alt: MIT license
+    :target: https://spdx.org/licenses/MIT.html
+
+|badge-ci| |badge-rtd| |badge-reuse| |badge-mit|
 
 orbitkit
 ========
@@ -50,3 +54,4 @@ Links
 
 * `Code <https://github.com/alexfikl/orbitkit>`__.
 * `Documentation <https://orbitkit.readthedocs.io>`__.
+* License: MIT (see `LICENSES/MIT.txt`).
