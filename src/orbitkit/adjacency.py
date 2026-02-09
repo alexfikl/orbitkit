@@ -12,6 +12,8 @@ from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from numpy.typing import DTypeLike
 
 log = module_logger(__name__)
@@ -77,6 +79,81 @@ def compute_graph_triangles(mat: Array) -> int:
     trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
 
     return int(trmat3) // 6
+
+
+def make_graph_laplacian_undirected(A: Array, *, normalize: bool = False) -> Array:
+    r"""Compute the graph Laplacian for the adjacency matrix *A*.
+
+    .. math::
+
+        L = D - A \implies L_{ij} =
+        \begin{cases}
+        \text{deg}(v_i), & \quad \text{if } i = j, \\
+        -1, & \quad \text{if } i \ne j \text{ and } A_{ij} = 1, \\
+        0, & \quad \text{otherwise},
+        \end{cases}
+
+    where the degree is the number of vertices connected to :math:`v_i`, including
+    self-loops. Note that *A* is assumed to be symmetric for an undirected graph.
+    For the normalization, we use
+
+    .. math::
+
+        L_{\text{norm}} = D^{-\frac{1}{2}} L D^{-\frac{1}{2}}.
+    """
+
+    assert np.allclose(A - A.T)
+
+    D = np.sum(A, axis=1)
+    L = -A
+    L.fill_diagonal(D)
+    if normalize:
+        Dinv = np.where(D > 0, 1.0 / np.sqrt(D), 0.0)
+        L = Dinv[:, None] @ L @ Dinv[None, :]
+
+    return L
+
+
+def make_graph_laplacian_directed(
+    A: Array,
+    *,
+    out: bool = True,
+    normalize: bool = False,
+) -> Array:
+    r"""Compute the graph Laplacian for the adjacency matrix *A*.
+
+    For the normalization, we use left or right normalization, depending on the
+    value of *out*. We take
+
+    .. math ::
+
+        L_{\text{norm}} =
+            \begin{cases}
+            D_{\text{out}}^{-1} L_{\text{out}}, \\
+            L_{\text{in}} D_{\text{in}}^{-1}.
+            \end{cases}
+
+    :arg out: if *True*, we compute the out-degree Laplacian. Otherwise, we
+        compute the in-degree Laplacian.
+    """
+
+    L = -A
+    if out:
+        D = np.sum(A, axis=1)
+        L.fill_diagonal(D)
+
+        if normalize:
+            Dinv = np.where(D > 0, 1.0 / D, 0.0)
+            L = Dinv[:, None] @ L
+    else:
+        D = np.sum(A, axis=0)
+        L.fill_diagonal(D)
+
+        if normalize:
+            Dinv = np.where(D > 0, 1.0 / D, 0.0)
+            L = L @ Dinv[None, :]  # noqa: PLR6104
+
+    return L
 
 
 def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
@@ -911,6 +988,27 @@ def generate_symmetric_random_equal_row_sum(
 
     d = np.diag(r)
     return d @ result @ d
+
+
+def generate_graph_laplacian_weights(mat: Array, f: Callable[[Array], Array]) -> Array:
+    r"""Generate weights based on the graph Laplacian of *mat*.
+
+    We set the weights to be :math:`\boldsymbol{W} = f(\boldsymbol{L})`. Applying
+    the function to the graph Laplacian is done spectrally, i.e. given the eigen
+    decomposition, we write
+
+    .. math ::
+
+        \boldsymbol{W} = \boldsymbol{U} f(\boldsymbol{\Lambda}) \boldsymbol{U}^*.
+
+    Note that, if the adjacency matrix is not symmetric, this may result in
+    a complex weight matrix
+    """
+
+    L = make_graph_laplacian_directed(mat)
+    sigma, U = np.linalg.eig(L)
+
+    return U @ np.diag(f(sigma)) @ U.T
 
 
 def normalize_equal_row_sum(
