@@ -197,6 +197,8 @@ ADJACENCY_TYPES = frozenset({
     "startree",
     "strogatzwatts",
     "barabasialbert",
+    "barabasialbert2",
+    "barabasialbert4",
     "distancedecay",
 })
 
@@ -250,6 +252,10 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
     elif topology == "barabasialbert":
         k = 2 if k is None else k
         return generate_adjacency_barabasi_albert(n, k, dtype=dtype, rng=rng)
+    elif topology == "barabasialbert2":
+        return generate_adjacency_barabasi_albert(n, 2, dtype=dtype, rng=rng)
+    elif topology == "barabasialbert4":
+        return generate_adjacency_barabasi_albert(n, 4, dtype=dtype, rng=rng)
     elif topology == "distancedecay":
         return generate_adjacency_distance_decay(n, dtype=dtype, rng=rng)
     elif topology == "configuration":
