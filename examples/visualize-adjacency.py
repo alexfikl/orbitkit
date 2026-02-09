@@ -36,7 +36,7 @@ def main(
     mat = make_adjacency_matrix_from_name(n, name, k=k, rng=rng)
     log.info("Adjacency matrix:\n%s", stringify_adjacency(mat))
 
-    import networkx as nx
+    import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment]
 
     graph = nx.from_numpy_array(mat)
     if name in {"ring", "ring1", "ring2", "strogatzwatts", "startree"}:
