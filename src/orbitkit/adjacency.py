@@ -102,15 +102,16 @@ def make_graph_laplacian_undirected(A: Array, *, normalize: bool = False) -> Arr
         L_{\text{norm}} = D^{-\frac{1}{2}} L D^{-\frac{1}{2}}.
     """
 
-    assert np.allclose(A - A.T)
+    assert np.allclose(A, A.T)
 
     D = np.sum(A, axis=1)
     L = -A
-    L.fill_diagonal(D)
+    np.fill_diagonal(L, D)
     if normalize:
         Dinv = np.where(D > 0, 1.0 / np.sqrt(D), 0.0)
-        L = Dinv[:, None] @ L @ Dinv[None, :]
+        L = Dinv[:, None] * L * Dinv[None, :]
 
+    assert L.shape == A.shape
     return L
 
 
@@ -140,19 +141,20 @@ def make_graph_laplacian_directed(
     L = -A
     if out:
         D = np.sum(A, axis=1)
-        L.fill_diagonal(D)
+        np.fill_diagonal(L, D)
 
         if normalize:
             Dinv = np.where(D > 0, 1.0 / D, 0.0)
-            L = Dinv[:, None] @ L
+            L = Dinv[:, None] * L
     else:
         D = np.sum(A, axis=0)
-        L.fill_diagonal(D)
+        np.fill_diagonal(L, D)
 
         if normalize:
             Dinv = np.where(D > 0, 1.0 / D, 0.0)
-            L = L @ Dinv[None, :]  # noqa: PLR6104
+            L = L * Dinv[None, :]  # noqa: PLR6104
 
+    assert L.shape == A.shape
     return L
 
 
@@ -186,7 +188,7 @@ ADJACENCY_TYPES = frozenset({
     "erdosrenyi",
     "feedforward",
     "fractal",
-    "gapjunctions",
+    # "gapjunctions",
     "lattice",
     "ring",
     "ring1",

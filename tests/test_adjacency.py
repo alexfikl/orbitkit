@@ -558,6 +558,99 @@ def test_generate_adjacency_fractal(nlevels: int) -> None:
 # }}}
 
 
+# {{{ test_make_graph_laplacian_undirected
+
+
+@pytest.mark.parametrize("normalize", [True, False])
+def test_make_graph_laplacian_undirected(normalize: bool) -> None:  # noqa: FBT001
+    from orbitkit.adjacency import (
+        make_adjacency_matrix_from_name,
+        make_graph_laplacian_undirected,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    ADJACENCY_SYMMETRIC = frozenset({
+        "lattice",
+        "strogatzwatts",
+        "ring1",
+        "ring",
+        "erdosrenyi",
+        "bus2",
+        "configuration",
+        "ring2",
+        "bus",
+        "startree",
+        "bus1",
+    })
+    atol = 2.0e-14
+
+    n = 128
+    x = np.ones(n)
+
+    for topology in ADJACENCY_SYMMETRIC:
+        mat = make_adjacency_matrix_from_name(n, topology, rng=rng)
+        L = make_graph_laplacian_undirected(mat, normalize=normalize)
+
+        if normalize:
+            D = np.diag(np.sqrt(np.sum(mat, axis=1)))
+            error = np.linalg.norm(L @ D @ x)
+        else:
+            error = np.linalg.norm(L @ x)
+        assert error < atol
+
+        assert np.allclose(L, L.T)
+
+        eigs = np.linalg.eigvals(L)
+        assert np.all(eigs > -atol)
+
+        if normalize:
+            assert np.all(eigs < 2.0 + atol)
+
+
+# }}}
+
+
+# {{{ test_make_graph_laplacian_directed
+
+
+@pytest.mark.parametrize("out", [True, False])
+@pytest.mark.parametrize("normalize", [True, False])
+def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # noqa: FBT001
+    from orbitkit.adjacency import (
+        ADJACENCY_TYPES,
+        make_adjacency_matrix_from_name,
+        make_graph_laplacian_directed,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    atol = 2.0e-14
+    n = 128
+
+    for topology in ADJACENCY_TYPES:
+        mat = make_adjacency_matrix_from_name(n, topology, rng=rng)
+        L = make_graph_laplacian_directed(mat, out=out, normalize=normalize)
+        x = np.ones(L.shape[1])
+
+        if normalize:
+            if out:  # noqa: SIM108
+                error = np.linalg.norm(L @ x)
+            else:
+                # NOTE: not sure what the right eigenvector would be?
+                error = np.linalg.norm(x @ L)
+        else:  # noqa: PLR5501
+            if out:  # noqa: SIM108
+                error = np.linalg.norm(L @ x)
+            else:
+                error = np.linalg.norm(x @ L)
+
+        assert error < atol
+
+        eigs = np.linalg.eigvals(L)
+        assert np.all(eigs.real > -atol)
+
+
+# }}}
+
 if __name__ == "__main__":
     import sys
 
