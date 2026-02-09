@@ -47,24 +47,21 @@ optional-dependencies.docs = [
     "sphinx-book-theme",
     "sympy>=1.12",
 ]
-
 urls.Documentation = "https://orbitkit.readthedocs.io"
-
 urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
 test = [ "pytest", "ruff", "scipy-stubs", "ty" ]
 docs = [ "sphinx>=6", "sphinx-book-theme" ]
+backends = [ "jax>=0.6", "jitcdde>=1.8.3", "jitcode>=1.7.3" ]
 clustering = [ "leidenalg>=0.10" ]
 codegen = [ "pymbolic>=2024.2", "sympy>=1.12" ]
-backends = [ "jax>=0.6", "jitcdde>=1.8.3", "jitcode>=1.7.3" ]
 visualization = [ "matplotlib", "scienceplots" ]
 
 [tool.ruff]
 target-version = "py310"
 line-length = 88
-
 preview = true
 lint.select = [
     "A",   # flake8-builtins
@@ -116,12 +113,12 @@ lint.isort.required-imports = [
     "from __future__ import annotations",
 ]
 
-[tool.typos.default.extend-words]
-inh = "inh"
+[tool.typos]
+default.extend-words.inh = "inh"
 
-[tool.pytest.ini_options]
-testpaths = "tests"
-addopts = [
+[tool.pytest]
+ini_options.testpaths = "tests"
+ini_options.addopts = [
     "-rswx",
     "--durations=25",
     "--capture=no",
