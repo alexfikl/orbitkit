@@ -24,7 +24,8 @@ def main(
     force: bool = False,
 ) -> int:
     if outfile is None:
-        outfile = pathlib.Path(f"visualize-adjacency-{name}")
+        # NOTE: writing GEXF by default because that requires no external dependencies
+        outfile = pathlib.Path(f"visualize-adjacency-{name}.gexf")
 
     if not force and outfile.exists():
         log.error("File already exists (use --force to overwrite): '%s'.", outfile)
@@ -36,43 +37,28 @@ def main(
     mat = make_adjacency_matrix_from_name(n, name, k=k, rng=rng)
     log.info("Adjacency matrix:\n%s", stringify_adjacency(mat))
 
-    try:
-        import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment]
-    except ImportError:
-        log.error("This example requires 'networkx'.")
-        return 0
+    if outfile.suffix == ".gexf":
+        from orbitkit.visualization import write_gexf_from_adjacency
 
-    graph = nx.from_numpy_array(mat)
-    if name in {"ring", "ring1", "ring2", "strogatzwatts", "startree"}:
-        layout = nx.circular_layout(graph)
+        write_gexf_from_adjacency(outfile, mat, overwrite=force)
+    elif outfile.suffix == ".dot":
+        from orbitkit.visualization import write_dot_from_adjacency
+
+        write_dot_from_adjacency(outfile, mat, overwrite=force)
     else:
-        layout = nx.spring_layout(graph, iterations=1024)
-
-    import matplotlib.pyplot as mp
-
-    from orbitkit.visualization import figure, set_plotting_defaults
-
-    set_plotting_defaults()
-    with figure(outfile) as fig:
-        ax = fig.gca()
-
-        degrees = [graph.degree(n) for n in graph.nodes()]
-        nx.draw_networkx_nodes(
-            graph,
-            layout,
-            node_color=degrees,
-            cmap=mp.cm.Reds,  # ty: ignore[unresolved-attribute]
-            ax=ax,
+        from orbitkit.visualization import (
+            NetworkXLayout,
+            set_plotting_defaults,
+            write_nx_from_adjacency,
         )
-        nx.draw_networkx_labels(graph, layout, ax=ax)
-        nx.draw_networkx_edges(
-            graph,
-            layout,
-            ax=ax,
-            arrows=True,
-            connectionstyle="arc3,rad=0.1",
-        )
-        ax.set_axis_off()
+
+        if name in {"ring", "ring1", "ring2", "strogatzwatts", "startree"}:
+            layout = NetworkXLayout.Circular
+        else:
+            layout = NetworkXLayout.ARF
+
+        set_plotting_defaults()
+        write_nx_from_adjacency(outfile, mat, layout=layout, overwrite=force)
 
     return 0
 
