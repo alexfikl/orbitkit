@@ -463,6 +463,115 @@ def rastergram(
 # }}}
 
 
+# {{{ write_nx_from_adjacency
+
+
+@enum.unique
+class NetworkXLayout(enum.Enum):
+    """Supported ``networkx``
+    `layouts <https://networkx.org/documentation/stable/reference/drawing.html>`__.
+    """
+
+    Circular = enum.auto()
+    """Position nodes on a circle."""
+    ARF = enum.auto()
+    """Attractive and Repulsive Forces (ARF) layout that improves the spring layout."""
+    Bipartite = enum.auto()
+    """Position nodes in two straight lines."""
+    BFS = enum.auto()
+    """Position nodes according to breadth-first search algorithm."""
+    ForceAtlas2 = enum.auto()
+    """Position nodes using the ForceAtlas2 force-directed layout algorithm."""
+    KamadaKawai = enum.auto()
+    """Position nodes using Kamada-Kawai path-length cost-function."""
+    Planar = enum.auto()
+    """Position nodes without edge intersections."""
+    Shell = enum.auto()
+    """Position nodes in concentric circles."""
+    Spring = enum.auto()
+    """Position nodes using Fruchterman-Reingold force-directed algorithm."""
+    Spectral = enum.auto()
+    """Position nodes using the eigenvectors of the graph Laplacian."""
+    Spiral = enum.auto()
+    """Position nodes in a spiral layout."""
+    Multipartite = enum.auto()
+    """Position nodes in layers of straight lines."""
+
+
+def write_nx_from_adjacency(
+    filename: PathLike,
+    mat: Array,
+    *,
+    layout: NetworkXLayout = NetworkXLayout.ARF,
+    overwrite: bool = False,
+) -> None:
+    import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment]
+
+    filename = pathlib.Path(filename)
+    if not overwrite and filename.exists():
+        raise FileExistsError(f"output file '{filename}' already exists")
+
+    if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"'mat' must be a square matrix: {mat.shape}")
+
+    if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"'mat' must be a square matrix: {mat.shape}")
+
+    graph = nx.from_numpy_array(mat)
+    if layout == NetworkXLayout.Circular:
+        layout = nx.circular_layout(graph)
+    elif layout == NetworkXLayout.ARF:
+        layout = nx.arf_layout(graph)
+    elif layout == NetworkXLayout.Bipartite:
+        layout = nx.bipartite_layout(graph)
+    elif layout == NetworkXLayout.BFS:
+        layout = nx.bfs_layout(graph, graph.node(0))
+    elif layout == NetworkXLayout.ForceAtlas2:
+        layout = nx.forceatlas2_layout(graph)
+    elif layout == NetworkXLayout.KamadaKawai:
+        layout = nx.kamada_kawai_layout(graph)
+    elif layout == NetworkXLayout.Planar:
+        layout = nx.planar_layout(graph)
+    elif layout == NetworkXLayout.Shell:
+        layout = nx.shell_layout(graph)
+    elif layout == NetworkXLayout.Spring:
+        layout = nx.spring_layout(graph, iterations=1024)
+    elif layout == NetworkXLayout.Spectral:
+        layout = nx.spectral_layout(graph)
+    elif layout == NetworkXLayout.Spiral:
+        layout = nx.spiral_layout(graph)
+    elif layout == NetworkXLayout.Multipartite:
+        layout = nx.multipartite_layout(graph)
+    else:
+        raise ValueError(f"unsupported layout: {layout}")
+
+    import matplotlib.pyplot as mp
+
+    with figure(filename) as fig:
+        ax = fig.gca()
+
+        degrees = [graph.degree(n) for n in graph.nodes()]
+        nx.draw_networkx_nodes(
+            graph,
+            layout,
+            node_color=degrees,
+            cmap=mp.cm.Reds,  # ty: ignore[unresolved-attribute]
+            ax=ax,
+        )
+        nx.draw_networkx_labels(graph, layout, ax=ax)
+        nx.draw_networkx_edges(
+            graph,
+            layout,
+            ax=ax,
+            arrows=True,
+            connectionstyle="arc3,rad=0.1",
+        )
+        ax.set_axis_off()
+
+
+# }}}
+
+
 # {{{ dot
 
 
@@ -497,7 +606,8 @@ def write_dot_from_adjacency(
     layout: DotLayout = DotLayout.Neato,
     overwrite: bool = False,
 ) -> None:
-    """Write a *.dot* file for the given adjacency matrix *mat*.
+    """Write a `*.dot* <https://graphviz.org/doc/info/lang.html>`__ file for the
+    given adjacency matrix *mat*.
 
     :arg nodenames: a list of labels used for the nodes. Defaults to using
         the node index.
