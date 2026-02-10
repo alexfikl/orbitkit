@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.models.rate_functions import RateFunction
 from orbitkit.utils import module_logger
@@ -12,35 +13,33 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
-# {{{ Astrocyte Calcium Model
+# {{{ LiRinzel model
 
 
 @dataclass(frozen=True)
 class LiRinzelParameter:
     """Parameters for the astrocyte calcium model from [LiRinzel1994]."""
 
-    C0: float
-    """Total free calcium."""
-    c1: float
-    """Endoplasmic reticulum (ER) to cytosol volume ratio."""
-    V_1: float
-    V_2: float
-    V_3: float
-    k3: float
+    InsP3: float
+    """:math:`\text{InsP}_3` concentration (microM)."""
 
-    m: int
-    p: int
-    q: int
-    V_delta: float
-    V_ATP: float
-    V_5P: float
-    V_3K: float
-    k_delta: float
-    k_ATP: float
-    k_5P: float
-    k_C: float
-    k_3P: float
-    D_I: float
+    c_0: float
+    """Total free calcium per cytosolic volume (microM)."""
+    c_1: float
+    """Volume ratio between the endoplasmic reticulum and cytosol."""
+
+    v_1: float
+    """Maximum :math:`\text{InsP}_3 R` permeability (Hz)."""
+    v_2: float
+    """Maximum leak permeability (Hz)."""
+    v_3: float
+    """Maximum pump rate (Hz)."""
+    k_3: float
+    r"""The dissociation constant of :math:`\text{Ca}^{2+}` to the pump (microM)."""
+
+    a_2: float
+    """The on-rate for :math:`\text{Ca}^{2+}` binding to the inactivation site
+    (Hz/microM)."""
 
 
 @dataclass(frozen=True)
@@ -50,19 +49,25 @@ class LiRinzel(Model):
     .. math::
 
         \begin{cases}
-        \frac{\mathrm{d} C_i}{\mathrm{d} t} & =
-            V_1 m_\infty^3(I_i) n_\infty^3(C_i) h_i^3 (C_{\text{ER}, i} - C_i)
-            + V_2 (C_{\text{ER}, i} - C_i)
-            - V_3 \frac{C^2_i}{C^2_i + k_3^2}, \\
-        \frac{\mathrm{d} I_i}{\mathrm{d} t} & =
-            V_\delta \frac{C_i^p}{C_i^p + k_\delta^p}
-            + V_{\text{ATP}} \frac{A^m}{A^m + k_{\text{ATP}}^m}
-            - V_{5P} \frac{I_i}{I_i + k_{5P}}
-            - V_{3K} \frac{C_i^q}{C_i^q + k_{C}^q} \frac{I_i}{I_i + k_{3K}}
-            - D_I \sum_{j = 1}^N w_{ij} (I_j - I_i), \\
-        \frac{\mathrm{d} h_i}{\mathrm{d} t} & =
-            \frac{h_\infty(C_i, I_i) - h_i}{\tau_h(C_i, I_i)},
+        \frac{\mathrm{d} C}{\mathrm{d} t} & =
+            c_1 v_1 m_\infty^3(I) n_\infty^3(C) h^3 (C_{\text{ER}} - C)
+            + c_1 v_2 (C_{\text{ER}} - C)
+            - v_3 \frac{C^2}{C^2 + k_3^2}, \\
+        \frac{\mathrm{d} h}{\mathrm{d} t} & =
+            \frac{h_\infty(C, I) - h_i}{\tau_h(C, I)},
         \end{cases}
+
+    where :math:`C` is the cytosolic :math:`\text{Ca}^{2+}` concentration
+    and :math:`h` is a slow inactivation variable. The additional variables
+    are given by
+
+    .. math::
+
+        C_{\text{ER}}(C) = \frac{c_0 - C}{c_1},
+        I = \text{InsP}_3.
+
+    We note that, following [LiRinzel1994]_, :math:`C` has units of micromolars
+    and :math:`h` is dimensionless.
 
     .. [LiRinzel1994] Y.-X. Li, J. Rinzel,
         *Equations for :math:`\text{InsP}_3` Receptor-Mediated
@@ -77,6 +82,63 @@ class LiRinzel(Model):
     minf: RateFunction
     ninf: RateFunction
     Q2: RateFunction
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("C", "h")
+
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
+        C, h = args
+        param = self.param
+
+        # NOTE: Equations (6) and (7) in [LiRinzel1994].
+        C_ER = (param.c_0 - C) / param.c_1
+        V_1 = param.v_1 * param.c_1
+        V_2 = param.v_2 * param.c_1
+        V_3 = param.v_3
+        IP3 = param.InsP3
+
+        minf = self.minf(IP3) * self.ninf(C)
+
+        Q2 = self.Q2(IP3)
+        hinf = Q2 / (Q2 + C)
+        tau = 1 / (param.a_2 * (Q2 + C))
+
+        return (
+            V_1 * minf**3 * h**3 * (C_ER - C)
+            + V_2 * (C_ER - C)
+            - V_3 * C**2 / (param.k_3**2 + C**2),
+            (hinf - h) / tau,
+        )
+
+
+# }}}
+
+
+@dataclass(frozen=True)
+class DePitta(LiRinzel):
+    """
+    .. [DePitta2009] M. De Pittà, M. Goldberg, V. Volman, H. Berry, E. Ben-Jacob,
+        *Glutamate Regulation of Calcium and IP3 Oscillating and Pulsating
+        Dynamics in Astrocytes*,
+        Journal of Biological Physics, Vol. 35, pp. 383--411, 2009,
+        `doi:10.1007/s10867-009-9155-y <https://doi.org/10.1007/s10867-009-9155-y>`__.
+    """
+
+
+# {{{ parameters
+
+ASTROCYTE_MODEL = {}
+
+
+def get_registered_parameters() -> tuple[str, ...]:
+    return tuple(ASTROCYTE_MODEL)
+
+
+def make_model_from_name(name: str) -> Model:
+    return ASTROCYTE_MODEL[name]
 
 
 # }}}
