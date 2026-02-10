@@ -78,10 +78,14 @@ class LiRinzel(Model):
     """
 
     param: LiRinzelParameter
+    """Parameters in the Li-Rinzel model."""
 
     minf: RateFunction
+    r"""Steady-state activation function :math:`m_\infty(I)`."""
     ninf: RateFunction
+    r"""Steady-state activation function :math:`n_\infty(C)`."""
     Q2: RateFunction
+    """Rate function for the inactivation variable :math:`h`."""
 
     @property
     def variables(self) -> tuple[str, ...]:
