@@ -676,3 +676,111 @@ def write_dot_from_adjacency(
 
 
 # }}}
+
+
+# {{{ write_gexf_from_adjacency
+
+
+def write_gexf_from_adjacency(
+    filename: PathLike,
+    mat: Array,
+    *,
+    directed: bool = False,
+    nodenames: Iterable[str] | None = None,
+    overwrite: bool = False,
+) -> None:
+    """Write a `*.gexf* <https://gexf.net/>`__ file for the give adjacency
+    matrix *mat*.
+
+    :arg nodenames: a list of labels used for the nodes. Defaults to using
+        the node index.
+    """
+    filename = pathlib.Path(filename)
+    if not overwrite and filename.exists():
+        raise FileExistsError(f"output file '{filename}' already exists")
+
+    if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"'mat' must be a square matrix: {mat.shape}")
+
+    n, _ = mat.shape
+    if nodenames is None:
+        nodenames = tuple(f"{i}" for i in range(n))
+    else:
+        nodenames = tuple(nodenames)
+
+    edgedefault = "direct" if directed else "undirected"
+
+    from xml.etree.ElementTree import (  # noqa: S405
+        Element,
+        ElementTree,
+        SubElement,
+        indent,
+    )
+
+    # https://gexf.net/
+    gexf = Element(
+        "gexf",
+        xmlns="http://www.gexf.net/1.2",
+        version="1.2",
+    )
+
+    # {{{ metadata
+
+    from datetime import datetime
+
+    meta = SubElement(
+        gexf,
+        "meta",
+        lastmodifieddate=datetime.now().strftime("%Y-%m-%d"),
+    )
+    creator = SubElement(meta, "creator")
+    creator.text = "orbitkit"
+    description = SubElement(meta, "description")
+    description.text = f"{edgedefault} graph with {n} vertices"
+
+    # }}}
+
+    # {{{ graph
+
+    from itertools import product
+
+    graph = SubElement(
+        gexf,
+        "graph",
+        mode="static",
+        defaultedgetype=edgedefault,
+    )
+
+    nodes = SubElement(graph, "nodes")
+    for i in range(n):
+        SubElement(nodes, "node", id=str(i), label=nodenames[i])
+
+    edge_id = 0
+    edges = SubElement(graph, "edges")
+    for i, j in product(range(n), range(n)):
+        if mat[i, j] == 0:
+            continue
+
+        if not directed and j <= i:
+            continue
+
+        SubElement(
+            edges,
+            "edge",
+            edge_id=str(edge_id),
+            source=str(i),
+            target=str(j),
+            weight=f"{mat[i, j]:g}",
+        )
+        edge_id += 1
+
+    # }}}
+
+    tree = ElementTree(gexf)
+    indent(tree, space="  ", level=0)
+    tree.write(filename, encoding="utf-8", xml_declaration=True)
+
+    log.info("Saving '%s'", filename)
+
+
+# }}}
