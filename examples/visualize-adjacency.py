@@ -37,14 +37,20 @@ def main(
     mat = make_adjacency_matrix_from_name(n, name, k=k, rng=rng)
     log.info("Adjacency matrix:\n%s", stringify_adjacency(mat))
 
+    from orbitkit.visualization import to_color
+
+    degrees = np.sum(mat, axis=1)
+    nodecolors = to_color(degrees, colormap="Reds", vmin=0, vmax=None)
+    print(nodecolors)
+
     if outfile.suffix == ".gexf":
         from orbitkit.visualization import write_gexf_from_adjacency
 
-        write_gexf_from_adjacency(outfile, mat, overwrite=force)
+        write_gexf_from_adjacency(outfile, mat, nodecolors=nodecolors, overwrite=force)
     elif outfile.suffix == ".dot":
         from orbitkit.visualization import write_dot_from_adjacency
 
-        write_dot_from_adjacency(outfile, mat, overwrite=force)
+        write_dot_from_adjacency(outfile, mat, nodecolors=nodecolors, overwrite=force)
     else:
         from orbitkit.visualization import (
             NetworkXLayout,

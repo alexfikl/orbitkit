@@ -193,11 +193,17 @@ def to_color(
     w: Array,
     *,
     colormap: str = "turbo",
-    vmin: float = -1.0,
-    vmax: float = 1.0,
+    vmin: float | None = -1.0,
+    vmax: float | None = 1.0,
 ) -> tuple[str, ...]:
     from matplotlib import cm
     from matplotlib.colors import Normalize, to_hex
+
+    if vmin is None:
+        vmin = np.min(w)
+
+    if vmax is None:
+        vmax = np.max(w)
 
     cmap = cm.get_cmap(colormap)
     norm = Normalize(vmin=vmin, vmax=vmax)
@@ -687,6 +693,7 @@ def write_gexf_from_adjacency(
     *,
     directed: bool = False,
     nodenames: Iterable[str] | None = None,
+    nodecolors: Iterable[str] | None = None,
     overwrite: bool = False,
 ) -> None:
     """Write a `*.gexf* <https://gexf.net/>`__ file for the give adjacency
@@ -708,6 +715,11 @@ def write_gexf_from_adjacency(
     else:
         nodenames = tuple(nodenames)
 
+    if nodecolors is None:  # noqa: SIM108
+        nodecolors = ("#000000",) * n
+    else:
+        nodecolors = tuple(nodecolors)
+
     edgedefault = "direct" if directed else "undirected"
 
     from xml.etree.ElementTree import (  # noqa: S405
@@ -715,13 +727,17 @@ def write_gexf_from_adjacency(
         ElementTree,
         SubElement,
         indent,
+        register_namespace,
     )
+
+    viz = "http://www.gexf.net/1.3/viz"
+    register_namespace("viz", viz)
 
     # https://gexf.net/
     gexf = Element(
         "gexf",
-        xmlns="http://www.gexf.net/1.2",
-        version="1.2",
+        xmlns="http://www.gexf.net/1.3",
+        version="1.3",
     )
 
     # {{{ metadata
@@ -753,7 +769,11 @@ def write_gexf_from_adjacency(
 
     nodes = SubElement(graph, "nodes")
     for i in range(n):
-        SubElement(nodes, "node", id=str(i), label=nodenames[i])
+        node = SubElement(nodes, "node", id=str(i), label=nodenames[i])
+
+        color = nodecolors[i][1:]
+        r, g, b = (int(color[i : i + 2], 16) for i in (0, 2, 4))
+        SubElement(node, f"{{{viz}}}color", r=str(r), g=str(g), b=str(b))
 
     edge_id = 0
     edges = SubElement(graph, "edges")
