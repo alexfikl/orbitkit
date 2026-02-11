@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 import pymbolic.primitives as prim
@@ -210,7 +210,21 @@ class FlattenMapper(FlattenMapperBase, IdentityMapper):
     pass
 
 
-def flatten(expr: sym.Expression | Array) -> sym.Expression | Array:
+@overload
+def flatten(expr: sym.Expression) -> sym.Expression: ...
+
+
+@overload
+def flatten(expr: Array) -> Array: ...
+
+
+@overload
+def flatten(expr: tuple[sym.Expression, ...]) -> tuple[sym.Expression, ...]: ...
+
+
+def flatten(
+    expr: sym.Expression | tuple[sym.Expression, ...] | Array,
+) -> sym.Expression | tuple[sym.Expression, ...] | Array:
     return FlattenMapper()(expr)  # ty: ignore[invalid-argument-type,invalid-return-type]
 
 
