@@ -172,7 +172,7 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
 )
 def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
     from orbitkit.models.rate_functions import SigmoidRate
-    from orbitkit.models.wilson_cowan import WilsonCowan1, WilsonCowanPopulation
+    from orbitkit.models.wilson_cowan import WilsonCowan, WilsonCowanPopulation
 
     rng = np.random.default_rng(seed=42)
 
@@ -181,17 +181,23 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
     Ep = WilsonCowanPopulation(
         sigmoid=s,
         kernels=(knl, knl),
-        weights=(rng.random((n, n)), rng.random((10, 10))),
-        forcing=rng.random(10),
+        weights=(
+            (rng.random((n, n)), rng.random((n, n))),
+            (rng.random((n, n)), rng.random((n, n))),
+        ),
+        forcing=rng.random(n),
     )
     Ip = WilsonCowanPopulation(
         sigmoid=s,
         kernels=(knl, knl),
-        weights=(rng.random((n, n)), rng.random((10, 10))),
-        forcing=rng.random(10),
+        weights=(
+            (rng.random((n, n)), rng.random((n, n))),
+            (rng.random((n, n)), rng.random((n, n))),
+        ),
+        forcing=rng.random(n),
     )
 
-    model = WilsonCowan1(E=Ep, I=Ip)
+    model = WilsonCowan(E=Ep, I=Ip)
     log.info("Model:\n%s", model)
 
     from orbitkit.models.linear_chain_tricks import transform_delay_kernels

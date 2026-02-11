@@ -16,8 +16,7 @@ from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
-
-# {{{ WilsonCowan1
+# {{{ population
 
 
 @dataclass(frozen=True)
@@ -26,8 +25,10 @@ class WilsonCowanPopulation:
     """Sigmoid activation function."""
     kernels: tuple[sym.DelayKernel, ...]
     r"""Delay kernels :math:`h_{ij}` used in the variables inside the sigmoid."""
-    weights: tuple[Array, ...]
-    r"""The weight matrices :math:`\boldsymbol{W}_{ij}` used in the model."""
+    weights: tuple[tuple[Array, Array], ...]
+    r"""The weight matrices
+    :math:`(\boldsymbol{W}_{*E}^{(k)}, \boldsymbol{W}_{*I}^{(k)}` used in the model.
+    """
     forcing: Array
     """Forcing term used in the model."""
 
@@ -47,11 +48,17 @@ class WilsonCowanPopulation:
                     f"but expected ({n},)"
                 )
 
-            for i, w in enumerate(self.weights):
-                if w.shape != (n, n):
+            for i, (we, wi) in enumerate(self.weights):
+                if we.shape != (n, n):
                     raise ValueError(
-                        f"weight matrix '{i}' has incorrect shape: got "
-                        f"{w.shape} but expected ({n}, {n})"
+                        f"weight matrix 'W[{i}][0]' has incorrect shape: got "
+                        f"{we.shape} but expected ({n}, {n})"
+                    )
+
+                if wi.shape != (n, n):
+                    raise ValueError(
+                        f"weight matrix 'W[{i}][1]' has incorrect shape: got "
+                        f"{wi.shape} but expected ({n}, {n})"
                     )
 
     @property
@@ -59,8 +66,13 @@ class WilsonCowanPopulation:
         return self.forcing.shape[0]
 
 
+# }}}
+
+# {{{ WilsonCowan1
+
+
 @dataclass(frozen=True)
-class WilsonCowan1(Model):
+class WilsonCowan(Model):
     r"""Right-hand side of a network Wilson-Cowan model.
 
     .. math::
@@ -68,22 +80,22 @@ class WilsonCowan1(Model):
         \begin{aligned}
         \dot{\boldsymbol{E}} & =
             -\boldsymbol{E} + \boldsymbol{S}_E\left(
-                \boldsymbol{W}_{00} (h_{00} \ast \boldsymbol{E})
-                - \boldsymbol{W}_{01} (h_{01} \ast \boldsymbol{I})
+                \sum_{k = 1}^K \boldsymbol{W}_{EE}^{(k)} (h^{(k)} \ast \boldsymbol{E})
+                - \sum_{k = 1}^K \boldsymbol{W}_{EI}^{(k)} (h^{(k)} \ast \boldsymbol{I})
                 + \boldsymbol{P}
             \right), \\
         \dot{\boldsymbol{I}} & =
             -\boldsymbol{I} + \boldsymbol{S}_I\left(
-                \boldsymbol{W}_{10} (h_{10} \ast \boldsymbol{E})
-                - \boldsymbol{W}_{11} (h_{11} \ast \boldsymbol{I})
+                \sum_{k = 1}^K \boldsymbol{W}_{IE}^{(k)} (h^{(k)} \ast \boldsymbol{E})
+                - \sum_{k = 1}^K \boldsymbol{W}_{II}^{(k)} (h^{(k)} \ast \boldsymbol{I})
                 + \boldsymbol{Q}
             \right),
         \end{aligned}
 
     where :math:`\boldsymbol{S}_i` are sigmoid activation functions,
-    :math:`\boldsymbol{W}_{ij}` are positive weight matrices, :math:`(\boldsymbol{P},
-    \boldsymbol{Q})` are constant forcing terms and :math:`h_{ij}` are distributed
-    delay kernels.
+    :math:`\boldsymbol{W}^{(k)}_{ij}` are weight matrices with positive entries,
+    :math:`(\boldsymbol{P}, \boldsymbol{Q})` are constant forcing terms and
+    :math:`h^{(k)}` are distributed delay kernels.
     """
 
     E: WilsonCowanPopulation
@@ -94,13 +106,6 @@ class WilsonCowan1(Model):
     if __debug__:
 
         def __post_init__(self) -> None:
-            if len(self.E.kernels) != 2 or len(self.I.kernels) != 2:
-                raise ValueError(
-                    "Expected only two kernels for this model: "
-                    f"got {len(self.E.kernels)} excitatory and "
-                    f"{len(self.I.kernels)} inhibitory kernels"
-                )
-
             if self.E.n != self.I.n:
                 raise ValueError(
                     "'E' and 'I' populations have different sizes: "
@@ -136,17 +141,26 @@ class WilsonCowan1(Model):
                 f"but expected ({self.n},)"
             )
 
-        # unpack variables
-        W_EE, W_EI = self.E.weights
-        W_IE, W_II = self.I.weights
-        P, Q = self.E.forcing, self.I.forcing
+        # compute weighted sums for each term
+        Es = (
+            sum(
+                W_E * h(E) - W_I * h(I)
+                for (W_E, W_I), h in zip(self.E.weights, self.E.kernels, strict=True)
+            )
+            + self.E.forcing
+        )
 
-        h_EE, h_EI = self.E.kernels
-        h_IE, h_II = self.I.kernels
+        Is = (
+            sum(
+                W_E * h(E) - W_I * h(I)
+                for (W_E, W_I), h in zip(self.I.weights, self.I.kernels, strict=True)
+            )
+            + self.I.forcing
+        )
 
         return (
-            -E + self.E.sigmoid(W_EE * h_EE(E) - W_EI * h_EI(I) + P),
-            -I + self.I.sigmoid(W_IE * h_IE(E) - W_II * h_II(I) + Q),
+            -E + self.E.sigmoid(Es),
+            -I + self.I.sigmoid(Is),
         )
 
 
@@ -300,7 +314,7 @@ def get_wilson_cowan_fixed_points(
     method: Methods | None = "brentq",
 ) -> Array:
     r"""Find the synchronized fixed points of the one delay Wilson-Cowan system
-    :class:`WilsonCowan1`.
+    :class:`WilsonCowan`.
 
     To find a synchronized fixed point, we assume that all the weight matrices
     have equal row sums, given by the *weights* tuple. We also assume that the
@@ -316,9 +330,9 @@ def get_wilson_cowan_fixed_points(
         \end{aligned}
 
     This system has between between 1 and 3 real solutions in :math:`(0, 1)`.
-    We find these solutions by doing a naive grid search, which is not guaranteed
-    to succeed. If more solutions are suspected, choose a finer grid by increasing
-    *npoints*.
+    We find these solutions by doing a naive grid search. This method is not
+    guaranteed to find all the solutions, but it will always find at least one.
+    If more solutions are suspected, choose a finer grid by increasing *npoints*.
 
     :arg sE: parameters for the sigmoid rate function used in the :math:`E` equation.
     :arg sI: parameters for the sigmoid rate function used in the :math:`I` equation.
