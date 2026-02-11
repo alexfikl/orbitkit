@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.models.rate_functions import RateFunction
+from orbitkit.models.rate_functions import LinearRationalRate, RateFunction
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -44,7 +44,7 @@ class LiRinzelParameter:
 
 @dataclass(frozen=True)
 class LiRinzel(Model):
-    r"""Right-hand side of an astrocyte calcium model from [LiRinzel1994]_.
+    r"""Right-hand side of an model from Equation (6) in [LiRinzel1994]_.
 
     .. math::
 
@@ -67,7 +67,8 @@ class LiRinzel(Model):
         I = \text{InsP}_3.
 
     We note that, following [LiRinzel1994]_, :math:`C` has units of micromolars
-    and :math:`h` is dimensionless.
+    and :math:`h` is dimensionless. The remaining parameters are documented in
+    :class:`LiRinzelParameter`.
 
     .. [LiRinzel1994] Y.-X. Li, J. Rinzel,
         *Equations for :math:`\text{InsP}_3` Receptor-Mediated
@@ -134,7 +135,44 @@ class DePitta(LiRinzel):
 
 # {{{ parameters
 
-ASTROCYTE_MODEL = {}
+
+def _make_li_rinzel_1994(InsP3: float) -> LiRinzel:
+    # NOTE: See Table 1 in [LiRinzel1994]
+    k_3 = 0.1
+    c_1 = 0.185
+
+    a_1 = 40.0 / k_3
+    a_2 = 0.02 / k_3
+    a_3 = 40.0 / k_3
+    a_5 = 2.0 / k_3
+
+    b_1 = 52.0
+    b_2 = 0.2098
+    b_3 = 377.36
+    b_5 = 1.6468
+
+    param = LiRinzelParameter(
+        InsP3=InsP3,
+        c_0=2.0,
+        c_1=c_1,
+        v_1=7.11 / (1 + c_1),
+        v_2=0.13035 / (1 + c_1),
+        v_3=9.0 * k_3,
+        k_3=k_3,
+        a_2=a_2,
+    )
+
+    return LiRinzel(
+        param=param,
+        minf=LinearRationalRate(1.0, 0.0, b_1 / a_1),
+        ninf=LinearRationalRate(1.0, 0.0, b_5 / a_5),
+        Q2=LinearRationalRate(b_2 / a_2, b_1 / a_1, b_3 / a_3),
+    )
+
+
+ASTROCYTE_MODEL = {
+    "LiRinzel1994Figure3": _make_li_rinzel_1994(0.4),
+}
 
 
 def get_registered_parameters() -> tuple[str, ...]:
