@@ -148,7 +148,9 @@ class Model(ABC):
         if full:
             model = ds_symbolic(model, rec=False, rattrs=self.rattrs)
 
-        return (t, *args), model.evaluate(t, *args)
+        from orbitkit.symbolic.mappers import flatten
+
+        return (t, *args), flatten(model.evaluate(t, *args))
 
     def __str__(self) -> str:
         n = getattr(self, "n", None)
