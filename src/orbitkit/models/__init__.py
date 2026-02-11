@@ -44,7 +44,7 @@ def ds_symbolic(
         from pymbolic.primitives import ExpressionNode
 
         if isinstance(attr, tuple):
-            if rec or fname in rattrs:
+            if rec or any(fname.startswith(rattr) for rattr in rattrs):
                 return tuple(
                     _ds_field_symbolic(attr[i], f"{fname}_{i}", rec=rec, rattrs=rattrs)
                     for i in range(len(attr))
@@ -52,7 +52,7 @@ def ds_symbolic(
             else:
                 return tuple(sym.Variable(f"{fname}_{i}") for i in range(len(attr)))
         if isinstance(attr, dict):
-            if rec or fname in rattrs:
+            if rec or any(fname.startswith(rattr) for rattr in rattrs):
                 return {
                     k: _ds_field_symbolic(
                         attr[k],  # ty: ignore[invalid-argument-type]
