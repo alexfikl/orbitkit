@@ -21,8 +21,13 @@ log = module_logger(__name__)
 
 @dataclass(frozen=True)
 class WilsonCowanPopulation:
+    tau: float
+    """Population time scale."""
+    r: float
+    """Population refractory period."""
     sigmoid: RateFunction
     """Sigmoid activation function."""
+
     kernels: tuple[sym.DelayKernel, ...]
     r"""Delay kernels :math:`h_{ij}` used in the variables inside the sigmoid."""
     weights: tuple[tuple[Array, Array], ...]
@@ -159,8 +164,8 @@ class WilsonCowan(Model):
         )
 
         return (
-            -E + self.E.sigmoid(Es),
-            -I + self.I.sigmoid(Is),
+            (-E + (1 - self.E.r * E) * self.E.sigmoid(Es)) / self.E.tau,
+            (-I + (1 - self.I.r * I) * self.I.sigmoid(Is)) / self.I.tau,
         )
 
 

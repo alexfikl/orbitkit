@@ -179,6 +179,8 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
     n = 10
     s = SigmoidRate(1, 0, sym.Variable("sigma"))
     Ep = WilsonCowanPopulation(
+        tau=1.0,
+        r=0.0,
         sigmoid=s,
         kernels=(knl, knl),
         weights=(
@@ -188,6 +190,8 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
         forcing=rng.random(n),
     )
     Ip = WilsonCowanPopulation(
+        tau=1.0,
+        r=0.0,
         sigmoid=s,
         kernels=(knl, knl),
         weights=(
