@@ -43,6 +43,28 @@ class LinearRationalRate:
 
 
 @dataclass(frozen=True)
+class HillRate:
+    r"""A Hill function-like rate function.
+
+    .. math::
+
+        f(V; a, n) = \frac{V^n}{V^n + a^n}.
+    """
+
+    a: sym.Expression
+    n: int
+
+    def __call__(self, V: sym.Expression) -> sym.Expression:
+        return V**self.n / (V**self.n + self.a**self.n)
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        an = self.a**self.n
+        Vn = V ** (self.n - 1) if self.n != 1 else 1
+
+        return self.n * an * Vn / (V**self.n + an) ** 2
+
+
+@dataclass(frozen=True)
 class ExponentialRate:
     r"""Exponential rate function.
 
