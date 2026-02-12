@@ -87,14 +87,14 @@ class WilsonCowan(Model):
     .. math::
 
         \begin{aligned}
-        \dot{\boldsymbol{E}} & =
-            -\boldsymbol{E} + \boldsymbol{S}_E\left(
+        \tau_E \dot{\boldsymbol{E}} & =
+            -\boldsymbol{E} + (1 - r_E \boldsymbol{E}) \boldsymbol{S}_E\left(
                 \sum_{k = 1}^K \boldsymbol{W}_{EE}^{(k)} (h^{(k)} \ast \boldsymbol{E})
                 - \sum_{k = 1}^K \boldsymbol{W}_{EI}^{(k)} (h^{(k)} \ast \boldsymbol{I})
                 + \boldsymbol{P}
             \right), \\
-        \dot{\boldsymbol{I}} & =
-            -\boldsymbol{I} + \boldsymbol{S}_I\left(
+        \tau_I \dot{\boldsymbol{I}} & =
+            -\boldsymbol{I} + (1 - r_I \boldsymbol{I}) \boldsymbol{S}_I\left(
                 \sum_{k = 1}^K \boldsymbol{W}_{IE}^{(k)} (h^{(k)} \ast \boldsymbol{E})
                 - \sum_{k = 1}^K \boldsymbol{W}_{II}^{(k)} (h^{(k)} \ast \boldsymbol{I})
                 + \boldsymbol{Q}
@@ -153,15 +153,17 @@ class WilsonCowan(Model):
         from pymbolic.primitives import Sum
 
         # compute weighted sums for each term
-        Es: sym.Expression = self.E.forcing  # ty: ignore[invalid-assignment]
+        terms = []
         for (W_E, W_I), h in zip(self.E.weights, self.E.kernels, strict=True):
             # NOTE: pymbolic should be able to do @ here, but we leave it with
             # a dot product so that it supports scalars
-            Es = Sum((Es, sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I))))
+            terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
+        Es = Sum((*terms, self.E.forcing))  # ty: ignore[invalid-argument-type]
 
-        Is: sym.Expression = self.I.forcing  # ty: ignore[invalid-assignment]
+        terms = []
         for (W_E, W_I), h in zip(self.I.weights, self.I.kernels, strict=True):
-            Is = Sum((Is, sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I))))
+            terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
+        Is = Sum((*terms, self.E.forcing))  # ty: ignore[invalid-argument-type]
 
         return (
             (-E + (1 - self.E.r * E) * self.E.sigmoid(Es)) / self.E.tau,
@@ -178,36 +180,41 @@ class WilsonCowan(Model):
 def _make_conti_gorder_2019_figure2ab(tau1: float, tau2: float) -> WilsonCowan:
     alpha = 0.6
     beta = 10.0
+    p = 0.5
+    q = 0.5
+    W = np.array([[0, 1], [1, 0]])
 
     Ep = WilsonCowanPopulation(
         tau=1,
         r=0,
-        sigmoid=SigmoidRate(1, 0, beta),
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(
-            sym.DiracDelayKernel(tau1),
-            sym.DiracDelayKernel(tau2),
-            sym.DiracDelayKernel(10.0),
+            sym.DiracDelayKernel(tau1),  # E
+            sym.DiracDelayKernel(tau2),  # I
+            sym.DiracDelayKernel(10.0),  # E
         ),
         weights=(
             (1, 0),  # \tau_{1, n}
             (0, 1),  # \tau_{2, n}
-            (1, 0),  # \rho_{nj}
+            (W, 0),  # \rho_{nj}
         ),
-        forcing=np.array([0.5, 0.5]),
+        forcing=np.array([p, p]),
     )
     Ip = WilsonCowanPopulation(
         tau=1 / alpha,
         r=0,
-        sigmoid=SigmoidRate(1, 0, beta),
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(
             sym.DiracDelayKernel(tau2),  # E
             sym.DiracDelayKernel(tau1),  # I
         ),
         weights=(
-            (1, 0),  # \tau_{2, n}
+            # NOTE: taking c_ei = 1 does not give the results from Figure 2ab,
+            # so after some trial-and-error this seems to work well enough
+            (-1, 0),  # \tau_{2, n}
             (0, 1),  # \tau_{1, n}
         ),
-        forcing=np.array([0.5, 0.5]),
+        forcing=np.array([q, q]),
     )
 
     return WilsonCowan(E=Ep, I=Ip)
@@ -222,7 +229,7 @@ def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
     Ep = WilsonCowanPopulation(
         tau=1,
         r=0,
-        sigmoid=SigmoidRate(1, 0, beta),
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(
             sym.DiracDelayKernel(tau1),
             sym.DiracDelayKernel(tau2),
@@ -231,20 +238,22 @@ def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
         weights=(
             (-6, 0),  # \tau_{1, n}
             (0, -2.5),  # \tau_{2, n}
-            (11, 0),  # \rho_{nj}
+            (np.array([[0, 11], [11, 0]]), 0),  # \rho_{nj}
         ),
         forcing=np.array([0.2, 0.2]),
     )
     Ip = WilsonCowanPopulation(
         tau=1 / alpha,
         r=0,
-        sigmoid=SigmoidRate(1, 0, beta),
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(
             sym.DiracDelayKernel(tau2),  # E
             sym.DiracDelayKernel(tau1),  # I
         ),
         weights=(
-            (2.5, 0),  # \tau_{2, n}
+            # NOTE: taking c_ei = 2.5 does not give the results from Figure 2ab,
+            # so after some trial-and-error this seems to work well enough
+            (-2.5, 0),  # \tau_{2, n}
             (0, 6),  # \tau_{1, n}
         ),
         forcing=np.array([0.2, 0.2]),

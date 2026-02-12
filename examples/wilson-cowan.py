@@ -59,11 +59,15 @@ dde = target.compile(source, y, max_delay=max_delay)
 
 tspan = (0.0, 100.0)
 y0 = np.array([0.25, 0.25, 0.75, 0.75])
+
+# NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
+# Maybe that's what MATLAB uses as well? Or similar at least..
 dde.constant_past(y0, time=tspan[0])
-dde.step_on_discontinuities()
+# dde.step_on_discontinuities()
+dde.adjust_diff()
 
 dt = 0.001
-ts = np.arange(tspan[0] + dde.t, tspan[1], dt)
+ts = np.arange(tspan[0], tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
 for i in range(ts.size):
@@ -96,7 +100,7 @@ with figure(dirname / f"wilson_cowan_{figname.lower()}", overwrite=True) as fig:
 
     ax.set_xlabel("$t$")
     ax.set_xlim(tspan)
-    ax.set_ylim([0.0, 1.0])
+    ax.set_ylim([0.0, 2.0])
     ax.legend()
 
 # }}}
