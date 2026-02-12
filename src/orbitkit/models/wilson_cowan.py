@@ -30,11 +30,13 @@ class WilsonCowanPopulation:
 
     kernels: tuple[sym.DelayKernel, ...]
     r"""Delay kernels :math:`h_{ij}` used in the variables inside the sigmoid."""
-    weights: tuple[tuple[float | Array, float | Array], ...]
+    weights: tuple[
+        tuple[float | Array | sym.MatrixSymbol, float | Array | sym.MatrixSymbol], ...
+    ]
     r"""The weight matrices
     :math:`(\boldsymbol{W}_{*E}^{(k)}, \boldsymbol{W}_{*I}^{(k)}` used in the model.
     """
-    forcing: float | Array
+    forcing: Array | sym.MatrixSymbol
     """Forcing term used in the model."""
 
     if __debug__:
@@ -46,6 +48,8 @@ class WilsonCowanPopulation:
                     f"{len(self.kernels)} != {len(self.weights)}"
                 )
 
+            from orbitkit.symbolic.primitives import MatrixSymbol
+
             n = self.n
             if isinstance(self.forcing, np.ndarray) and self.forcing.shape != (n,):
                 raise ValueError(
@@ -54,13 +58,13 @@ class WilsonCowanPopulation:
                 )
 
             for i, (we, wi) in enumerate(self.weights):
-                if isinstance(we, np.ndarray) and we.shape != (n, n):
+                if isinstance(we, (np.ndarray, MatrixSymbol)) and we.shape != (n, n):
                     raise ValueError(
                         f"weight matrix 'W[{i}][0]' has incorrect shape: got "
                         f"{we.shape} but expected ({n}, {n})"
                     )
 
-                if isinstance(wi, np.ndarray) and wi.shape != (n, n):
+                if isinstance(wi, (np.ndarray, MatrixSymbol)) and wi.shape != (n, n):
                     raise ValueError(
                         f"weight matrix 'W[{i}][1]' has incorrect shape: got "
                         f"{wi.shape} but expected ({n}, {n})"
@@ -68,7 +72,7 @@ class WilsonCowanPopulation:
 
     @property
     def n(self) -> int:
-        return self.forcing.shape[0] if isinstance(self.forcing, np.ndarray) else 1
+        return self.forcing.shape[0]
 
 
 # }}}
@@ -146,16 +150,18 @@ class WilsonCowan(Model):
                 f"but expected ({self.n},)"
             )
 
+        from pymbolic.primitives import Sum
+
         # compute weighted sums for each term
         Es: sym.Expression = self.E.forcing  # ty: ignore[invalid-assignment]
         for (W_E, W_I), h in zip(self.E.weights, self.E.kernels, strict=True):
             # NOTE: pymbolic should be able to do @ here, but we leave it with
             # a dot product so that it supports scalars
-            Es += sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I))
+            Es = Sum((Es, sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I))))
 
         Is: sym.Expression = self.I.forcing  # ty: ignore[invalid-assignment]
         for (W_E, W_I), h in zip(self.I.weights, self.I.kernels, strict=True):
-            Is += sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I))
+            Is = Sum((Is, sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I))))
 
         return (
             (-E + (1 - self.E.r * E) * self.E.sigmoid(Es)) / self.E.tau,
@@ -187,10 +193,10 @@ def _make_conti_gorder_2019_figure2ab(tau1: float, tau2: float) -> WilsonCowan:
             (0, 1),  # \tau_{2, n}
             (1, 0),  # \rho_{nj}
         ),
-        forcing=0.5,
+        forcing=np.array([0.5, 0.5]),
     )
     Ip = WilsonCowanPopulation(
-        tau=alpha,
+        tau=1 / alpha,
         r=0,
         sigmoid=SigmoidRate(1, 0, beta),
         kernels=(
@@ -201,7 +207,7 @@ def _make_conti_gorder_2019_figure2ab(tau1: float, tau2: float) -> WilsonCowan:
             (1, 0),  # \tau_{2, n}
             (0, 1),  # \tau_{1, n}
         ),
-        forcing=0.5,
+        forcing=np.array([0.5, 0.5]),
     )
 
     return WilsonCowan(E=Ep, I=Ip)
@@ -227,10 +233,10 @@ def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
             (0, -2.5),  # \tau_{2, n}
             (11, 0),  # \rho_{nj}
         ),
-        forcing=0.2,
+        forcing=np.array([0.2, 0.2]),
     )
     Ip = WilsonCowanPopulation(
-        tau=alpha,
+        tau=1 / alpha,
         r=0,
         sigmoid=SigmoidRate(1, 0, beta),
         kernels=(
@@ -241,7 +247,7 @@ def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
             (2.5, 0),  # \tau_{2, n}
             (0, 6),  # \tau_{1, n}
         ),
-        forcing=0.2,
+        forcing=np.array([0.2, 0.2]),
     )
 
     return WilsonCowan(E=Ep, I=Ip)
