@@ -196,7 +196,7 @@ class StringifyMapper(StringifyMapperBase[Any]):
         return super().map_call(expr, enclosing_prec)
 
 
-def stringify(expr: sym.Expression | Array) -> str:
+def stringify(expr: sym.Expression | tuple[sym.Expression, ...] | Array) -> str:
     return StringifyMapper()(expr)
 
 
@@ -207,7 +207,19 @@ def stringify(expr: sym.Expression | Array) -> str:
 
 
 class FlattenMapper(FlattenMapperBase, IdentityMapper):
-    pass
+    def map_dot_product(self, expr: sym.DotProduct, /) -> PymbolicExpression:
+        left: sym.Expression = self.rec(expr.left)  # ty: ignore[invalid-argument-type,invalid-assignment]
+        right: sym.Expression = self.rec(expr.right)  # ty: ignore[invalid-argument-type,invalid-assignment]
+        if prim.is_zero(left) or prim.is_zero(right):
+            return 0
+
+        if prim.is_zero(left - 1):
+            return right
+
+        if prim.is_zero(right - 1):
+            return left
+
+        return type(expr)(left, right)
 
 
 @overload
