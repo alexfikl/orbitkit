@@ -13,6 +13,7 @@ from pymbolic.mapper import WalkMapper as WalkMapperBase
 from pymbolic.mapper.flattener import FlattenMapper as FlattenMapperBase
 from pymbolic.mapper.stringifier import PREC_NONE
 from pymbolic.mapper.stringifier import StringifyMapper as StringifyMapperBase
+from pymbolic.typing import ArithmeticExpression
 from pymbolic.typing import Expression as PymbolicExpression
 
 import orbitkit.symbolic.primitives as sym
@@ -26,6 +27,27 @@ if TYPE_CHECKING:
 
 
 class IdentityMapper(IdentityMapperBase[[]]):
+    def rec_arith(self, expr: ArithmeticExpression) -> ArithmeticExpression:
+        res = self.rec(expr)
+        assert isinstance(res, np.ndarray) or prim.is_arithmetic_expression(res)
+
+        return res  # ty: ignore[invalid-return-type]
+
+    def map_numpy_array(
+        self, expr: np.ndarray[Any, np.dtype[np.generic]]
+    ) -> PymbolicExpression:
+        if expr.dtype.char != "O":
+            return expr  # ty: ignore[invalid-return-type]
+
+        is_same = True
+        result = np.empty(expr.shape, dtype=object)
+
+        for i in np.ndindex(expr.shape):
+            result[i] = self.rec(expr[i])
+            is_same = is_same and result[i] is expr[i]
+
+        return expr if is_same else result  # ty: ignore[invalid-return-type]
+
     def map_contract(self, expr: sym.Contract, /) -> PymbolicExpression:
         aggregate = self.rec_arith(expr.aggregate)
         if aggregate is expr.aggregate:
