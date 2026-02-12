@@ -180,8 +180,7 @@ class WilsonCowan(Model):
 def _make_conti_gorder_2019_figure2ab(tau1: float, tau2: float) -> WilsonCowan:
     alpha = 0.6
     beta = 10.0
-    p = 0.5
-    q = 0.5
+    p = q = 0.5
     W = np.array([[0, 1], [1, 0]])
 
     Ep = WilsonCowanPopulation(
@@ -220,11 +219,11 @@ def _make_conti_gorder_2019_figure2ab(tau1: float, tau2: float) -> WilsonCowan:
     return WilsonCowan(E=Ep, I=Ip)
 
 
-def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
+def _make_conti_gorder_2019_figure2c(tau1: float = 1, tau2: float = 1.4) -> WilsonCowan:
     alpha = 0.6
     beta = 10.0
-    tau1 = 1
-    tau2 = 1.4
+    p = q = 0.2
+    W = np.array([[0, 11], [11, 0]])
 
     Ep = WilsonCowanPopulation(
         tau=1,
@@ -238,9 +237,9 @@ def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
         weights=(
             (-6, 0),  # \tau_{1, n}
             (0, -2.5),  # \tau_{2, n}
-            (np.array([[0, 11], [11, 0]]), 0),  # \rho_{nj}
+            (W, 0),  # \rho_{nj}
         ),
-        forcing=np.array([0.2, 0.2]),
+        forcing=np.array([p, p]),
     )
     Ip = WilsonCowanPopulation(
         tau=1 / alpha,
@@ -256,35 +255,96 @@ def _make_conti_gorder_2019_figure2c() -> WilsonCowan:
             (-2.5, 0),  # \tau_{2, n}
             (0, 6),  # \tau_{1, n}
         ),
-        forcing=np.array([0.2, 0.2]),
+        forcing=np.array([q, q]),
+    )
+
+    return WilsonCowan(E=Ep, I=Ip)
+
+
+def _make_conti_gorder_2019_figure34(
+    n: int,
+    k: float,
+    topology: str,
+    *,
+    tau1: float = 1,
+    tau2: float = 1.4,
+) -> WilsonCowan:
+    alpha = 0.6
+    beta = 10.0
+    p = q = 0.5
+
+    import orbitkit.adjacency as adj
+
+    if topology == "bus":
+        W = adj.generate_adjacency_bus(n, k=1)
+    elif topology == "all":
+        W = adj.generate_adjacency_all(n)
+    elif topology == "ring":
+        W = adj.generate_adjacency_ring(n, k=1)
+    elif topology == "lattice":
+        W = adj.generate_adjacency_lattice(n)
+    else:
+        raise ValueError(f"unknown adjacency: {topology!r}")
+
+    assert np.allclose(np.diag(W), 0.0)
+
+    Ep = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(
+            sym.DiracDelayKernel(tau1),
+            sym.DiracDelayKernel(tau2),
+            sym.DiracDelayKernel(10.0),
+        ),
+        weights=(
+            (1, 0),  # \tau_{1, n}
+            (0, 1),  # \tau_{2, n}
+            (k * W, 0),  # \rho_{nj}
+        ),
+        forcing=np.full(n, p),
+    )
+    Ip = WilsonCowanPopulation(
+        tau=1 / alpha,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(
+            sym.DiracDelayKernel(tau2),  # E
+            sym.DiracDelayKernel(tau1),  # I
+        ),
+        weights=(
+            (-1, 0),  # \tau_{2, n}
+            (0, 1),  # \tau_{1, n}
+        ),
+        forcing=np.full(n, q),
     )
 
     return WilsonCowan(E=Ep, I=Ip)
 
 
 WILSON_COWAN_MODEL = {
-    # ContiGorder2019Figure2
+    # ContiGorder2019Figure2: https://doi.org/10.1016/j.jtbi.2019.05.010
     "ContiGorder2019Figure2a": _make_conti_gorder_2019_figure2ab(1.0, 1.4),
     "ContiGorder2019Figure2b": _make_conti_gorder_2019_figure2ab(4.0, 40.0),
     "ContiGorder2019Figure2c": _make_conti_gorder_2019_figure2c(),
     # # ContiGorder2019Figure3
-    # "ContiGorder2019Figure3b": 0,
-    # "ContiGorder2019Figure3c": 0,
-    # "ContiGorder2019Figure3e": 0,
-    # "ContiGorder2019Figure3f": 0,
-    # "ContiGorder2019Figure3h": 0,
-    # "ContiGorder2019Figure3i": 0,
-    # "ContiGorder2019Figure3k": 0,
-    # "ContiGorder2019Figure3l": 0,
+    "ContiGorder2019Figure3b": _make_conti_gorder_2019_figure34(16, 1, "bus"),
+    "ContiGorder2019Figure3c": _make_conti_gorder_2019_figure34(100, 1, "bus"),
+    "ContiGorder2019Figure3e": _make_conti_gorder_2019_figure34(16, 1, "all"),
+    "ContiGorder2019Figure3f": _make_conti_gorder_2019_figure34(100, 1, "all"),
+    "ContiGorder2019Figure3h": _make_conti_gorder_2019_figure34(16, 1, "ring"),
+    "ContiGorder2019Figure3i": _make_conti_gorder_2019_figure34(100, 1, "ring"),
+    "ContiGorder2019Figure3k": _make_conti_gorder_2019_figure34(16, 1, "lattice"),
+    "ContiGorder2019Figure3l": _make_conti_gorder_2019_figure34(100, 1, "lattice"),
     # # ContiGorder2019Figure4
-    # "ContiGorder2019Figure4b": 0,
-    # "ContiGorder2019Figure4c": 0,
-    # "ContiGorder2019Figure4e": 0,
-    # "ContiGorder2019Figure4f": 0,
-    # "ContiGorder2019Figure4h": 0,
-    # "ContiGorder2019Figure4i": 0,
-    # "ContiGorder2019Figure4k": 0,
-    # "ContiGorder2019Figure4l": 0,
+    "ContiGorder2019Figure4b": _make_conti_gorder_2019_figure34(100, 1, "bus"),
+    "ContiGorder2019Figure4c": _make_conti_gorder_2019_figure34(100, 10, "bus"),
+    "ContiGorder2019Figure4e": _make_conti_gorder_2019_figure34(100, 1, "all"),
+    "ContiGorder2019Figure4f": _make_conti_gorder_2019_figure34(100, 10, "all"),
+    "ContiGorder2019Figure4h": _make_conti_gorder_2019_figure34(100, 1, "ring"),
+    "ContiGorder2019Figure4i": _make_conti_gorder_2019_figure34(100, 10, "ring"),
+    "ContiGorder2019Figure4k": _make_conti_gorder_2019_figure34(100, 1, "lattice"),
+    "ContiGorder2019Figure4l": _make_conti_gorder_2019_figure34(100, 10, "lattice"),
 }
 
 

@@ -551,17 +551,12 @@ def write_nx_from_adjacency(
     else:
         raise ValueError(f"unsupported layout: {layout}")
 
-    import matplotlib.pyplot as mp
-
     with figure(filename) as fig:
         ax = fig.gca()
 
-        degrees = [graph.degree(n) for n in graph.nodes()]
         nx.draw_networkx_nodes(
             graph,
             layout,
-            node_color=degrees,
-            cmap=mp.cm.Reds,  # ty: ignore[unresolved-attribute]
             ax=ax,
         )
         nx.draw_networkx_labels(graph, layout, ax=ax)

@@ -39,9 +39,11 @@ def main(
 
     from orbitkit.visualization import to_color
 
-    degrees = np.sum(mat, axis=1)
-    nodecolors = to_color(degrees, colormap="Reds", vmin=0, vmax=None)
-    print(nodecolors)
+    if name.startswith("barabasialbert"):
+        degrees = np.sum(mat, axis=1)
+        nodecolors = to_color(degrees, colormap="Reds", vmin=0, vmax=None)
+    else:
+        nodecolors = None
 
     if outfile.suffix == ".gexf":
         from orbitkit.visualization import write_gexf_from_adjacency
@@ -58,7 +60,16 @@ def main(
             write_nx_from_adjacency,
         )
 
-        if name in {"ring", "ring1", "ring2", "strogatzwatts", "startree"}:
+        if name in {
+            "ring",
+            "ring1",
+            "ring2",
+            "bus",
+            "bus1",
+            "bus2",
+            "strogatzwatts",
+            "startree",
+        }:
             layout = NetworkXLayout.Circular
         else:
             layout = NetworkXLayout.ARF

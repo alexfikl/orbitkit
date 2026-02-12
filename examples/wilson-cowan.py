@@ -22,7 +22,7 @@ except ImportError:
 
 # {{{ create right-hand side
 
-figname = "Figure2b"
+figname = "Figure3b"
 model = make_model_from_name(f"ContiGorder2019{figname}")
 
 log.info("Model: %s", type(model))
@@ -57,8 +57,14 @@ dde = target.compile(source, y, max_delay=max_delay)
 
 # {{{ evolve
 
-tspan = (0.0, 100.0)
-y0 = np.array([0.25, 0.25, 0.75, 0.75])
+if figname.startswith("Figure2"):
+    tspan = (0.0, 100.0)
+elif figname.startswith("Figure3") or figname.startswith("Figure4"):
+    tspan = (0.0, 140.0)
+else:
+    raise ValueError(f"unsupported figure: {figname!r}")
+
+y0 = np.array([0.25] * model.n + [0.75] * model.n)
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
 # Maybe that's what MATLAB uses as well? Or similar at least..
@@ -93,14 +99,17 @@ set_plotting_defaults()
 with figure(dirname / f"wilson_cowan_{figname.lower()}", overwrite=True) as fig:
     ax = fig.gca()
 
-    (line,) = ax.plot(ts, ys[0], label="$E_1(t)$")
-    ax.plot(ts, ys[1], ls="--", color=line.get_color(), label="$E_2(t)$")
-    (line,) = ax.plot(ts, ys[2], label="$I_1(t)$")
-    ax.plot(ts, ys[3], ls="--", color=line.get_color(), label="$I_2(t)$")
+    (line,) = ax.plot(ts, ys[0], label=r"$\boldsymbol{E}(t)$")
+    for i in range(1, model.n):
+        ax.plot(ts, ys[i], color=line.get_color())
+
+    (line,) = ax.plot(ts, ys[model.n], ls="--", label=r"$\boldsymbol{I}(t)$")
+    for i in range(model.n + 1, 2 * model.n):
+        ax.plot(ts, ys[i], ls="--", color=line.get_color())
 
     ax.set_xlabel("$t$")
     ax.set_xlim(tspan)
-    ax.set_ylim([0.0, 2.0])
+    ax.set_ylim([0.0, 1.0])
     ax.legend()
 
 # }}}
