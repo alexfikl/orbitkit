@@ -57,7 +57,33 @@ class SigmoidRate:
     sigma: sym.Expression
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
-        return self.a / (1.0 + sym.exp(-(V - self.theta) / self.sigma))
+        return self.a / (1 + sym.exp(-(V - self.theta) / self.sigma))
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        f = self(V) / self.a
+        return self.a / self.sigma * f * (1 - f)
+
+
+@dataclass(frozen=True)
+class CenteredSigmoidRate:
+    r"""A centered sigmoid (with :math:`f(0) = 0`) rate function.
+
+    .. math::
+
+        f(V; a, \theta, \sigma) =
+            \frac{a}{1 + \exp\left(-\frac{(V - \theta)}{\sigma}\right)}
+            - \frac{a}{1 + \exp\left(\frac{\theta}{\sigma}\right)}.
+    """
+
+    a: sym.Expression
+    theta: sym.Expression
+    sigma: sym.Expression
+
+    def __call__(self, V: sym.Expression) -> sym.Expression:
+        return self.a * (
+            1 / (1 + sym.exp(-(V - self.theta) / self.sigma))
+            - 1 / (1 + sym.exp(self.theta / self.sigma))
+        )
 
     def diff(self, V: sym.Expression) -> sym.Expression:
         f = self(V) / self.a
@@ -79,7 +105,7 @@ class Expm1Rate:
     sigma: sym.Expression
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
-        return self.a / (1.0 - sym.exp(-(V - self.theta) / self.sigma))
+        return self.a / (1 - sym.exp(-(V - self.theta) / self.sigma))
 
     def diff(self, V: sym.Expression) -> sym.Expression:
         f = self(V) / self.a
@@ -102,11 +128,11 @@ class LinearExpm1Rate:
     sigma: sym.Expression
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
-        return (self.a * V + self.b) / (1.0 - sym.exp(-(V - self.theta) / self.sigma))
+        return (self.a * V + self.b) / (1 - sym.exp(-(V - self.theta) / self.sigma))
 
     def diff(self, V: sym.Expression) -> sym.Expression:
         f = self.a * V + self.b
-        g = 1.0 / (1.0 - sym.exp(-(V - self.theta) / self.sigma))
+        g = 1 / (1 - sym.exp(-(V - self.theta) / self.sigma))
 
         # NOTE: just a product rule on f * g
         return self.a * g + f / self.sigma * g * (1 - g)
@@ -127,7 +153,7 @@ class TanhRate:
     sigma: sym.Expression
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
-        return self.a * (1.0 + sym.tanh((V - self.theta) / self.sigma))
+        return self.a * (1 + sym.tanh((V - self.theta) / self.sigma))
 
     def diff(self, V: sym.Expression) -> sym.Expression:
         return self.a / self.sigma * sym.sech((V - self.theta) / self.sigma) ** 2
