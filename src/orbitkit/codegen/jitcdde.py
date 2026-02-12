@@ -55,12 +55,10 @@ class DiracDelayReplacer(IdentityMapper):
     def map_call(self, expr: prim.Call) -> PymbolicExpression:
         func = expr.function
         if not isinstance(func, sym.DelayKernel):
-            if isinstance(func, sym.DiracDelayKernel):
-                return super().map_call(expr)
-            else:
-                raise ValueError(f"found non-Dirac kernel: {expr}")
+            return super().map_call(expr)
 
-        assert isinstance(func, sym.DiracDelayKernel)
+        if not isinstance(func, sym.DiracDelayKernel):
+            raise ValueError(f"found non-Dirac kernel: {expr}")
 
         (y,) = expr.parameters
         if not isinstance(y, sym.Variable):
