@@ -22,12 +22,16 @@ except ImportError:
 
 # {{{ create right-hand side
 
-figname = "Figure3b"
+from orbitkit.adjacency import stringify_adjacency
+
+figname = "Figure2b"
 model = make_model_from_name(f"ContiGorder2019{figname}")
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
 log.info("Equations:\n%s", model)
+if model.n < 32:
+    log.info("Adjacency:\n%s", stringify_adjacency(model.E.weights[2][0]))  # ty: ignore[invalid-argument-type]
 
 ext_model = transform_distributed_delay_model(model, model.n)
 log.info("Model: %s", type(ext_model))
@@ -64,7 +68,10 @@ elif figname.startswith("Figure3") or figname.startswith("Figure4"):
 else:
     raise ValueError(f"unsupported figure: {figname!r}")
 
-y0 = np.array([0.25] * model.n + [0.75] * model.n)
+y0 = np.concatenate([
+    0.25 + 0.1 * rng.random(model.n),
+    0.75 + 0.1 * rng.random(model.n),
+])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
 # Maybe that's what MATLAB uses as well? Or similar at least..
@@ -72,7 +79,7 @@ dde.constant_past(y0, time=tspan[0])
 # dde.step_on_discontinuities()
 dde.adjust_diff()
 
-dt = 0.001
+dt = 0.1
 ts = np.arange(tspan[0], tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
@@ -101,9 +108,9 @@ with figure(dirname / f"wilson_cowan_{figname.lower()}", overwrite=True) as fig:
 
     (line,) = ax.plot(ts, ys[0], label=r"$\boldsymbol{E}(t)$")
     for i in range(1, model.n):
-        ax.plot(ts, ys[i], color=line.get_color())
+        ax.plot(ts, ys[i], ls="--", color=line.get_color())
 
-    (line,) = ax.plot(ts, ys[model.n], ls="--", label=r"$\boldsymbol{I}(t)$")
+    (line,) = ax.plot(ts, ys[model.n], label=r"$\boldsymbol{I}(t)$")
     for i in range(model.n + 1, 2 * model.n):
         ax.plot(ts, ys[i], ls="--", color=line.get_color())
 
