@@ -24,7 +24,7 @@ except ImportError:
 
 from orbitkit.adjacency import stringify_adjacency
 
-figname = "Figure2b"
+figname = "Figure3h"
 model = make_model_from_name(f"ContiGorder2019{figname}")
 
 log.info("Model: %s", type(model))
@@ -71,11 +71,20 @@ else:
 y0 = np.concatenate([
     0.25 + 0.1 * rng.random(model.n),
     0.75 + 0.1 * rng.random(model.n),
+    # rng.random(model.n),
+    # rng.random(model.n),
 ])
+
+# dde.past_from_function(
+#     lambda t: np.concatenate([
+#         0.5 * (1 + np.sin(t + np.sqrt(np.pi) * np.arange(model.n))),
+#         0.5 * (1 + np.cos(t + np.sqrt(np.pi) * np.arange(model.n))),
+#     ])
+# )
+dde.constant_past(y0, time=tspan[0])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
 # Maybe that's what MATLAB uses as well? Or similar at least..
-dde.constant_past(y0, time=tspan[0])
 # dde.step_on_discontinuities()
 dde.adjust_diff()
 

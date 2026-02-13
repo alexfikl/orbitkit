@@ -265,13 +265,13 @@ def _make_conti_gorder_2019_figure345(
     n: int,
     topology: str,
     *,
-    k: float = 1,
-    rho: float = 10,
+    k: float,
+    rho: float,
     tau1: float = 1,
     tau2: float = 1.4,
 ) -> WilsonCowan:
     alpha = 0.6
-    beta = 10.0
+    beta, theta = 10.0, 0.0
     p = 0.5
     q = 0.5
 
@@ -290,13 +290,13 @@ def _make_conti_gorder_2019_figure345(
         raise ValueError(f"unknown adjacency: {topology!r}")
 
     # NOTE: the paper does not mention normalization, but it's usually done
-    # W /= np.sum(W, axis=1, keepdims=True)
+    W /= np.sum(W, axis=1, keepdims=True)
     assert np.allclose(np.diag(W), 0.0)
 
     Ep = WilsonCowanPopulation(
         tau=1,
         r=0,
-        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        sigmoid=SigmoidRate(1, theta, 1 / beta),
         kernels=(
             sym.DiracDelayKernel(tau1),
             sym.DiracDelayKernel(tau2),
@@ -312,7 +312,7 @@ def _make_conti_gorder_2019_figure345(
     Ip = WilsonCowanPopulation(
         tau=1 / alpha,
         r=0,
-        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        sigmoid=SigmoidRate(1, theta, 1 / beta),
         kernels=(
             sym.DiracDelayKernel(tau2),  # E
             sym.DiracDelayKernel(tau1),  # I
