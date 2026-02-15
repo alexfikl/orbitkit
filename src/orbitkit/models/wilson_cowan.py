@@ -177,6 +177,57 @@ class WilsonCowan(Model):
 # {{{ parameters
 
 
+def _make_coombes_laing_2009_figure3() -> WilsonCowan:
+    # NOTE: should take a small beta to approximate Heaviside function
+    beta = 0.01
+    tau1 = 1.0
+    tau2 = 1.4
+
+    Ep = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, beta),
+        kernels=(sym.DiracDelayKernel(tau1), sym.DiracDelayKernel(tau2)),
+        weights=((-1, 0), (0, 0.4)),
+        forcing=np.array([0.7]),
+    )
+    Ip = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, beta),
+        kernels=(sym.DiracDelayKernel(tau2), sym.DiracDelayKernel(tau1)),
+        weights=((-0.4, 0), (0, 1)),
+        forcing=np.array([0.7]),
+    )
+
+    return WilsonCowan(E=Ep, I=Ip)
+
+
+def _make_coombes_laing_2009_figure9(beta: float) -> WilsonCowan:
+    # NOTE: should take a small beta to approximate Heaviside function
+    tau1 = 0.1
+    tau2 = 0.1
+
+    Ep = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(sym.DiracDelayKernel(tau1), sym.DiracDelayKernel(tau2)),
+        weights=((-6, 0), (0, -2.5)),
+        forcing=np.array([0.2]),
+    )
+    Ip = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(sym.DiracDelayKernel(tau2), sym.DiracDelayKernel(tau1)),
+        weights=((2.5, 0), (0, 6)),
+        forcing=np.array([0.2]),
+    )
+
+    return WilsonCowan(E=Ep, I=Ip)
+
+
 def _make_conti_gorder_2019_figure2ab(tau1: float, tau2: float) -> WilsonCowan:
     alpha = 0.6
     beta = 10.0
@@ -340,6 +391,10 @@ def _make_conti_gorder_2019_figure5(rho: float, topology: str) -> WilsonCowan:
 
 
 WILSON_COWAN_MODEL = {
+    # CoombesLaing2009: 10.1098/rsta.2008.0256
+    "CoombesLaing2009Figure3": _make_coombes_laing_2009_figure3(),
+    "CoombesLaing2009Figure9a": _make_coombes_laing_2009_figure9(60),
+    "CoombesLaing2009Figure9b": _make_coombes_laing_2009_figure9(40),
     # ContiGorder2019Figure2: https://doi.org/10.1016/j.jtbi.2019.05.010
     "ContiGorder2019Figure2a": _make_conti_gorder_2019_figure2ab(1.0, 1.4),
     "ContiGorder2019Figure2b": _make_conti_gorder_2019_figure2ab(4.0, 40.0),

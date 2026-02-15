@@ -11,6 +11,9 @@ from orbitkit.models import transform_distributed_delay_model
 from orbitkit.models.wilson_cowan import make_model_from_name
 from orbitkit.utils import module_logger, on_ci
 
+# NOTE:
+# - For Figure3, seed=42 gives (a) and seed=43 gives (b)
+
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
@@ -22,16 +25,12 @@ except ImportError:
 
 # {{{ create right-hand side
 
-from orbitkit.adjacency import stringify_adjacency
-
-figname = "Figure3h"
-model = make_model_from_name(f"ContiGorder2019{figname}")
+figname = "Figure9a"
+model = make_model_from_name(f"CoombesLaing2009{figname}")
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
 log.info("Equations:\n%s", model)
-if model.n < 32:
-    log.info("Adjacency:\n%s", stringify_adjacency(model.E.weights[2][0]))  # ty: ignore[invalid-argument-type]
 
 ext_model = transform_distributed_delay_model(model, model.n)
 log.info("Model: %s", type(ext_model))
@@ -61,26 +60,15 @@ dde = target.compile(source, y, max_delay=max_delay)
 
 # {{{ evolve
 
-if figname.startswith("Figure2"):
-    tspan = (0.0, 100.0)
-elif figname.startswith("Figure3") or figname.startswith("Figure4"):
-    tspan = (0.0, 140.0)
+if figname.startswith("Figure9"):  # noqa: SIM108
+    tspan = (0.0, 45.0)
 else:
-    raise ValueError(f"unsupported figure: {figname!r}")
+    tspan = (0.0, 15.0)
 
 y0 = np.concatenate([
     0.25 + 0.1 * rng.random(model.n),
     0.75 + 0.1 * rng.random(model.n),
-    # rng.random(model.n),
-    # rng.random(model.n),
 ])
-
-# dde.past_from_function(
-#     lambda t: np.concatenate([
-#         0.5 * (1 + np.sin(t + np.sqrt(np.pi) * np.arange(model.n))),
-#         0.5 * (1 + np.cos(t + np.sqrt(np.pi) * np.arange(model.n))),
-#     ])
-# )
 dde.constant_past(y0, time=tspan[0])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
@@ -88,7 +76,7 @@ dde.constant_past(y0, time=tspan[0])
 # dde.step_on_discontinuities()
 dde.adjust_diff()
 
-dt = 0.1
+dt = (tspan[1] - tspan[0]) / 10000
 ts = np.arange(tspan[0], tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
@@ -112,20 +100,36 @@ from orbitkit.visualization import figure, set_plotting_defaults
 dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
-with figure(dirname / f"wilson_cowan_{figname.lower()}", overwrite=True) as fig:
-    ax = fig.gca()
+if figname.startswith("Figure9"):
+    with figure(
+        dirname / f"wilson_cowan_coombes2009_{figname.lower()}", overwrite=True
+    ) as fig:
+        ax = fig.gca()
 
-    (line,) = ax.plot(ts, ys[0], label=r"$\boldsymbol{E}(t)$")
-    for i in range(1, model.n):
-        ax.plot(ts, ys[i], ls="--", color=line.get_color())
+        mask = ts > 10.0
+        ax.plot(ys[0, mask], ys[1, mask])
 
-    (line,) = ax.plot(ts, ys[model.n], label=r"$\boldsymbol{I}(t)$")
-    for i in range(model.n + 1, 2 * model.n):
-        ax.plot(ts, ys[i], ls="--", color=line.get_color())
+        ax.set_xlabel("$E(t)$")
+        ax.set_ylabel("$I(t)$")
+else:
+    with figure(
+        dirname / f"wilson_cowan_coombes2009_{figname.lower()}",
+        figsize=(10, 5),
+        overwrite=True,
+    ) as fig:
+        ax = fig.gca()
 
-    ax.set_xlabel("$t$")
-    ax.set_xlim(tspan)
-    ax.set_ylim([0.0, 1.0])
-    ax.legend()
+        (line,) = ax.plot(ts, ys[0], label=r"$\boldsymbol{E}(t)$")
+        for i in range(1, model.n):
+            ax.plot(ts, ys[i], ls="--", color=line.get_color())
+
+        (line,) = ax.plot(ts, ys[model.n], label=r"$\boldsymbol{I}(t)$")
+        for i in range(model.n + 1, 2 * model.n):
+            ax.plot(ts, ys[i], ls="--", color=line.get_color())
+
+        ax.set_xlabel("$t$")
+        ax.set_xlim(tspan)
+        ax.set_ylim([0.0, 1.0])
+        ax.legend()
 
 # }}}
