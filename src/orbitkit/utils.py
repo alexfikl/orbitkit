@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import time
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
@@ -703,6 +704,59 @@ def timeit(
 
     r = _timeit.repeat(stmt=stmt, repeat=repeat + 1, number=number)
     return TimingResult.from_results(r[skip:])
+
+
+# }}}
+
+
+# {{{ download_from_data_dryad
+
+
+def download_from_data_dryad(
+    filename: pathlib.Path,
+    doi: str,
+    token: str,
+    *,
+    overwrite: bool = False,
+) -> None:
+    if not overwrite and filename.exists():
+        raise FileExistsError(filename)
+
+    from urllib.parse import quote
+
+    safe_doi = quote(f"doi:{doi}", safe="")
+    url = f"https://datadryad.org/api/v2/datasets/{safe_doi}/download"
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+
+    import requests
+
+    with requests.get(
+        url,
+        headers=headers,
+        timeout=120,
+        stream=True,
+        allow_redirects=True,
+    ) as response:
+        log.info("Downloading from '%s'.", url)
+
+        with open(filename, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:  # filter out keep-alive chunks
+                    f.write(chunk)
+
+
+# }}}
+
+# {{{ load_from_mat
+
+
+def load_from_mat(filename: pathlib.Path) -> dict[str, Array]:
+    from scipy.io import loadmat
+
+    data = loadmat(filename)
+    return {key: value for key, value in data.items() if not key.startswith("__")}
 
 
 # }}}

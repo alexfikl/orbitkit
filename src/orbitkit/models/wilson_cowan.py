@@ -204,7 +204,6 @@ def _make_coombes_laing_2009_figure3() -> WilsonCowan:
 
 
 def _make_coombes_laing_2009_figure9(beta: float) -> WilsonCowan:
-    # NOTE: should take a small beta to approximate Heaviside function
     tau1 = 0.1
     tau2 = 0.1
 
@@ -223,6 +222,29 @@ def _make_coombes_laing_2009_figure9(beta: float) -> WilsonCowan:
         kernels=(sym.DiracDelayKernel(tau2), sym.DiracDelayKernel(tau1)),
         weights=((2.5, 0), (0, 6)),
         forcing=np.array([0.2]),
+    )
+
+    return WilsonCowan(E=Ep, I=Ip)
+
+
+def _make_muldoon_pasqualetti_2016() -> WilsonCowan:
+    se_max = si_max = 1.0
+
+    Ep = WilsonCowanPopulation(
+        tau=8,
+        r=1 / se_max,
+        sigmoid=SigmoidRate(se_max, 4.0, 1 / 1.3),
+        kernels=(sym.ZeroDelayKernel(), sym.DiracDelayKernel(10.0)),
+        weights=((16.0, 12.0), (0, 0)),
+        forcing=np.array([1.25]),
+    )
+    Ip = WilsonCowanPopulation(
+        tau=9,
+        r=1 / si_max,
+        sigmoid=SigmoidRate(si_max, 3.7, 1 / 2.0),
+        kernels=(sym.ZeroDelayKernel(),),
+        weights=((15.0, 3.0),),
+        forcing=np.array([0.0]),
     )
 
     return WilsonCowan(E=Ep, I=Ip)
@@ -391,10 +413,12 @@ def _make_conti_gorder_2019_figure5(rho: float, topology: str) -> WilsonCowan:
 
 
 WILSON_COWAN_MODEL = {
-    # CoombesLaing2009: 10.1098/rsta.2008.0256
+    # CoombesLaing2009: https://doi.org/10.1098/rsta.2008.0256
     "CoombesLaing2009Figure3": _make_coombes_laing_2009_figure3(),
     "CoombesLaing2009Figure9a": _make_coombes_laing_2009_figure9(60),
     "CoombesLaing2009Figure9b": _make_coombes_laing_2009_figure9(40),
+    # MuldoonPasqualetti2016: https://doi.org/10.1371/journal.pcbi.1005076
+    "MuldoonPasqualetti2016": _make_muldoon_pasqualetti_2016(),
     # ContiGorder2019Figure2: https://doi.org/10.1016/j.jtbi.2019.05.010
     "ContiGorder2019Figure2a": _make_conti_gorder_2019_figure2ab(1.0, 1.4),
     "ContiGorder2019Figure2b": _make_conti_gorder_2019_figure2ab(4.0, 40.0),
