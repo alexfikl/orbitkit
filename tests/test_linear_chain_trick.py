@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import pathlib
 
 import numpy as np
@@ -297,7 +298,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
     if method == "varpo":
         assert error < 1.0
     elif method == "mpm":
-        if p == 3.0:
+        if math.isclose(p, 3.0):
             # NOTE: seems to only happen on Python 3.10 on the CI
             assert error < 200.0 * soe_eps
         else:
@@ -316,7 +317,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
     if method == "varpo":
         assert error < 1.0
     elif method == "mpm":
-        if p == 1.5:
+        if math.isclose(p, 1.5):
             # FIXME: not sure why this happens?
             assert error < 2.0e-3
         else:
