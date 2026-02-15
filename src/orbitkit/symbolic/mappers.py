@@ -241,6 +241,12 @@ class FlattenMapper(FlattenMapperBase, IdentityMapper):
         if prim.is_zero(right - 1):
             return left
 
+        if prim.is_constant(left):
+            return left * right
+
+        if prim.is_constant(right):
+            return right * left
+
         return type(expr)(left, right)
 
 
