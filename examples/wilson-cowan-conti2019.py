@@ -61,11 +61,9 @@ dde = target.compile(source, y, max_delay=max_delay)
 
 # {{{ evolve
 
-if figname == "Figure3":
-    tspan = (0.0, 15.0)
-elif figname.startswith("Figure2"):
+if figname[:7] == "Figure2":
     tspan = (0.0, 100.0)
-elif figname.startswith("Figure3") or figname.startswith("Figure4"):
+elif figname[:7] in {"Figure3", "Figure4", "Figure5"}:
     tspan = (0.0, 140.0)
 else:
     raise ValueError(f"unsupported figure: {figname!r}")
