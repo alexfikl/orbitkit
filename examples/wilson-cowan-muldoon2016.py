@@ -6,11 +6,13 @@ from __future__ import annotations
 import os
 import pathlib
 import zipfile
+from dataclasses import replace
 
 import numpy as np
 
 from orbitkit.models import transform_distributed_delay_model
 from orbitkit.models.wilson_cowan import make_model_from_name
+from orbitkit.symbolic.primitives import DiracDelayKernel
 from orbitkit.utils import download_from_data_dryad, load_from_mat, module_logger, on_ci
 
 log = module_logger(__name__)
@@ -53,14 +55,37 @@ if not dirname.exists():
 
 log.info("Using datasets from '%s'.", dirname)
 
+dataset = load_from_mat(dirname / "subject1_scan1.mat")
+A = dataset.connectivity_density_matrix
+tau = dataset.delay_matrix
+
+assert A.shape[0] == A.shape[1]
+assert A.shape == tau.shape
+n = A.shape[0]
+
+from orbitkit.adjacency import stringify_adjacency
+
+log.info("Adjacency:\n%s", stringify_adjacency(A))
+
+log.info("NotImplementedError")
+raise SystemExit(0)
+
 # }}}
 
 # {{{ create right-hand side
 
-dataset = load_from_mat(dirname / "subject1_scan1.mat")
-
 figname = ""
 model = make_model_from_name(f"MuldoonPasqualetti2016{figname}")
+model = replace(
+    model,
+    E=replace(
+        model.E,
+        kernels=(*model.E.kernels[:-1], DiracDelayKernel(tau)),
+        weights=(*model.E.weights[:-1], (A, 0)),
+        forcing=np.full(n, model.E.forcing[0]),
+    ),
+    I=replace(model.I, forcing=np.full(n, model.I.forcing[0])),
+)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
@@ -84,11 +109,7 @@ source = source_func(jitcdde.t, y)
 
 log.info("\n%s", source)
 
-max_delay = max(  # ty: ignore[no-matching-overload]
-    *(h.avg for h in model.E.kernels),
-    *(h.avg for h in model.I.kernels),
-)
-dde = target.compile(source, y, max_delay=max_delay)
+dde = target.compile(source, y, max_delay=np.max(tau))
 
 # }}}
 

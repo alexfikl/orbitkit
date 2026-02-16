@@ -9,7 +9,7 @@ import pathlib
 import time
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, make_dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
@@ -752,11 +752,24 @@ def download_from_data_dryad(
 # {{{ load_from_mat
 
 
-def load_from_mat(filename: pathlib.Path) -> dict[str, Array]:
+def load_from_mat(filename: pathlib.Path) -> Any:
+    """
+    :returns: a dataclass with all the arrays from the file.
+    """
+
     from scipy.io import loadmat
 
     data = loadmat(filename)
-    return {key: value for key, value in data.items() if not key.startswith("__")}
+    data = {key: value for key, value in data.items() if not key.startswith("__")}
+
+    Contents = make_dataclass(
+        "Contents",
+        [(key, Array) for key in data],
+        frozen=True,
+        eq=False,
+    )
+
+    return Contents(**data)
 
 
 # }}}
