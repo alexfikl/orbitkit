@@ -18,6 +18,9 @@ from orbitkit.utils import download_from_data_dryad, load_from_mat, module_logge
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
+if on_ci():
+    raise SystemExit(0)
+
 try:
     import jitcdde
 except ImportError:
@@ -66,9 +69,6 @@ n = A.shape[0]
 from orbitkit.adjacency import stringify_adjacency
 
 log.info("Adjacency:\n%s", stringify_adjacency(A))
-
-log.info("NotImplementedError")
-raise SystemExit(0)
 
 # }}}
 
