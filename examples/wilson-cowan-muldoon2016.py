@@ -60,10 +60,10 @@ log.info("Using datasets from '%s'.", dirname)
 
 dataset = load_from_mat(dirname / "subject1_scan1.mat")
 A = dataset.connectivity_density_matrix
-tau = dataset.delay_matrix
+# FIXME: we do not support array delays yet
+tau = round(np.mean(dataset.delay_matrix), ndigits=5)
 
 assert A.shape[0] == A.shape[1]
-assert A.shape == tau.shape
 n = A.shape[0]
 
 from orbitkit.adjacency import stringify_adjacency
@@ -86,14 +86,11 @@ model = replace(
     ),
     I=replace(model.I, forcing=np.full(n, model.I.forcing[0])),
 )
+ext_model = transform_distributed_delay_model(model, model.n)
 
 log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
 log.info("Equations:\n%s", model)
-
-ext_model = transform_distributed_delay_model(model, model.n)
-log.info("Model: %s", type(ext_model))
-log.info("Equations:\n%s", ext_model)
 
 # }}}
 
@@ -107,26 +104,17 @@ source_func = target.lambdify_model(ext_model, model.n)
 y = make_input_variable(2 * model.n)
 source = source_func(jitcdde.t, y)
 
-log.info("\n%s", source)
-
-dde = target.compile(source, y, max_delay=np.max(tau))
+dde = target.compile(source, y, max_delay=tau)
 
 # }}}
 
 # {{{ evolve
 
-if figname == "Figure3":
-    tspan = (0.0, 15.0)
-elif figname.startswith("Figure2"):
-    tspan = (0.0, 100.0)
-elif figname.startswith("Figure3") or figname.startswith("Figure4"):
-    tspan = (0.0, 140.0)
-else:
-    raise ValueError(f"unsupported figure: {figname!r}")
+tspan = (0.0, 1000.0)
 
 y0 = np.concatenate([
-    0.25 + 0.0 * rng.random(model.n),
-    0.75 + 0.0 * rng.random(model.n),
+    0.1 + 0.1 * rng.random(model.n),
+    0.0 + 0.1 * rng.random(model.n),
 ])
 dde.constant_past(y0, time=tspan[0])
 
@@ -135,7 +123,7 @@ dde.constant_past(y0, time=tspan[0])
 # dde.step_on_discontinuities()
 dde.adjust_diff()
 
-dt = (tspan[1] - tspan[0]) / 1000
+dt = (tspan[1] - tspan[0]) / 100000
 ts = np.arange(tspan[0], tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
@@ -160,21 +148,16 @@ dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
 with figure(
-    dirname / f"wilson_cowan_conti2019_{figname.lower()}", overwrite=True
+    dirname / f"wilson_cowan_muldoon2016_{dataset.filename.stem}",
+    figsize=(10, 5),
+    overwrite=True,
 ) as fig:
     ax = fig.gca()
 
-    (line,) = ax.plot(ts, ys[0], label=r"$\boldsymbol{E}(t)$")
-    for i in range(1, model.n):
-        ax.plot(ts, ys[i], ls="--", color=line.get_color())
-
-    (line,) = ax.plot(ts, ys[model.n], label=r"$\boldsymbol{I}(t)$")
-    for i in range(model.n + 1, 2 * model.n):
-        ax.plot(ts, ys[i], ls="--", color=line.get_color())
+    ax.plot(ts, ys[: model.n].T)
 
     ax.set_xlabel("$t$")
+    ax.set_ylabel("$E(t)$")
     ax.set_xlim(tspan)
-    ax.set_ylim([0.0, 1.0])
-    ax.legend()
 
 # }}}
