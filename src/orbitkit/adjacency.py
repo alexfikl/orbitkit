@@ -166,6 +166,13 @@ def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
             "".join(symbols[int(mat[i, j] != 0)] for j in range(mat.shape[1]))
             for i in range(mat.shape[0])
         )
+    elif fmt == "tight":
+        symbols = {0: "  ", 1: "▒▒"}
+
+        return "\n".join(
+            "".join(symbols[int(mat[i, j] != 0)] for j in range(mat.shape[1]))
+            for i in range(mat.shape[0])
+        )
     elif fmt == "latex":
         lines = []
 

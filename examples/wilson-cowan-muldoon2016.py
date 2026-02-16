@@ -68,7 +68,7 @@ n = A.shape[0]
 
 from orbitkit.adjacency import stringify_adjacency
 
-log.info("Adjacency:\n%s", stringify_adjacency(A))
+print(stringify_adjacency(A, fmt="tight"))
 
 # }}}
 
