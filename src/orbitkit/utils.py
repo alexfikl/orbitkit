@@ -764,12 +764,12 @@ def load_from_mat(filename: pathlib.Path) -> Any:
 
     Contents = make_dataclass(
         "Contents",
-        [(key, Array) for key in data],
+        [("filename", pathlib.Path)] + [(key, Array) for key in data],
         frozen=True,
         eq=False,
     )
 
-    return Contents(**data)
+    return Contents(filename=filename, **data)
 
 
 # }}}
