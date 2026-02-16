@@ -57,6 +57,7 @@ docs = [ "sphinx>=6", "sphinx-book-theme" ]
 backends = [ "jax>=0.6", "jitcdde>=1.8.3", "jitcode>=1.7.3" ]
 clustering = [ "leidenalg>=0.10" ]
 codegen = [ "pymbolic>=2024.2", "sympy>=1.12" ]
+extras = [ "networkx", "requests" ]
 visualization = [ "matplotlib", "scienceplots" ]
 
 [tool.ruff]
