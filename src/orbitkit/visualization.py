@@ -511,7 +511,7 @@ def write_nx_from_adjacency(
     layout: NetworkXLayout = NetworkXLayout.ARF,
     overwrite: bool = False,
 ) -> None:
-    import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment]
+    import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment,unused-ignore-comment]
 
     filename = pathlib.Path(filename)
     if not overwrite and filename.exists():

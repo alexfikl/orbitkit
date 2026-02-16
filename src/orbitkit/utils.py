@@ -730,7 +730,7 @@ def download_from_data_dryad(
         "Authorization": f"Bearer {token}",
     }
 
-    import requests
+    import requests  # ty: ignore[unresolved-import,unused-ignore-comment,unused-ignore-comment]
 
     with requests.get(
         url,
