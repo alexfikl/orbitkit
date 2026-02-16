@@ -159,6 +159,20 @@ def make_graph_laplacian_directed(
 
 
 def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
+    """Stringify a (preferably binary) adjacency matrix.
+
+    The supported formats are:
+
+    * ``box``: each entry is a box (3 chars per entry). This works best for smaller
+      graphs (depending on your display width).
+    * ``tight``: only connected entries are a box (2 chars per entry). This
+      works best for medium graphs (again depending on your display width).
+    * ``braille``: an even tighter representation, where each :math:`4 \times 2`
+      block is averaged and encoded into a little braille character. This should
+      work best for pretty large graphs.
+    * ``latex``: a ``bmatrix`` environment with the matrix entries, written out
+      verbatim.
+    """
     if fmt == "box":
         symbols = {0: " ◻ ", 1: " ◼ "}
 
@@ -173,6 +187,31 @@ def stringify_adjacency(mat: Array, *, fmt: str = "box") -> str:
             "".join(symbols[int(mat[i, j] != 0)] for j in range(mat.shape[1]))
             for i in range(mat.shape[0])
         )
+    elif fmt == "braille":
+        height = (mat.shape[0] // 4) * 4
+        width = (mat.shape[1] // 2) * 2
+        mat = (mat[:height, :width] != 0).astype(np.uint8)
+
+        result = []
+        for i in range(0, height, 4):
+            line = []
+            for j in range(0, width, 2):
+                dots = int(
+                    mat[i + 0, j + 0] << 0
+                    | mat[i + 1, j + 0] << 1
+                    | mat[i + 2, j + 0] << 2
+                    | mat[i + 0, j + 1] << 3
+                    | mat[i + 1, j + 1] << 4
+                    | mat[i + 2, j + 1] << 5
+                    | mat[i + 3, j + 0] << 6
+                    | mat[i + 3, j + 1] << 7
+                )
+
+                line.append(chr(0x2800 + dots))
+
+            result.append("".join(line))
+
+        return "\n".join(result)
     elif fmt == "latex":
         lines = []
 
