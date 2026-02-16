@@ -239,7 +239,7 @@ def _make_muldoon_pasqualetti_2016() -> WilsonCowan:
         forcing=np.array([1.25]),
     )
     Ip = WilsonCowanPopulation(
-        tau=9,
+        tau=8,
         r=1 / si_max,
         sigmoid=SigmoidRate(si_max, 3.7, 1 / 2.0),
         kernels=(sym.ZeroDelayKernel(),),
