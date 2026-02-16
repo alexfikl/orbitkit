@@ -27,6 +27,25 @@ if TYPE_CHECKING:
 
 log = module_logger(__name__)
 
+JITCDDE_COMMON_CFLAGS = [
+    "-std=c11",
+    "-march=native",
+    "-mtune=native",
+    "-Wno-unknown-pragmas",
+]
+
+JITCDDE_RELEASE_CFLAGS = [
+    *JITCDDE_COMMON_CFLAGS,
+    "-O3",
+    "-ffast-math",
+    "-g0",
+]
+
+JITCDDE_DEBUG_CFLAGS = [
+    *JITCDDE_COMMON_CFLAGS,
+    "-O0",
+    "-ggdb",
+]
 
 # {{{ gather mapper
 
@@ -247,7 +266,11 @@ class JiTCDDETarget(JiTCODETarget):
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         parameters: tuple[str, ...] = (),
+        debug: bool = False,
+        # jitcdde arguments
         module_location: str | pathlib.Path | None = None,
+        simplify: bool = False,
+        openmp: bool = False,
         verbose: bool = False,
     ) -> jitcdde.jitcdde:
         import symengine as sp
@@ -271,7 +294,17 @@ class JiTCDDETarget(JiTCODETarget):
                 y,
                 max_delay=max_delay,
                 parameters=control_pars,
+            )
+            dde.compile_C(
+                simplify=simplify,
+                do_cse=False,
+                extra_compile_args=(
+                    JITCDDE_DEBUG_CFLAGS if debug else JITCDDE_RELEASE_CFLAGS
+                ),
                 verbose=verbose,
+                chunk_size=32,
+                modulename=str(module_location) if module_location else None,
+                omp=openmp,
             )
 
             if module_location is not None:
