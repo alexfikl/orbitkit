@@ -26,6 +26,8 @@ ArrayExpression: TypeAlias = Expression | np.ndarray[tuple[int, ...], np.dtype[A
 
 
 Variable = prim.Variable
+Product = prim.Product
+Sum = prim.Sum
 
 
 @prim.expr_dataclass()
