@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, TypeAlias
 
 import numpy as np
@@ -175,11 +175,11 @@ class WilsonCowan(Model):
 # {{{ parameters
 
 
-def _make_custom_set1(*, alpha: float = 1) -> WilsonCowan:
+def _make_custom_set1(*, tau: float = 0.5, alpha: float = 1) -> WilsonCowan:
     from orbitkit.adjacency import generate_adjacency_ring
 
     beta = 60
-    tau0 = tau1 = 0.5
+    tau0 = tau1 = tau
 
     n = 16
     W = generate_adjacency_ring(n, dtype=np.float64)
@@ -204,12 +204,12 @@ def _make_custom_set1(*, alpha: float = 1) -> WilsonCowan:
     return WilsonCowan(E=Ep, I=Ip)
 
 
-def _make_custom_set2(*, alpha: float = 1) -> WilsonCowan:
+def _make_custom_set2(*, tau: float = 0.1, alpha: float = 1) -> WilsonCowan:
     from orbitkit.adjacency import generate_adjacency_ring
 
     # NOTE: this is CoombesLaing2009Figure9 influenced
     beta = 60
-    tau0 = tau1 = 0.1
+    tau0 = tau1 = tau
 
     n = 16
     W = generate_adjacency_ring(n, dtype=np.float64)
@@ -232,6 +232,42 @@ def _make_custom_set2(*, alpha: float = 1) -> WilsonCowan:
     )
 
     return WilsonCowan(E=Ep, I=Ip)
+
+
+def _make_custom_set3(*, alpha: float = 1) -> WilsonCowan:
+    # NOTE: this is the same as Set1, but has an extra connection on the
+    # inhibitory populations to match the delayed excitatory population
+
+    tau = 0.5
+    wc = _make_custom_set1(tau=tau)
+
+    W = wc.E.weights[1][0]
+    return replace(
+        wc,
+        I=replace(
+            wc.I,
+            kernels=(*wc.I.kernels[:-1], sym.DiracDelayKernel(tau)),
+            weights=(*wc.I.weights[:-1], (W, 0)),
+        ),
+    )
+
+
+def _make_custom_set4(*, alpha: float = 1) -> WilsonCowan:
+    # NOTE: this is the same as Set2, but has an extra connection on the
+    # inhibitory populations to match the delayed excitatory population
+
+    tau = 0.1
+    wc = _make_custom_set2(tau=tau)
+
+    W = wc.E.weights[1][0]
+    return replace(
+        wc,
+        I=replace(
+            wc.I,
+            kernels=(*wc.I.kernels[:-1], sym.DiracDelayKernel(tau)),
+            weights=(*wc.I.weights[:-1], (W, 0)),
+        ),
+    )
 
 
 def _make_coombes_laing_2009_figure3() -> WilsonCowan:
@@ -473,6 +509,8 @@ WILSON_COWAN_MODEL = {
     # Others
     "CustomSet1": _make_custom_set1(),
     "CustomSet2": _make_custom_set2(),
+    "CustomSet3": _make_custom_set3(),
+    "CustomSet4": _make_custom_set4(),
     # CoombesLaing2009: https://doi.org/10.1098/rsta.2008.0256
     "CoombesLaing2009Figure3": _make_coombes_laing_2009_figure3(),
     "CoombesLaing2009Figure9a": _make_coombes_laing_2009_figure9(60),
