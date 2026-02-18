@@ -173,22 +173,6 @@ def set_plotting_defaults(
             mp.rc(group, **params)
 
 
-def slugify(stem: str, separator: str = "_") -> str:
-    """
-    :returns: an ASCII slug representing *stem*, with all the unicode cleaned up
-        and all non-standard separators replaced.
-    """
-    import re
-    import unicodedata
-
-    stem = unicodedata.normalize("NFKD", stem)
-    stem = stem.encode("ascii", "ignore").decode().lower()
-    stem = re.sub(r"[^a-z0-9]+", separator, stem)
-    stem = re.sub(rf"[{separator}]+", separator, stem.strip(separator))
-
-    return stem
-
-
 def to_color(
     w: Array,
     *,
@@ -314,6 +298,8 @@ def savefig(
     filename = pathlib.Path(filename)
 
     if normalize:
+        from orbitkit.utils import slugify
+
         # NOTE: slugify(name) will clubber any prefixes, so we special-case a
         # few of them here to help out the caller
         if filename.suffix in {".png", ".jpg", ".jpeg", ".pdf", ".eps", ".tiff"}:
