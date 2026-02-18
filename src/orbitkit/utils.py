@@ -88,6 +88,11 @@ def module_logger(
 
     assert isinstance(level, int)
 
+    # NOTE: insist on putting everything under the `orbitkit` root
+    path = pathlib.Path(module)
+    if path.exists():
+        module = f"orbitkit.{path.stem}".replace("-", "_")
+
     name, *rest = module.split(".", maxsplit=1)
     root = logging.getLogger(name)
 
