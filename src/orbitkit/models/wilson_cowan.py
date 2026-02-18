@@ -77,7 +77,7 @@ class WilsonCowanPopulation:
 
 # }}}
 
-# {{{ WilsonCowan1
+# {{{ WilsonCowan
 
 
 @dataclass(frozen=True)
