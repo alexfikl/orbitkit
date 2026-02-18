@@ -177,6 +177,55 @@ class WilsonCowan(Model):
 # {{{ parameters
 
 
+def _make_custom_set1(*, alpha: float = 1) -> WilsonCowan:
+    beta = 60
+    tau0 = tau1 = 0.5
+
+    Ep = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(sym.DiracDelayKernel(tau0), sym.DiracDelayKernel(tau1)),
+        weights=((-1, 0.4), (np.array([[1.0]]), 0)),
+        forcing=np.array([0.65]),
+    )
+    Ip = WilsonCowanPopulation(
+        tau=1 / alpha,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(sym.DiracDelayKernel(tau0),),
+        weights=((-1, 0),),
+        forcing=np.array([0.5]),
+    )
+
+    return WilsonCowan(E=Ep, I=Ip)
+
+
+def _make_custom_set2(*, alpha: float = 1) -> WilsonCowan:
+    # NOTE: this is CoombesLaing2009Figure9 influenced
+    beta = 60
+    tau0 = tau1 = 0.1
+
+    Ep = WilsonCowanPopulation(
+        tau=1,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(sym.DiracDelayKernel(tau0), sym.DiracDelayKernel(tau1)),
+        weights=((-6, -2.5), (np.array([[1.0]]), 0)),
+        forcing=np.array([0.2]),
+    )
+    Ip = WilsonCowanPopulation(
+        tau=1 / alpha,
+        r=0,
+        sigmoid=SigmoidRate(1, 0, 1 / beta),
+        kernels=(sym.DiracDelayKernel(tau0),),
+        weights=((2.5, 6),),
+        forcing=np.array([0.2]),
+    )
+
+    return WilsonCowan(E=Ep, I=Ip)
+
+
 def _make_coombes_laing_2009_figure3() -> WilsonCowan:
     # NOTE: should take a small beta to approximate Heaviside function
     beta = 0.01
@@ -413,6 +462,9 @@ def _make_conti_gorder_2019_figure5(rho: float, topology: str) -> WilsonCowan:
 
 
 WILSON_COWAN_MODEL = {
+    # Others
+    "CustomSet1": _make_custom_set1(),
+    "CustomSet2": _make_custom_set2(),
     # CoombesLaing2009: https://doi.org/10.1098/rsta.2008.0256
     "CoombesLaing2009Figure3": _make_coombes_laing_2009_figure3(),
     "CoombesLaing2009Figure9a": _make_coombes_laing_2009_figure9(60),
