@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, overload
 
 import numpy as np
-import pymbolic.primitives as prim
 from pymbolic.typing import Expression
 
 import orbitkit.symbolic.primitives as sym
@@ -35,11 +34,11 @@ class DiracDelayDistributor(IdentityMapper):
 
     kernel: sym.DiracDelayKernel
     """The kernel to distributed over the expression."""
-    time: prim.Variable | None
+    time: sym.Variable | None
     r"""The name of the time variable in the expression, if any. If provided, every
     instance of :math:`t` is directly replaced by :math:`t - \tau`.
     """
-    inputs: set[prim.Variable] | None
+    inputs: set[sym.Variable] | None
     """A set of input variables over which to distribute the kernel. If given,
     any variables not in this set are assumed to be constants, so that the Dirac
     kernel has no effect.
@@ -48,14 +47,14 @@ class DiracDelayDistributor(IdentityMapper):
     def __init__(
         self,
         tau: sym.Expression,
-        time: prim.Variable | None = None,
-        inputs: Collection[prim.Variable] | None = None,
+        time: sym.Variable | None = None,
+        inputs: Collection[sym.Variable] | None = None,
     ) -> None:
         self.kernel = sym.DiracDelayKernel(tau)
         self.time = time
         self.inputs = set(inputs) if inputs is not None else inputs
 
-    def map_call(self, expr: prim.Call) -> Expression:
+    def map_call(self, expr: sym.Call) -> Expression:
         # NOTE: do not allow other kernels in the expression
         # FIXME: this should be perfectly fine, but needs more work in
         # DelayKernelReplacer as well to include extra variables.
@@ -65,7 +64,7 @@ class DiracDelayDistributor(IdentityMapper):
 
         return super().map_call(expr)
 
-    def map_variable(self, expr: prim.Variable) -> Expression:
+    def map_variable(self, expr: sym.Variable) -> Expression:
         # NOTE: we handle the following cases:
         # 1. If we hit the "time" variable, just set it to `t - tau`.
         # 2. If we hit one of the inputs, apply the kernel to it.
@@ -91,14 +90,14 @@ class DelayKernelReplacer(IdentityMapper):
     See :func:`transform_delay_kernels`.
     """
 
-    time: prim.Variable | None
+    time: sym.Variable | None
     """The name of the time variable in the expression, if any."""
-    inputs: set[prim.Variable] | None
+    inputs: set[sym.Variable] | None
     """A set of input variables over in the expression. If given, any variables
     not in this set are assumed to be constants.
     """
 
-    kernel_to_var_replace: dict[prim.Call, sym.Expression]
+    kernel_to_var_replace: dict[sym.Call, sym.Expression]
     """A mapping from delay kernel calls to the variables that replaced them. This
     attribute is mainly used as a cache for deduplication.
     """
@@ -115,8 +114,8 @@ class DelayKernelReplacer(IdentityMapper):
 
     def __init__(
         self,
-        time: prim.Variable | None = None,
-        inputs: Collection[prim.Variable] | None = None,
+        time: sym.Variable | None = None,
+        inputs: Collection[sym.Variable] | None = None,
     ) -> None:
         from pytools import UniqueNameGenerator
 
@@ -127,7 +126,7 @@ class DelayKernelReplacer(IdentityMapper):
         self.var_to_eqs = {}
         self.unique_name_generator = UniqueNameGenerator(forced_prefix="_ok_dde_chain_")
 
-    def map_call(self, expr: prim.Call) -> Expression:
+    def map_call(self, expr: sym.Call) -> Expression:
         func = expr.function
 
         if isinstance(func, sym.DelayKernel):
@@ -143,8 +142,8 @@ class DelayKernelReplacer(IdentityMapper):
             try:
                 return self.kernel_to_var_replace[expr]
             except KeyError:
-                suffix = param.name if isinstance(param, prim.Variable) else ""
-                z = prim.Variable(self.unique_name_generator(suffix))
+                suffix = param.name if isinstance(param, sym.Variable) else ""
+                z = sym.Variable(self.unique_name_generator(suffix))
 
                 if isinstance(func, sym.DiracDelayKernel):
                     z, equations = transform_dirac_delay_kernel(
@@ -176,8 +175,8 @@ class DelayKernelReplacer(IdentityMapper):
 def transform_delay_kernels(
     expr: sym.Expression,
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[sym.Expression, Mapping[str, sym.Expression]]: ...
 
 
@@ -185,16 +184,16 @@ def transform_delay_kernels(
 def transform_delay_kernels(
     expr: tuple[sym.Expression, ...],
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[tuple[sym.Expression, ...], Mapping[str, sym.Expression]]: ...
 
 
 def transform_delay_kernels(
     expr: sym.Expression | tuple[sym.Expression, ...],
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[sym.Expression | tuple[sym.Expression, ...], Mapping[str, sym.Expression]]:
     """Replace all distributed delay kernels with additional differential equations.
 
@@ -238,10 +237,10 @@ def transform_delay_kernels(
 def transform_dirac_delay_kernel(
     kernel: sym.DiracDelayKernel,
     expr: sym.Expression,
-    z: prim.Variable,
+    z: sym.Variable,
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     """Transform the Dirac kernel applied to the given *expr*.
 
@@ -257,10 +256,10 @@ def transform_dirac_delay_kernel(
 def transform_uniform_delay_kernel(
     kernel: sym.UniformDelayKernel,
     expr: sym.Expression,
-    z: prim.Variable,
+    z: sym.Variable,
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the uniform kernel into additional delay differential equation.
 
@@ -289,10 +288,10 @@ def transform_uniform_delay_kernel(
 def transform_triangular_delay_kernel(
     kernel: sym.TriangularDelayKernel,
     expr: sym.Expression,
-    z: prim.Variable,
+    z: sym.Variable,
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the triangular kernel into additional delay differential equations.
 
@@ -314,7 +313,7 @@ def transform_triangular_delay_kernel(
     def dirac(tau: sym.Expression, expr: sym.Expression):
         return DiracDelayDistributor(tau, time=time, inputs=inputs)(expr)
 
-    w = prim.Variable(f"{z.name}_tr")
+    w = sym.Variable(f"{z.name}_tr")
     return z, {
         z.name: w / (epsilon * tau) ** 2,
         w.name: (
@@ -328,10 +327,10 @@ def transform_triangular_delay_kernel(
 def transform_gamma_delay_kernel(
     kernel: sym.GammaDelayKernel,
     expr: sym.Expression,
-    z: prim.Variable,
+    z: sym.Variable,
     *,
-    time: prim.Variable | None = None,
-    inputs: Collection[prim.Variable] | None = None,
+    time: sym.Variable | None = None,
+    inputs: Collection[sym.Variable] | None = None,
 ) -> tuple[sym.Expression, dict[str, sym.Expression]]:
     r"""Transform the Gamma kernel into additional ordinary differential equations.
 
@@ -351,7 +350,7 @@ def transform_gamma_delay_kernel(
     if p == 1:
         return z, {z.name: alpha * (expr - z)}
     elif isinstance(p, int):
-        zs = (z, *(prim.Variable(f"{z.name}_g{p}_{k}") for k in range(p - 1)))
+        zs = (z, *(sym.Variable(f"{z.name}_g{p}_{k}") for k in range(p - 1)))
 
         return z, {
             **{zs[k].name: alpha * (zs[k + 1] - zs[k]) for k in range(p - 1)},

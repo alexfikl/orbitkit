@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from functools import cached_property
 
 import numpy as np
-import pymbolic.primitives as prim
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
@@ -173,7 +172,7 @@ class WangBuzsaki(Model):
         # compute synaptic current
         g_syn, E_syn = param.g_syn, param.E_syn
         I_syn = (
-            g_syn * (V - E_syn) * prim.Quotient(sym.DotProduct(self.A, s), self.M_syn)  # ty: ignore[invalid-argument-type]
+            g_syn * (V - E_syn) * sym.Quotient(sym.DotProduct(self.A, s), self.M_syn)  # ty: ignore[invalid-argument-type]
         )
 
         # put it all together

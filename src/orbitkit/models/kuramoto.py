@@ -6,7 +6,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import pymbolic.primitives as prim
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
@@ -84,10 +83,10 @@ class Kuramoto(Model):
                 f"got {theta.shape} but expected ({K.shape[0]},)"
             )
 
-        result = prim.Sum((  # ty: ignore[invalid-argument-type]
+        result = sym.Sum((  # ty: ignore[invalid-argument-type]
             self.omega,
             sym.Contract(
-                prim.Product((  # ty: ignore[invalid-argument-type]
+                sym.Product((  # ty: ignore[invalid-argument-type]
                     self.K,
                     sym.sin(theta.reshape(1, -1) - theta.reshape(-1, 1) - self.alpha),
                 )),
@@ -160,8 +159,11 @@ class KuramotoAbrams(Model):
                 f"matrix has shape {K.shape} for {len(thetas)} populations"
             )
 
+        from pymbolic.primitives import flattened_sum
+
         return tuple(
-            prim.flattened_sum([
+            # FIXME: we already flatten in the codegen, so this is probably not needed
+            flattened_sum([
                 self.omega
                 + sum(
                     K[a, b]

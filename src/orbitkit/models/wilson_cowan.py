@@ -150,20 +150,18 @@ class WilsonCowan(Model):
                 f"but expected ({self.n},)"
             )
 
-        from pymbolic.primitives import Sum
-
         # compute weighted sums for each term
         terms = []
         for (W_E, W_I), h in zip(self.E.weights, self.E.kernels, strict=True):
             # NOTE: pymbolic should be able to do @ here, but we leave it with
             # a dot product so that it supports scalars
             terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
-        Es = Sum((*terms, self.E.forcing))  # ty: ignore[invalid-argument-type]
+        Es = sym.Sum((*terms, self.E.forcing))  # ty: ignore[invalid-argument-type]
 
         terms = []
         for (W_E, W_I), h in zip(self.I.weights, self.I.kernels, strict=True):
             terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
-        Is = Sum((*terms, self.I.forcing))  # ty: ignore[invalid-argument-type]
+        Is = sym.Sum((*terms, self.I.forcing))  # ty: ignore[invalid-argument-type]
 
         return (
             (-E + (1 - self.E.r * E) * self.E.sigmoid(Es)) / self.E.tau,
