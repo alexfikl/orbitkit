@@ -26,6 +26,9 @@ log = module_logger(__name__)
 
 # {{{ numpy code generator
 
+# FIXME: this should not be needed
+CODEGEN_IGNORE_PARAMS = {"make_delay_variable"}
+
 
 @dataclass(frozen=True)
 class NumpyCodeGenerator(StringifyMapper[Any]):
@@ -55,7 +58,7 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         raise NotImplementedError(f"{type(self)} cannot handle {type(expr)}: {expr}")
 
     def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:
-        if expr.name not in self.inputs:
+        if expr.name not in self.inputs and expr.name not in CODEGEN_IGNORE_PARAMS:
             self.parameters.add(expr.name)
 
         return super().map_variable(expr, enclosing_prec)
@@ -67,6 +70,13 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         for name, ary in self.array_arguments.items():
             if ary is expr:
                 return name
+
+        if expr.dtype.char == "O":
+            # NOTE: this just traverses the array in case there are any other
+            # variables in there that we should take into account
+
+            for i in np.ndindex(expr.shape):
+                self.rec(expr[i], enclosing_prec)
 
         name = self.unique_name_generator("")
         self.array_arguments[name] = expr
@@ -128,11 +138,26 @@ class NumpyTarget(Target):
         if assignments is None:
             assignments = ()
 
+        # {{{ generate expressions
+
+        # NOTE: these need to come before the PythonFunctionGenerator so that
+        # cgen can gather all the required arguments / parameters
+
+        # generate expressions
         cgen = self._get_code_generator(
             {inp.name for inp in inputs}
             | {assign.assignee.name for assign in assignments}
         )
         expressions = ", ".join(cgen(expr) for expr in exprs)
+
+        # generate assignments
+        assigns = []
+        for assign in assignments:
+            assigns.append(f"{assign.assignee} = {cgen(assign.rvalue)}")
+
+        # }}}
+
+        # {{{ generate function
 
         from pytools.py_codegen import PythonFunctionGenerator
 
@@ -143,12 +168,8 @@ class NumpyTarget(Target):
             args=(*(arg.name for arg in inputs), *params, *args),
         )
 
-        for assign in assignments:
-            # FIXME: this can actually amass additional arrays. For now, we're
-            # just using it to go `V = y[0:10]`, but this need not always be the
-            # case. `PythonFunctionGenerator` cannot add additional args
-            # after the constructor, so this needs to be another one.
-            py(f"{assign.assignee} = {cgen(assign.rvalue)}")
+        for assign in assigns:
+            py(assign)
 
         if len(exprs) == 1:
             py(f"return {cgen(exprs[0])}")
@@ -156,7 +177,9 @@ class NumpyTarget(Target):
             py(f"return {self.module}.hstack([{expressions}])")
 
         source = py.get()
-        log.debug("Code:\n%s", source)
+        log.info("Code:\n%s", source)
+
+        # }}}
 
         if pretty:
             import ast
@@ -195,7 +218,7 @@ class NumpyTarget(Target):
 
                 params.append(parameters[name])
 
-            cargs = (*cargs, *params)
+            cargs = (*params, *cargs)
 
         def wrapper(*args: Array) -> Array:
             return func(*args, *cargs)
