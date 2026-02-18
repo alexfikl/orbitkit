@@ -176,16 +176,21 @@ class WilsonCowan(Model):
 
 
 def _make_custom_set1(*, alpha: float = 1) -> WilsonCowan:
+    from orbitkit.adjacency import generate_adjacency_ring
+
     beta = 60
     tau0 = tau1 = 0.5
+
+    n = 16
+    W = generate_adjacency_ring(n, dtype=np.float64)
 
     Ep = WilsonCowanPopulation(
         tau=1,
         r=0,
         sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(sym.DiracDelayKernel(tau0), sym.DiracDelayKernel(tau1)),
-        weights=((-1, 0.4), (np.array([[1.0]]), 0)),
-        forcing=np.array([0.65]),
+        weights=((-1, 0.4), (W, 0)),
+        forcing=np.full(n, 0.65),
     )
     Ip = WilsonCowanPopulation(
         tau=1 / alpha,
@@ -193,24 +198,29 @@ def _make_custom_set1(*, alpha: float = 1) -> WilsonCowan:
         sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(sym.DiracDelayKernel(tau0),),
         weights=((-1, 0),),
-        forcing=np.array([0.5]),
+        forcing=np.full(n, 0.5),
     )
 
     return WilsonCowan(E=Ep, I=Ip)
 
 
 def _make_custom_set2(*, alpha: float = 1) -> WilsonCowan:
+    from orbitkit.adjacency import generate_adjacency_ring
+
     # NOTE: this is CoombesLaing2009Figure9 influenced
     beta = 60
     tau0 = tau1 = 0.1
+
+    n = 16
+    W = generate_adjacency_ring(n, dtype=np.float64)
 
     Ep = WilsonCowanPopulation(
         tau=1,
         r=0,
         sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(sym.DiracDelayKernel(tau0), sym.DiracDelayKernel(tau1)),
-        weights=((-6, -2.5), (np.array([[1.0]]), 0)),
-        forcing=np.array([0.2]),
+        weights=((-6, -2.5), (W, 0)),
+        forcing=np.full(n, 0.2),
     )
     Ip = WilsonCowanPopulation(
         tau=1 / alpha,
@@ -218,7 +228,7 @@ def _make_custom_set2(*, alpha: float = 1) -> WilsonCowan:
         sigmoid=SigmoidRate(1, 0, 1 / beta),
         kernels=(sym.DiracDelayKernel(tau0),),
         weights=((2.5, 6),),
-        forcing=np.array([0.2]),
+        forcing=np.full(n, 0.2),
     )
 
     return WilsonCowan(E=Ep, I=Ip)

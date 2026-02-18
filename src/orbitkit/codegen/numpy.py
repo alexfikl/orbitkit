@@ -177,7 +177,7 @@ class NumpyTarget(Target):
             py(f"return {self.module}.hstack([{expressions}])")
 
         source = py.get()
-        log.info("Code:\n%s", source)
+        log.debug("Code:\n%s", source)
 
         # }}}
 
