@@ -88,7 +88,7 @@ class DiracDelayReplacer(IdentityMapper):
         if y.name not in self.name_to_inputs:
             raise ValueError(f"variable '{y}' is not a known input")
 
-        if not isinstance(func.tau, (int, float)):
+        if not isinstance(func.tau, (int, float, sym.Variable)):
             raise NotImplementedError(f"delay 'tau' must be a number: {func.tau}")
 
         inp = self.name_to_inputs[y.name]
@@ -112,11 +112,14 @@ JiTCDDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 
 
 def make_input_variable(
-    n: int | tuple[int, ...], tau: int | float | Array = 0, offset: int = 0
+    n: int | tuple[int, ...],
+    tau: int | float | sp.Symbol | Array = 0,
+    offset: int = 0,
 ) -> JiTCDDEExpression:
     import jitcdde
+    import symengine as sp
 
-    if isinstance(tau, (int, float)):
+    if isinstance(tau, (int, float, sp.Symbol)):
         tau = np.full(n, tau)
 
     y = np.empty(n, dtype=object)
@@ -127,12 +130,13 @@ def make_input_variable(
 
 
 def make_delay_variable(
-    ys: JiTCDDEExpression, tau: int | float | Array = 0
+    ys: JiTCDDEExpression,
+    tau: int | float | sp.Symbol | Array = 0,
 ) -> JiTCDDEExpression:
     import jitcdde
     import symengine as sp
 
-    if isinstance(tau, (int, float)):
+    if isinstance(tau, (int, float, sp.Symbol)):
         tau = np.full(ys.shape, tau)
 
     if tau.shape != ys.shape:
