@@ -39,6 +39,19 @@ def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
         from orbitkit.models import pfeuty
 
         model = replace(pfeuty.make_model_from_name(model_name), A_inh=A, A_gap=A)
+    elif module_name == "wilson_cowan":
+        from orbitkit.models import wilson_cowan
+
+        model = wilson_cowan.make_model_from_name(model_name)
+        model = replace(
+            model,
+            E=replace(
+                model.E,
+                weights=(*model.E.weights[:-1], (A, 0)),
+                forcing=np.full(n, model.E.forcing[0]),
+            ),
+            I=replace(model.I, forcing=np.full(n, model.I.forcing[0])),
+        )
     else:
         raise ValueError(f"unknown module name: '{module_name}'")
 

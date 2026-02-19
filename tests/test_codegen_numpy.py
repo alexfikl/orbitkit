@@ -34,7 +34,7 @@ set_plotting_defaults()
         ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
         ("wang_rinzel", "WangRinzel1992Figure1a"),
         ("wang_rinzel", "WangRinzel1992Figure4a"),
-        # ("wilson_cowan", "")
+        ("wilson_cowan", "CustomSet1"),
     ],
 )
 def test_symbolify(module_name: str, model_name: str) -> None:
