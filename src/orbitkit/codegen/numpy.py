@@ -102,6 +102,15 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         right = self.rec(expr.right, PREC_NONE)
         return f"{self.module}.dot({left}, {right})"
 
+    def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:
+        # NOTE: just unwrap the ZeroDelayKernel
+        func = expr.function
+        if isinstance(func, sym.ZeroDelayKernel):
+            param, = expr.parameters
+            return self.rec(param, enclosing_prec)
+
+        return super().map_call(expr, enclosing_prec)
+
 
 def cgen_obj_array(cgen: StringifyMapper[Any], ary: Array) -> str:
     from orbitkit.symbolic.mappers import flatten

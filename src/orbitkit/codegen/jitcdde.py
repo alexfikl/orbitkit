@@ -9,7 +9,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import numpy as np
-import pymbolic.primitives as prim
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code
@@ -58,7 +57,7 @@ class DiracDelayReplacer(IdentityMapper):
     The resulting mapping can be obtained from :attr:`dirac_to_variable`.
     """
 
-    dirac_to_variable: dict[prim.Call, sym.Variable]
+    dirac_to_variable: dict[sym.Call, sym.Variable]
     """A mapping of replaced :class:`~orbitkit.symbolic.primitives.DiracDelayKernel`
     call expressions. Note that this class reserves the ``_ok_dde_delay_`` prefix
     for its variable names.
@@ -71,7 +70,7 @@ class DiracDelayReplacer(IdentityMapper):
         self.dirac_to_variable = {}
         self.name_to_inputs = {inp.name: inp for inp in inputs}
 
-    def map_call(self, expr: prim.Call) -> PymbolicExpression:
+    def map_call(self, expr: sym.Call) -> PymbolicExpression:
         func = expr.function
         if not isinstance(func, sym.DelayKernel):
             return super().map_call(expr)

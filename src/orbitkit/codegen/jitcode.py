@@ -144,7 +144,6 @@ class JiTCODETarget(NumpyTarget):
         debug: bool = False,
         # jitcode arguments
         module_location: str | pathlib.Path | None = None,
-        simplify: bool = False,
         openmp: bool = False,
         verbose: bool = False,
     ) -> jitcode.jitcode:
@@ -173,13 +172,10 @@ class JiTCODETarget(NumpyTarget):
             )
 
             ode.compile_C(
-                simplify=simplify,
-                do_cse=False,
                 extra_compile_args=(
                     JITCODE_DEBUG_CFLAGS if debug else JITCODE_RELEASE_CFLAGS
                 ),
                 verbose=verbose,
-                chunk_size=32,
                 modulename=str(module_location) if module_location else None,
                 omp=openmp,
             )
