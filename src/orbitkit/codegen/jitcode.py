@@ -23,6 +23,27 @@ if TYPE_CHECKING:
 
 log = module_logger(__name__)
 
+JITCODE_COMMON_CFLAGS = [
+    "-std=c11",
+    "-march=native",
+    "-mtune=native",
+    "-Wno-unknown-pragmas",
+]
+
+JITCODE_RELEASE_CFLAGS = [
+    *JITCODE_COMMON_CFLAGS,
+    "-O3",
+    "-ffast-math",
+    "-g0",
+]
+"""Compiler flags used for release builds of the JiTCODE module."""
+
+JITCODE_DEBUG_CFLAGS = [
+    *JITCODE_COMMON_CFLAGS,
+    "-O0",
+    "-ggdb",
+]
+"""Compiler flags used for debug builds of the JiTCODE module."""
 
 # {{{ target
 
@@ -120,7 +141,11 @@ class JiTCODETarget(NumpyTarget):
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         parameters: tuple[str, ...] = (),
+        debug: bool = False,
+        # jitcode arguments
         module_location: str | pathlib.Path | None = None,
+        simplify: bool = False,
+        openmp: bool = False,
         verbose: bool = False,
     ) -> jitcode.jitcode:
         import jitcode
@@ -145,6 +170,18 @@ class JiTCODETarget(NumpyTarget):
                 n=y.size,
                 control_pars=control_pars,
                 verbose=verbose,
+            )
+
+            ode.compile_C(
+                simplify=simplify,
+                do_cse=False,
+                extra_compile_args=(
+                    JITCODE_DEBUG_CFLAGS if debug else JITCODE_RELEASE_CFLAGS
+                ),
+                verbose=verbose,
+                chunk_size=32,
+                modulename=str(module_location) if module_location else None,
+                omp=openmp,
             )
 
             if module_location is not None:
