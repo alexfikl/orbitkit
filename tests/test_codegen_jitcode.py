@@ -25,11 +25,13 @@ set_plotting_defaults()
     ("module_name", "model_name"),
     [
         ("fitzhugh_nagumo", "Omelchenko2019Figure4a"),
+        # ("hiv", "CulshawRuanWebb2003Figure44"),
         ("kuramoto", "Abrams2008Figure2a"),
         ("pfeuty", "Pfeuty2007Figure2cl"),
         ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
         ("wang_rinzel", "WangRinzel1992Figure1a"),
         ("wang_rinzel", "WangRinzel1992Figure4a"),
+        ("wilson_cowan", "CustomSet1"),
     ],
 )
 def test_codegen_numpy(module_name: str, model_name: str) -> None:
@@ -42,7 +44,7 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
 
     n = 2
 
-    model = get_model_from_module(module_name, model_name, n)
+    model = get_model_from_module(module_name, model_name, n, delayed=False)
     d = len(model.variables)
 
     from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable

@@ -7,10 +7,17 @@ from dataclasses import replace
 
 import numpy as np
 
+import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 
 
-def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
+def get_model_from_module(
+    module_name: str,
+    model_name: str,
+    n: int,
+    *,
+    delayed: bool = True,
+) -> Model:
     # construct a dummy all-to-all connectivity matrix for the models that need it
     A = np.ones((n, n)) - np.eye(n)
     model: Model
@@ -23,6 +30,8 @@ def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
         from orbitkit.models import hiv
 
         model = hiv.make_model_from_name(model_name)
+        if not delayed:
+            model = replace(model, h=sym.ZeroDelayKernel())
     elif module_name == "kuramoto":
         from orbitkit.models import kuramoto
 
@@ -52,6 +61,19 @@ def get_model_from_module(module_name: str, model_name: str, n: int) -> Model:
             ),
             I=replace(model.I, forcing=np.full(n, model.I.forcing[0])),
         )
+
+        if not delayed:
+            model = replace(
+                model,
+                E=replace(
+                    model.E,
+                    kernels=tuple(sym.ZeroDelayKernel() for _ in model.E.kernels),
+                ),
+                I=replace(
+                    model.I,
+                    kernels=tuple(sym.ZeroDelayKernel() for _ in model.I.kernels),
+                ),
+            )
     else:
         raise ValueError(f"unknown module name: '{module_name}'")
 
