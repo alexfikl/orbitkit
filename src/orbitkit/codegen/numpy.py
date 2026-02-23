@@ -106,7 +106,7 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         # NOTE: just unwrap the ZeroDelayKernel
         func = expr.function
         if isinstance(func, sym.ZeroDelayKernel):
-            param, = expr.parameters
+            (param,) = expr.parameters
             return self.rec(param, enclosing_prec)
 
         return super().map_call(expr, enclosing_prec)

@@ -212,7 +212,7 @@ def test_codegen_numpy_parameters() -> None:
     # {{{ check explicit parameter
 
     cgen = NumpyCodeGenerator(inputs={x.name})
-    expr = -x + sym.exp(x + sym.DotProduct(sym.Product((eps, A)), x))
+    expr = -x + sym.exp(x + sym.DotProduct(sym.Product((eps, A)), x))  # ty: ignore[invalid-argument-type]
     result = cgen(expr)
 
     assert len(cgen.array_arguments) == 1
@@ -224,7 +224,7 @@ def test_codegen_numpy_parameters() -> None:
     # {{{ check parameter hidden in object array due to eager `eps * A`
 
     cgen = NumpyCodeGenerator(inputs={x.name})
-    expr = -x + sym.exp(x + sym.DotProduct(eps * A, x))
+    expr = -x + sym.exp(x + sym.DotProduct(eps * A, x))  # ty: ignore[unsupported-operator]
     result = cgen(expr)
 
     # NOTE: we have eps as a parameter, but it is not caught at this level, because

@@ -18,14 +18,14 @@ log = module_logger(__name__)
 set_plotting_defaults()
 
 
-# {{{ test_codegen_jax
+# {{{ test_codegen_jitcode
 
 
 @pytest.mark.parametrize(
     ("module_name", "model_name"),
     [
         ("fitzhugh_nagumo", "Omelchenko2019Figure4a"),
-        # ("hiv", "CulshawRuanWebb2003Figure44"),
+        ("hiv", "CulshawRuanWebb2003Figure44"),
         ("kuramoto", "Abrams2008Figure2a"),
         ("pfeuty", "Pfeuty2007Figure2cl"),
         ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
@@ -34,7 +34,7 @@ set_plotting_defaults()
         ("wilson_cowan", "CustomSet1"),
     ],
 )
-def test_codegen_numpy(module_name: str, model_name: str) -> None:
+def test_codegen_jitcode(module_name: str, model_name: str) -> None:
     """Check that the generated code works for these models."""
 
     pytest.importorskip("pymbolic")
@@ -42,7 +42,7 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
 
     from testlib import get_model_from_module
 
-    n = 2
+    n = 1 if module_name == "hiv" else 2
 
     model = get_model_from_module(module_name, model_name, n, delayed=False)
     d = len(model.variables)
