@@ -193,6 +193,64 @@ def test_codegen_numpy_array_arguments() -> None:
 
 # }}}
 
+# {{{ test_codegen_numpy_parameters
+
+
+def test_codegen_numpy_parameters() -> None:
+    """Check parameter gathering."""
+    pytest.importorskip("pymbolic")
+
+    import orbitkit.symbolic.primitives as sym
+
+    n = 8
+    A = np.ones(n) - np.eye(n)
+    x = sym.Variable("x")
+    eps = sym.Variable("eps")
+
+    from orbitkit.codegen.numpy import NumpyCodeGenerator
+
+    # {{{ check explicit parameter
+
+    cgen = NumpyCodeGenerator(inputs={x.name})
+    expr = -x + sym.exp(x + sym.DotProduct(sym.Product((eps, A)), x))
+    result = cgen(expr)
+
+    assert len(cgen.array_arguments) == 1
+    assert len(cgen.object_array_arguments) == 0
+    assert len(cgen.parameters) == 1
+
+    # }}}
+
+    # {{{ check parameter hidden in object array due to eager `eps * A`
+
+    cgen = NumpyCodeGenerator(inputs={x.name})
+    expr = -x + sym.exp(x + sym.DotProduct(eps * A, x))
+    result = cgen(expr)
+
+    # NOTE: we have eps as a parameter, but it is not caught at this level, because
+    # it's hidden in the object array. We should still be able to gather it later.
+    assert len(cgen.array_arguments) == 0
+    assert len(cgen.object_array_arguments) == 1
+    assert len(cgen.parameters) == 0
+
+    from orbitkit.codegen.numpy import NumpyTarget
+
+    target = NumpyTarget()
+    code = target.generate_code((x,), (expr,))
+    log.info("Source:\n%s", code.source)
+
+    func = target.lambdify(code, parameters={"eps": 1})
+
+    x_ref = np.ones(n)
+    result = func(x_ref)
+    assert result.shape == (n,)
+    assert np.all(np.isclose(result, -x_ref + np.exp(x_ref + A @ x_ref)))
+
+    # }}}
+
+
+# }}}
+
 
 if __name__ == "__main__":
     import sys

@@ -43,10 +43,15 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
 
     parameters: set[str] = field(init=False, default_factory=set)
     """A set of additional variables that are not known inputs."""
+
     array_arguments: dict[str, Array] = field(init=False, default_factory=dict)
     """A mapping of unique names to arrays that have been found in the expression
     graph. These need to be added as arguments or defined as variables on code
     generation.
+    """
+    object_array_arguments: dict[str, Array] = field(init=False, default_factory=dict)
+    """A mapping of unique names to object arrays. These arrays need additional
+    post-processing to find any nested symbolic expressions.
     """
     unique_name_generator: pytools.UniqueNameGenerator = field(
         init=False,
@@ -63,23 +68,24 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
 
         return super().map_variable(expr, enclosing_prec)
 
-    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
+    def map_function(self, expr: sym.Function, /, enclosing_prec: int) -> str:
         return f"{self.module}.{expr.name}"
 
     def map_numpy_array(self, expr: Array, /, enclosing_prec: int) -> str:
-        for name, ary in self.array_arguments.items():
-            if ary is expr:
-                return name
-
         if expr.dtype.char == "O":
-            # NOTE: this just traverses the array in case there are any other
-            # variables in there that we should take into account
+            for name, ary in self.object_array_arguments.items():
+                if ary is expr:
+                    return name
 
-            for i in np.ndindex(expr.shape):
-                self.rec(expr[i], enclosing_prec)
+            name = self.unique_name_generator("")
+            self.object_array_arguments[name] = expr
+        else:
+            for name, ary in self.array_arguments.items():
+                if ary is expr:
+                    return name
 
-        name = self.unique_name_generator("")
-        self.array_arguments[name] = expr
+            name = self.unique_name_generator("")
+            self.array_arguments[name] = expr
 
         return name
 
@@ -95,6 +101,22 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         left = self.rec(expr.left, PREC_NONE)
         right = self.rec(expr.right, PREC_NONE)
         return f"{self.module}.dot({left}, {right})"
+
+
+def cgen_obj_array(cgen: StringifyMapper[Any], ary: Array) -> str:
+    from orbitkit.symbolic.mappers import flatten
+
+    def _cgen_obj_array(subary: Array) -> str:
+        items = []
+        for item in subary:
+            if isinstance(item, np.ndarray):
+                items.append(_cgen_obj_array(item))
+            else:
+                items.append(cgen(flatten(item)))
+
+        return "[" + ", ".join(items) + "]"
+
+    return f"{cgen.module}.array({_cgen_obj_array(ary)})"
 
 
 # }}}
@@ -151,9 +173,37 @@ class NumpyTarget(Target):
         expressions = ", ".join(cgen(expr) for expr in exprs)
 
         # generate assignments
-        assigns = []
+        statements = []
         for assign in assignments:
-            assigns.append(f"{assign.assignee} = {cgen(assign.rvalue)}")
+            statements.append(f"{assign.assignee} = {cgen(assign.rvalue)}")
+
+        if cgen.object_array_arguments:
+            from warnings import warn
+
+            warn(
+                f"Found {len(cgen.object_array_arguments)} object arrays in the code. "
+                "Prefer using explicit symbolic expressions, e.g. 'Product((eps, A))', "
+                "if possible, to avoid allocations.",
+                stacklevel=2,
+            )
+
+            if statements:
+                statements.append("")
+
+            # NOTE: object arrays can contain additional symbolic variables, so
+            # we need to write them out explicitly.
+            object_array_arguments = dict(cgen.object_array_arguments)
+            cgen.object_array_arguments.clear()
+
+            for var_name, ary in object_array_arguments.items():
+                statements.append(f"{var_name} = {cgen_obj_array(cgen, ary)}")
+
+                # NOTE: object arrays don't always behave like we want them to,
+                # so this checks that the shape is still the original one
+                statements.append(f"assert {var_name}.shape == {ary.shape}")
+
+            if cgen.object_array_arguments:
+                raise ValueError("cannot have nested object arrays")
 
         # }}}
 
@@ -168,11 +218,11 @@ class NumpyTarget(Target):
             args=(*(arg.name for arg in inputs), *params, *args),
         )
 
-        for assign in assigns:
-            py(assign)
+        for stmt in statements:
+            py(stmt)
 
         if len(exprs) == 1:
-            py(f"return {cgen(exprs[0])}")
+            py(f"return {expressions}")
         else:
             py(f"return {self.module}.hstack([{expressions}])")
 
