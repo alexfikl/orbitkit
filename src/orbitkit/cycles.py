@@ -15,13 +15,11 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
-# {{{ Fourier / Power Spectrum Density
-
-
 class PSDDeltas(NamedTuple):
     deltas: Array
     """The relative errors between the power spectrum densities computed for
-    multiple windows."""
+    multiple windows.
+    """
     freq: Array
     """Frequencies of the last computed power spectrum density."""
     psd: Array
@@ -36,6 +34,10 @@ def make_windows(
     w_starts = [max(0, e - length) for e in w_ends]
 
     return zip(w_starts, w_ends, strict=True)
+
+
+# {{{ Fourier / Power Spectrum Density
+
 
 
 def evaluate_welch_power_spectrum_density_deltas(

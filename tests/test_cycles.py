@@ -34,12 +34,15 @@ def test_cycles_welch_psd(method: str) -> None:
         np.cos(theta) * np.exp(-a * theta) + b * rng.normal(size=theta.shape),
     ])
 
-    import orbitkit.cycles as okc
+    from orbitkit.cycles import (
+        evaluate_lomb_scargle_power_spectrum_density_deltas,
+        evaluate_welch_power_spectrum_density_deltas,
+    )
 
     if method == "welch":
-        result = okc.evaluate_welch_power_spectrum_density_deltas(x, nwindows=6)
+        result = evaluate_welch_power_spectrum_density_deltas(x, nwindows=6)
     elif method == "lombscargle":
-        result = okc.evaluate_lomb_scargle_power_spectrum_density_deltas(
+        result = evaluate_lomb_scargle_power_spectrum_density_deltas(
             theta, x, nwindows=6
         )
     else:
