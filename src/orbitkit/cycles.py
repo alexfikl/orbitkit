@@ -9,28 +9,35 @@ from typing import Any, NamedTuple
 import numpy as np
 import numpy.linalg as la
 
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
-# {{{ power spectrum
+# {{{ power spectrum density
 
 
 class PowerSpectrumDensity(NamedTuple):
-    deltas: Array
+    deltas: Array1D[np.floating[Any]]
     """The relative errors between the power spectrum densities computed for
     multiple windows.
     """
-    freq: Array
+    freq: Array1D[np.floating[Any]]
     """Frequencies of the last computed power spectrum density."""
-    psd: Array
+    psd: Array1D[np.floating[Any]]
     """The last computed power spectrum density."""
+
+    def is_periodic(self, *, eps: float = 1.0e-3) -> bool:
+        """Check if the corresponding time series is periodic based on the PSD."""
+        return bool(np.max(self.deltas) < eps)
 
 
 def make_windows(
-    n: int, nwindows: int, length: int, overlap: float = 0.5
+    n: int,
+    nwindows: int,
+    length: int,
+    overlap: float = 0.5,
 ) -> Iterator[tuple[int, int]]:
     step = int((1 - overlap) * length)
     w_ends = [n - i * step for i in reversed(range(nwindows))]
@@ -46,7 +53,7 @@ def make_windows(
 
 
 def evaluate_welch_power_spectrum_density_deltas(
-    x: Array,
+    x: Array2D[np.floating[Any]],
     *,
     nwindows: int = 2,
     window_length: int | None = None,
@@ -55,12 +62,15 @@ def evaluate_welch_power_spectrum_density_deltas(
     fs: float = 1.0,
     p: Any = None,
 ) -> PowerSpectrumDensity:
-    """Evaluate *nwindows* power spectrum densities using the Welch algorithm
-    and compute their relative difference.
+    """Evaluate *nwindows* power spectrum densities using `Welch's method
+    <https://en.wikipedia.org/wiki/Welch%27s_method>`__ and compute their
+    relative difference.
 
     If the resulting errors are sufficiently small, the signal can be said to
-    be periodic, or approach a limit cycle.
+    be periodic or approach a limit cycle.
 
+    :arg x: an array of shape ``(d, n)``, where :math:`d` is the dimension of
+        the state space and :math:`n` is the time step count.
     :arg nwindows: number of windows to consider.
     :arg window_length: length of a single window, which should match with the
         time series length when considering the number of windows.
@@ -70,9 +80,6 @@ def evaluate_welch_power_spectrum_density_deltas(
     :arg p: norm type used to compute the relative error differences.
     """
     # {{{ validate inputs
-
-    if not 0 < overlap < 1:
-        raise ValueError(f"'overlap' should be in (0, 1): {overlap}")
 
     if nwindows <= 0:
         raise ValueError(f"'nwindows' cannot be negative: {nwindows}")
@@ -84,11 +91,17 @@ def evaluate_welch_power_spectrum_density_deltas(
     if window_length <= 0:
         raise ValueError(f"'window_length' should be positive: {window_length}")
 
+    if not 0 < overlap < 1:
+        raise ValueError(f"'overlap' should be in (0, 1): {overlap}")
+
     if nfft is None:
         nfft = window_length
 
     if nfft <= 0:
         raise ValueError(f"'nfft' should be positive: {nfft}")
+
+    if fs <= 0:
+        raise ValueError(f"'fs' frequency should be positive: '{fs}'")
 
     # }}}
 
@@ -121,7 +134,7 @@ def evaluate_welch_power_spectrum_density_deltas(
 
 
 def is_limit_cycle_welch(
-    x: Array,
+    x: Array2D[np.floating[Any]],
     *,
     eps: float = 1.0e-3,
 ) -> bool:
@@ -129,13 +142,19 @@ def is_limit_cycle_welch(
     return bool(np.max(result.deltas) < eps)
 
 
+# }}}
+
+
+# {{{ Lomb-Scargle
+
+
 def _make_lomb_scargle_frequencies(
-    t: Array,
+    t: Array1D[np.floating[Any]],
     *,
     gamma: float = 5.0,
     fmin: float | None = None,
     fmax: float | None = None,
-) -> Array:
+) -> Array1D[np.floating[Any]]:
     r"""
     :arg gamma: oversampling factor.
     :arg fmin: minimum considered frequency, defaults to :math:`1 / T` (the
@@ -165,8 +184,8 @@ def _make_lomb_scargle_frequencies(
 
 
 def evaluate_lomb_scargle_power_spectrum_density_deltas(
-    t: Array,
-    x: Array,
+    t: Array1D[np.floating[Any]],
+    x: Array2D[np.floating[Any]],
     *,
     nwindows: int = 2,
     window_length: int | None = None,
@@ -176,8 +195,10 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
     """Evaluate *nwindows* power spectrum densities using the Lomb-Scargle algorithm
     and compute their relative difference.
 
-    If the resulting errors are sufficiently small, the signal can be said to
-    be periodic, or approach a limit cycle.
+    The main difference between this function and
+    :func:`evaluate_welch_power_spectrum_density_deltas` is support for non-uniform
+    spaced samples. Note that this will make the function slower, as expected, so
+    it may be better to interpolate the data to a uniform grid instead.
 
     :arg nwindows: number of windows to consider.
     :arg window_length: length of a single window, which should match with the
@@ -232,8 +253,8 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
 
 
 def is_limit_cycle_lomb_scargle(
-    t: Array,
-    x: Array,
+    t: Array1D[np.floating[Any]],
+    x: Array2D[np.floating[Any]],
     *,
     eps: float = 1.0e-3,
 ) -> bool:

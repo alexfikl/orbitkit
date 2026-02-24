@@ -116,6 +116,7 @@ lint.isort.required-imports = [
 
 [tool.typos]
 default.extend-words.inh = "inh"
+default.extend-words.ND = "ND"
 
 [tool.pytest]
 ini_options.testpaths = "tests"
