@@ -15,7 +15,10 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
-class PSDDeltas(NamedTuple):
+# {{{ power spectrum
+
+
+class PowerSpectrumDensity(NamedTuple):
     deltas: Array
     """The relative errors between the power spectrum densities computed for
     multiple windows.
@@ -36,8 +39,10 @@ def make_windows(
     return zip(w_starts, w_ends, strict=True)
 
 
-# {{{ Fourier / Power Spectrum Density
+# }}}
 
+
+# {{{ Welch
 
 
 def evaluate_welch_power_spectrum_density_deltas(
@@ -49,7 +54,7 @@ def evaluate_welch_power_spectrum_density_deltas(
     nfft: int | None = None,
     fs: float = 1.0,
     p: Any = None,
-) -> PSDDeltas:
+) -> PowerSpectrumDensity:
     """Evaluate *nwindows* power spectrum densities using the Welch algorithm
     and compute their relative difference.
 
@@ -112,7 +117,7 @@ def evaluate_welch_power_spectrum_density_deltas(
         for k in range(nwindows - 1)
     ])
 
-    return PSDDeltas(deltas, f, psds[-1])
+    return PowerSpectrumDensity(deltas, f, psds[-1])
 
 
 def is_limit_cycle_welch(
@@ -167,7 +172,7 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
     window_length: int | None = None,
     overlap: float = 0.5,
     p: Any = None,
-) -> PSDDeltas:
+) -> PowerSpectrumDensity:
     """Evaluate *nwindows* power spectrum densities using the Lomb-Scargle algorithm
     and compute their relative difference.
 
@@ -223,7 +228,7 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
         for k in range(nwindows - 1)
     ])
 
-    return PSDDeltas(deltas, freqs, psds[-1])
+    return PowerSpectrumDensity(deltas, freqs, psds[-1])
 
 
 def is_limit_cycle_lomb_scargle(
