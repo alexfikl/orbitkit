@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any, NamedTuple
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
-import numpy.linalg as la
 
 from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
@@ -18,19 +18,22 @@ log = module_logger(__name__)
 # {{{ power spectrum density
 
 
-class PowerSpectrumDensity(NamedTuple):
+@dataclass(frozen=True, slots=True)
+class PowerSpectrumDensity:
     deltas: Array1D[np.floating[Any]]
-    """The relative errors between the power spectrum densities computed for
-    multiple windows.
-    """
+    """Pairwise correlations between the PSDs of each window."""
+
     freq: Array1D[np.floating[Any]]
     """Frequencies of the last computed power spectrum density."""
     psd: Array1D[np.floating[Any]]
     """The last computed power spectrum density."""
 
-    def is_periodic(self, *, eps: float = 1.0e-3) -> bool:
+    def is_periodic(self, eps: float = 1.0e-3) -> bool:
         """Check if the corresponding time series is periodic based on the PSD."""
-        return bool(np.max(self.deltas) < eps)
+        delta = np.min(1 - self.deltas)
+
+        log.info("Periodic: delta %.8e (eps %.8e)", delta, eps)
+        return bool(delta < eps)
 
 
 def make_windows(
@@ -53,9 +56,9 @@ def make_windows(
 
 
 def evaluate_welch_power_spectrum_density_deltas(
-    x: Array2D[np.floating[Any]],
+    x: Array1D[np.floating[Any]],
     *,
-    nwindows: int = 2,
+    nwindows: int = 6,
     window_length: int | None = None,
     overlap: float = 0.5,
     nfft: int | None = None,
@@ -63,10 +66,10 @@ def evaluate_welch_power_spectrum_density_deltas(
     p: Any = None,
 ) -> PowerSpectrumDensity:
     """Evaluate *nwindows* power spectrum densities using `Welch's method
-    <https://en.wikipedia.org/wiki/Welch%27s_method>`__ and compute their
-    relative difference.
+    <https://en.wikipedia.org/wiki/Welch%27s_method>`__ and check their
+    correlation.
 
-    If the resulting errors are sufficiently small, the signal can be said to
+    If the resulting correlations are sufficiently large, the signal can be said to
     be periodic or approach a limit cycle.
 
     :arg x: an array of shape ``(d, n)``, where :math:`d` is the dimension of
@@ -81,10 +84,13 @@ def evaluate_welch_power_spectrum_density_deltas(
     """
     # {{{ validate inputs
 
+    if x.ndim != 1:
+        raise ValueError(f"unsupported dimension: {x.ndim}")
+
     if nwindows <= 0:
         raise ValueError(f"'nwindows' cannot be negative: {nwindows}")
 
-    _, n = x.shape
+    (n,) = x.shape
     if window_length is None:
         window_length = n // (nwindows + 1)
 
@@ -107,39 +113,45 @@ def evaluate_welch_power_spectrum_density_deltas(
 
     # {{{ compute approximate PSD using the Welch algorithm over multiple windows
 
-    from scipy.signal import welch
+    from scipy.signal import periodogram
 
-    # Compute PSD for each variable and average
+    # Compute PSD for each window
     psds = []
     for start, end in make_windows(n, nwindows, window_length, overlap=overlap):
-        f, pxx = welch(
-            x[:, start:end],
+        f, pxx = periodogram(
+            x[start:end],
             fs=fs,
-            nperseg=window_length,
-            noverlap=int(window_length * overlap),
             nfft=nfft,
-            axis=-1,
+            window="hann",
+            detrend="constant",
         )
-        psds.append(np.mean(pxx, axis=0))
+        psds.append(pxx)
 
     # }}}
 
-    # relative difference
-    deltas = np.array([
-        la.norm(psds[k + 1] - psds[k], ord=p) / la.norm(psds[k], ord=p)
-        for k in range(nwindows - 1)
-    ])
+    # compute correlations
+    from scipy.stats import pearsonr
 
-    return PowerSpectrumDensity(deltas, f, psds[-1])
+    # NOTE: we cannot look at a norm of the PSD because the windowing makes for
+    # uneven spectral leakage that will result in large errors. Some correlation,
+    # like Pearson, seems to work a lot more reliably.
+    deltas = np.array([pearsonr(psds[k + 1], psds[k])[0] for k in range(nwindows - 1)])
+
+    return PowerSpectrumDensity(deltas, f, pxx)
 
 
 def is_limit_cycle_welch(
-    x: Array2D[np.floating[Any]],
+    x: Array1D[np.floating[Any]] | Array2D[np.floating[Any]],
     *,
     eps: float = 1.0e-3,
 ) -> bool:
-    result = evaluate_welch_power_spectrum_density_deltas(x)
-    return bool(np.max(result.deltas) < eps)
+    if x.ndim == 1:
+        x = x.reshape(1, -1)
+
+    return all(
+        evaluate_welch_power_spectrum_density_deltas(x[i]).is_periodic(eps)
+        for i in range(x.shape[0])
+    )
 
 
 # }}}
@@ -185,9 +197,9 @@ def _make_lomb_scargle_frequencies(
 
 def evaluate_lomb_scargle_power_spectrum_density_deltas(
     t: Array1D[np.floating[Any]],
-    x: Array2D[np.floating[Any]],
+    x: Array1D[np.floating[Any]] | Array2D[np.floating[Any]],
     *,
-    nwindows: int = 2,
+    nwindows: int = 6,
     window_length: int | None = None,
     overlap: float = 0.5,
     p: Any = None,
@@ -209,7 +221,10 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
     """
     # {{{ validate inputs
 
-    d, n = x.shape
+    if x.ndim != 1:
+        raise ValueError(f"unsupported dimension: {x.ndim}")
+
+    (n,) = x.shape
     if t.shape != (n,):
         raise ValueError(
             f"array sizes do not match: 't' has size {t.size} (expected {n})"
@@ -226,40 +241,132 @@ def evaluate_lomb_scargle_power_spectrum_density_deltas(
 
     # }}}
 
-    # {{{ compute approximate PSD using the Welch algorithm over multiple windows
+    # {{{ compute approximate PSD using the Lomb-Scargle algorithm over multiple windows
 
     from scipy.signal import lombscargle
 
     # determine frequencies
     freqs = _make_lomb_scargle_frequencies(t)
 
-    # compute PSD for each variable and average
+    # compute PSD for each window
     psds = []
     for start, end in make_windows(n, nwindows, window_length, overlap=overlap):
-        pxx = np.array([
-            lombscargle(t[start:end], x[i, start:end], freqs) for i in range(d)
-        ])
-        psds.append(np.mean(pxx, axis=0))
+        pxx = lombscargle(t[start:end], x[start:end], freqs)
+        psds.append(pxx)
 
     # }}}
 
-    # relative difference
-    deltas = np.array([
-        np.linalg.norm(psds[k + 1] - psds[k], ord=p) / np.linalg.norm(psds[k], ord=p)
-        for k in range(nwindows - 1)
-    ])
+    # compute correlations
+    from scipy.stats import pearsonr
+
+    # NOTE: we cannot look at a norm of the PSD because the windowing makes for
+    # uneven spectral leakage that will result in large errors. Some correlation,
+    # like Pearson, seems to work a lot more reliably.
+    deltas = np.array([pearsonr(psds[k + 1], psds[k])[0] for k in range(nwindows - 1)])
 
     return PowerSpectrumDensity(deltas, freqs, psds[-1])
 
 
 def is_limit_cycle_lomb_scargle(
     t: Array1D[np.floating[Any]],
-    x: Array2D[np.floating[Any]],
+    x: Array1D[np.floating[Any]],
     *,
     eps: float = 1.0e-3,
 ) -> bool:
-    result = evaluate_lomb_scargle_power_spectrum_density_deltas(t, x)
-    return bool(np.max(result.deltas) < eps)
+    if x.ndim == 1:
+        x = x.reshape(1, -1)
+
+    return all(
+        evaluate_lomb_scargle_power_spectrum_density_deltas(t, x[i]).is_periodic(eps)
+        for i in range(x.shape[0])
+    )
+
+
+# }}}
+
+
+# {{{ Autocorrelation
+
+
+@dataclass(frozen=True)
+class Autocorrelation:
+    corr: Array1D[np.floating[Any]]
+    peaks: Array1D[np.integer[Any]]
+
+    def is_periodic(self, eps: float = 5.0e-1) -> bool:
+        if self.peaks.size == 0:
+            return False
+
+        if len(self.peaks) > 2:
+            intervals = np.diff(self.peaks)
+            jitter = np.std(intervals) / np.mean(intervals)
+        else:
+            jitter = 0.0
+
+        confidence = self.corr[self.peaks[0]]
+        log.info(
+            "Periodic: peaks %.8e (eps %.8e) jitter %.8e (eps %.8e)",
+            confidence,
+            eps,
+            jitter,
+            eps,
+        )
+
+        return confidence > eps and jitter < eps
+
+
+def evaluate_auto_correlation(
+    x: Array1D[np.floating[Any]],
+    *,
+    eps: float = 5.0e-1,
+    prominence: float | None = None,
+    distance: int | None = None,
+) -> Autocorrelation:
+    if x.ndim != 1:
+        raise ValueError(f"unsupported dimension: {x.ndim}")
+
+    if eps < 0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if prominence is not None and prominence < 0:
+        raise ValueError(f"'prominence' must be non-negative: {prominence}")
+
+    if distance is not None and distance <= 0:
+        raise ValueError(f"'distance' must be positive: {distance}")
+
+    from scipy.signal import correlate, find_peaks
+    from scipy.stats import zscore
+
+    # 1. normalize
+    x = zscore(x, ddof=1)
+
+    # 2. compute the auto-correlation
+    corr = correlate(x, x, mode="full")[x.size - 1 :]
+    corr /= np.abs(corr[0])
+
+    # 3. find peaks
+    if distance is None:
+        distance = 10
+
+    if prominence is None:
+        prominence = eps
+
+    peaks, _ = find_peaks(corr, prominence=prominence, distance=distance)
+
+    return Autocorrelation(corr=corr, peaks=peaks)
+
+
+def is_limit_cycle_auto_correlation(
+    x: Array1D[np.floating[Any]],
+    *,
+    eps: float = 5.0e-1,
+) -> bool:
+    if x.ndim == 1:
+        x = x.reshape(1, -1)
+
+    return all(
+        evaluate_auto_correlation(x[i]).is_periodic(eps) for i in range(x.shape[0])
+    )
 
 
 # }}}

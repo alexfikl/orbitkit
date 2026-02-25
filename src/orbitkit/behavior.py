@@ -4,10 +4,11 @@
 from __future__ import annotations
 
 import enum
+from typing import Any, Literal
 
 import numpy as np
 
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -32,13 +33,13 @@ class Behavior(enum.Enum):
     """
 
 
-def is_divergent(x: Array) -> bool:
+def is_divergent(x: Array1D[np.floating[Any]]) -> bool:
     """Check if the system is divergent."""
     return not np.isfinite(x)
 
 
 def is_fixed_point(
-    x: Array,
+    x: Array1D[np.floating[Any]],
     *,
     xtol: float = 1.0e-3,
     gtol: float = 1.0e-4,
@@ -61,7 +62,7 @@ def is_fixed_point(
         making the relative tolerances unreliable.
     """
     # normalization constant: norm at the last time step
-    mu = np.linalg.norm(x[-1], ord=np.inf)
+    mu = np.linalg.norm(x, ord=np.inf)
     mu = mu if mu > 1.0e-8 else 1.0
 
     # normalize tolerances
@@ -77,7 +78,7 @@ def is_fixed_point(
     slope = abs(slope)
 
     log.info(
-        "Fixed point std %.8e (xtol %.8e) slope %.8e (gtol %.8e).",
+        "Fixed point: std %.8e (xtol %.8e) slope %.8e (gtol %.8e).",
         std,
         xtol,
         slope,
@@ -88,67 +89,96 @@ def is_fixed_point(
 
 
 def is_periodic(
-    x,
+    x: Array1D[np.floating[Any]],
     *,
-    rtol: float = 1.0e-3,
-    prominence: float | None = None,
-    distance: float | None = None,
+    rtol: float = 5.0e-1,
+    method: Literal["welch", "acf", "ls"] = "acf",
 ) -> bool:
     """Check if the given time series is periodic (has reached a limit cycle)."""
-    from scipy.signal import correlate, find_peaks
+    from orbitkit.cycles import (
+        is_limit_cycle_auto_correlation,
+        is_limit_cycle_lomb_scargle,
+        is_limit_cycle_welch,
+    )
 
-    # 1. compute the auto-correlation
-    corr = correlate(x, x, mode="full")[x.size - 1 :]
-    corr /= corr[0]
-
-    # 2. find peaks in the auto-correlation
-    if distance is None:
-        below_zero, _ = np.where(corr < 0)
-        first_min = below_zero[0] if below_zero.size > 0 else 5
-        distance = max(1.0, int(0.5 * first_min))
-
-    if prominence is None:
-        prominence = 0.5 * np.std(corr)
-
-    peaks, _ = find_peaks(corr, prominence=prominence, distance=distance)
-
-    if len(peaks) > 0:
-        if len(peaks) > 2:
-            intervals = np.diff(peaks)
-            jitter = np.std(intervals) / np.mean(intervals)
-        else:
-            jitter = 0.0
-
-        # The first peak after lag 0 represents the primary period
-        confidence = corr[peaks[0]]
-
-        return confidence > rtol and jitter < rtol
-
-    return False
+    if method == "acf":
+        return is_limit_cycle_auto_correlation(x, eps=rtol)
+    elif method == "welch":
+        return is_limit_cycle_welch(x, eps=rtol)
+    elif method == "ls":
+        return is_limit_cycle_lomb_scargle(np.linspace(0, 1, x.size), x, eps=rtol)
+    else:
+        raise ValueError(f"unknown periodicity checking method: {method!r}")
 
 
 def determine_behavior(
-    x: Array,
+    x: Array1D[np.floating[Any]] | Array2D[np.floating[Any]],
     *,
-    n: int | None = None,
+    nwindow: int | None = None,
     fptol: float = 1.0e-3,
-    lctol: float = 5.0e-2,
+    lctol: float | None = None,
+    lcmethod: Literal["acf", "ls", "welch"] = "acf",
 ) -> Behavior:
-    if n is None:
-        n = int(0.1 * x.shape[0])
+    """Determine the coarse behavior of the time series *x*.
 
-    if not np.isfinite(x[-n:]):
+    For periodicity checking, we use the following methods:
+    * ``acf``: :func:`~orbitkit.cycles.evaluate_auto_correlation`.
+    * ``welch``: :func:`~orbitkit.cycles.evaluate_welch_power_spectrum_density_deltas`.
+    * ``ls``: :func:`~orbitkit.cycles.evaluate_lomb_scargle_power_spectrum_density_deltas`.
+
+    Note that the *lctol* tolerance has different meanings for all of these methods.
+    Therefore, it should be chosen carefully and there is no reasonable default value.
+
+    :arg x: an array of shape ``([d, ]n)``, where :math:`d` is the dimension of the
+        state space and :math:`n` is the time dimension. One-dimensional systems
+        can forgo the first dimension.
+    :arg nwindow: if given, we only check the last *nwindow* values. By default,
+        this looks at the last quarter, i.e. :math:`0.25 n` of the time series.
+    :arg fptol: (relative) tolerance used to determine if the time series has
+        converged to a fixed point (i.e. reached a steady state).
+    :arg lctol: (relative) tolerance used to determine if the time series has
+        reached a limit cycle.
+    :arg lcmethod: method used to check the periodicity of each component.
+    """  # noqa: E501
+
+    if x.ndim == 1:
+        x = x.reshape(1, -1)
+
+    if nwindow is None:
+        nwindow = int(0.25 * x.shape[1])
+    xd = x[:, -nwindow:]
+
+    if lctol is None:
+        lctol = {
+            "acf": 5.0e-1,
+            "welch": 1.0e-2,
+            "ls": 1.0e-2,
+        }.get(lcmethod, 1.0e-3)
+
+    # NOTE: do not be tempted to look at something like norm(x, axis=0) to
+    # determine the behavior. This can fail in many common cases, e.g. a signal
+    # like `[sin(t), cos(t)]` will be determined as a "fixed point" incorrectly.
+
+    bs = set()
+    for x_i in xd:
+        if not np.all(np.isfinite(x_i)):
+            return Behavior.Divergent
+
+        if is_fixed_point(x_i, xtol=fptol, gtol=fptol):
+            bs.add(Behavior.FixedPoint)
+        elif is_periodic(x_i, rtol=lctol, method=lcmethod):
+            bs.add(Behavior.Periodic)
+        else:
+            bs.add(Behavior.Unknown)
+
+    if Behavior.Unknown in bs:
+        return Behavior.Unknown
+    elif Behavior.Divergent in bs:
+        # NOTE: this won't happen, but for completeness..
         return Behavior.Divergent
-
-    # NOTE: for fixed point, we just look at the norm of the whole time series
-    xd = np.linalg.norm(x[-n:], axis=1)
-    if is_fixed_point(xd, xtol=fptol, gtol=fptol):
+    elif bs == {Behavior.FixedPoint}:
         return Behavior.FixedPoint
-
-    # NOTE: for periodic checks, we first remove the mean, so that any fixed point
-    # components become very small, and then take the norm.
-    xd = np.linalg.norm(x - np.mean(x, axis=0), axis=1)
-    if is_periodic(xd, rtol=lctol):
+    elif not (bs - {Behavior.Periodic, Behavior.FixedPoint}):
         return Behavior.Periodic
-
-    return Behavior.Unknown
+    else:
+        raise ValueError(f"unsupported combination of behaviors: {bs}")

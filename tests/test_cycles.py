@@ -29,10 +29,7 @@ def test_cycles_welch_psd(method: str) -> None:
     a = -0.001
     b = 0.001
     theta = np.linspace(0.0, 32 * np.pi, 2048)
-    x = np.stack([
-        np.sin(theta) * np.exp(-a * theta) + b * rng.normal(size=theta.shape),
-        np.cos(theta) * np.exp(-a * theta) + b * rng.normal(size=theta.shape),
-    ])
+    x = np.sin(theta) * np.exp(-a * theta) + b * rng.normal(size=theta.shape)
 
     from orbitkit.cycles import (
         evaluate_lomb_scargle_power_spectrum_density_deltas,
@@ -48,7 +45,7 @@ def test_cycles_welch_psd(method: str) -> None:
     else:
         raise ValueError(f"unknown method: '{method}'")
 
-    assert np.max(result.deltas) < 20.0 * b
+    assert np.min(1.0 - result.deltas) < 20.0 * b
 
     if not enable_test_plotting():
         return
@@ -64,6 +61,8 @@ def test_cycles_welch_psd(method: str) -> None:
         ax = fig.gca()
 
         ax.plot(result.deltas)
+        ax.set_ylim((0.0, 1.0))
+
         ax.set_xlabel("Window")
         ax.set_ylabel(r"$\Delta$")
 
