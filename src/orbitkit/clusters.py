@@ -3,17 +3,19 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any
 
 import numpy as np
 
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D, InexactT
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
-def make_mse_weight_matrix(x: Array, *, alpha: float = 1.0) -> Array:
+def make_mse_weight_matrix(
+    x: Array2D[InexactT], *, alpha: float = 1.0
+) -> Array2D[InexactT]:
     r"""Compute a weight matrix based on the pairwise :math:`\ell_2` errors.
 
     .. math::
@@ -34,10 +36,10 @@ def make_mse_weight_matrix(x: Array, *, alpha: float = 1.0) -> Array:
     mat = (mat + mat.T) / 2.0
     np.fill_diagonal(mat, 0.0)
 
-    return cast("Array", mat)
+    return mat
 
 
-def make_spearman_weight_matrix(x: Array) -> Array:
+def make_spearman_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
     r"""Compute a weight matrix based on the Spearman rank coefficient.
 
     .. math::
@@ -62,10 +64,10 @@ def make_spearman_weight_matrix(x: Array) -> Array:
     mat = (mat + mat.T) / 2.0
     np.fill_diagonal(mat, 0.0)
 
-    return cast("Array", mat)
+    return mat
 
 
-def make_plv_weight_matrix(x: Array) -> Array:
+def make_plv_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
     """Compute a weight matrix using the Phase Locking Value (PLV).
 
     Like :func:`make_spearman_weight_matrix`, this will also only take into
@@ -83,14 +85,14 @@ def make_plv_weight_matrix(x: Array) -> Array:
     mat = np.abs(np.mean(plv, axis=2))
     np.fill_diagonal(mat, 0.0)
 
-    return cast("Array", mat)
+    return mat
 
 
 def find_clusters_from_weights(
-    w: Array,
+    w: Array2D[np.floating[Any]],
     *,
     gamma: float = 1.0,
-) -> tuple[Array, ...]:
+) -> tuple[Array1D[np.integer[Any]], ...]:
     """Determine clusters based on the weight matrix *w*.
 
     The clusters are determined using the Leiden algorithm (see [Traag2019]_).
@@ -120,14 +122,14 @@ def find_clusters_from_weights(
 
 
 def find_clusters_from_timeseries(
-    x: Array,
+    x: Array2D[np.floating[Any]],
     *,
     method: str = "mse",
     window: int | None = None,
     gamma: float = 1.0,
     alpha: float = 1.0,
     normalize: bool = False,
-) -> tuple[Array, ...]:
+) -> tuple[Array1D[np.integer[Any]], ...]:
     """Determine synchronized clusters from a given time series *x*.
 
     :arg method: use one of the predefined weight matrices to determine the

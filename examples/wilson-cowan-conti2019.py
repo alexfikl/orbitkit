@@ -31,7 +31,7 @@ log.info("Model: %s", type(model))
 log.info("Size:  %d", model.n)
 log.info("Equations:\n%s", model)
 if model.n < 32 and len(model.E.weights) > 2:
-    log.info("Adjacency:\n%s", stringify_adjacency(model.E.weights[2][0]))  # ty: ignore[invalid-argument-type]
+    log.info("Adjacency:\n%s", stringify_adjacency(model.E.weights[2][0]))
 
 ext_model = transform_distributed_delay_model(model, model.n)
 log.info("Model: %s", type(ext_model))

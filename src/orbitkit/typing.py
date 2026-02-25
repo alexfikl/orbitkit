@@ -73,6 +73,8 @@ Scalar: TypeAlias = int | float | np.floating[Any]
 ScalarLike: TypeAlias = Scalar | Array0D[np.number[Any]]
 """A scalar-like value, which may include array of shape ``()``."""
 
+InexactT = TypeVar("InexactT", bound=np.inexact[Any])
+
 
 class DataclassInstance(Protocol):
     """Dataclass protocol from
