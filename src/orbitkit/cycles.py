@@ -49,6 +49,20 @@ def make_windows(
     return zip(w_starts, w_ends, strict=True)
 
 
+def make_harmonic_mask(
+    f: Array1D[np.number[Any]],
+    f0: float,
+    *,
+    nharmonics: int = 5,
+    binwidth: int = 1,
+) -> Array1D[np.bool]:
+    df = f[1] - f[0]
+    mask = np.zeros(f.shape, dtype=np.bool)
+    for k in range(1, nharmonics + 1):
+        mask |= np.abs(f - k * f0) < binwidth * df
+
+    return mask
+
 # }}}
 
 
