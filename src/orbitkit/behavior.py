@@ -29,7 +29,7 @@ class Behavior(enum.Enum):
     """System has reached a fixed point (or steady state)."""
     Periodic = enum.auto()
     """System has reached a cycle, i.e. all components are periodic, but not
-    necessarily synchornized.
+    necessarily synchronized.
     """
 
 
