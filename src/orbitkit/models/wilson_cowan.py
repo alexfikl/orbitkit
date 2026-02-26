@@ -234,7 +234,7 @@ def _make_custom_set2(*, tau: float = 0.1, alpha: float = 1) -> WilsonCowan:
     return WilsonCowan(E=Ep, I=Ip)
 
 
-def _make_custom_set3(*, alpha: float = 1) -> WilsonCowan:
+def _make_custom_set3(*, alpha: float = 1, delta: float = 0.01) -> WilsonCowan:
     # NOTE: this is the same as Set1, but has an extra connection on the
     # inhibitory populations to match the delayed excitatory population
 
@@ -246,13 +246,13 @@ def _make_custom_set3(*, alpha: float = 1) -> WilsonCowan:
         wc,
         I=replace(
             wc.I,
-            kernels=(*wc.I.kernels[:-1], sym.DiracDelayKernel(tau)),
-            weights=(*wc.I.weights[:-1], (W, 0)),
+            kernels=(*wc.I.kernels, sym.DiracDelayKernel(tau)),
+            weights=(*wc.I.weights, (0, delta * W)),
         ),
     )
 
 
-def _make_custom_set4(*, alpha: float = 1) -> WilsonCowan:
+def _make_custom_set4(*, alpha: float = 1, delta: float = 0.01) -> WilsonCowan:
     # NOTE: this is the same as Set2, but has an extra connection on the
     # inhibitory populations to match the delayed excitatory population
 
@@ -264,8 +264,8 @@ def _make_custom_set4(*, alpha: float = 1) -> WilsonCowan:
         wc,
         I=replace(
             wc.I,
-            kernels=(*wc.I.kernels[:-1], sym.DiracDelayKernel(tau)),
-            weights=(*wc.I.weights[:-1], (W, 0)),
+            kernels=(*wc.I.kernels, sym.DiracDelayKernel(tau)),
+            weights=(*wc.I.weights, (0, delta * W)),
         ),
     )
 
