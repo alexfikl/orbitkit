@@ -66,7 +66,7 @@ def test_periodic_behavior(figname: str) -> None:
 
     from orbitkit.behavior import Behavior, determine_behavior
 
-    lcmethod = "welch"
+    lcmethod = "psd"
     b = determine_behavior(ys, lcmethod=lcmethod)
     log.info("Behavior: %s", b)
 
@@ -84,8 +84,7 @@ def test_periodic_behavior(figname: str) -> None:
 
     from orbitkit.cycles import (
         evaluate_auto_correlation,
-        evaluate_lomb_scargle_power_spectrum_density_deltas,
-        evaluate_welch_power_spectrum_density_deltas,
+        evaluate_power_spectrum_density,
     )
 
     n = int(0.25 * ts.size)
@@ -118,22 +117,19 @@ def test_periodic_behavior(figname: str) -> None:
 
             ax.set_xlabel("$n$")
             ax.set_ylim((-1.0, 1.0))
-        elif lcmethod in {"welch", "ls"}:
+        elif lcmethod == "psd":
+            ratio = np.zeros(ys.shape[0])
             for i in range(ys.shape[0]):
-                if lcmethod == "welch":
-                    result = evaluate_welch_power_spectrum_density_deltas(
-                        ys[i], fs=1.0 / dt
-                    )
-                else:
-                    result = evaluate_lomb_scargle_power_spectrum_density_deltas(
-                        ts, ys[i]
-                    )
+                result = evaluate_power_spectrum_density(ys[i], fs=1.0 / dt)
+                ratio[i] = 1 - result.harmonic_energy / result.total_energy
+                log.info(
+                    "PSD: harmonic %.8e fraction %.8e", result.harmonic_energy, ratio[i]
+                )
 
-                ax.plot(result.deltas, label=labels[i])
-
+            ax.semilogy(ratio, "o-")
             ax.set_ylim((0.0, 1.0))
-            ax.set_xlabel("Window")
-            ax.set_ylabel(r"$\Delta$")
+            ax.set_xlabel("$i$")
+            ax.set_ylabel("$r$")
             ax.legend()
         else:
             raise AssertionError(lcmethod)

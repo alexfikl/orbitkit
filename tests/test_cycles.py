@@ -18,53 +18,37 @@ log = module_logger(__name__)
 set_plotting_defaults()
 
 
-# {{{ test_cycles_welch_psd
+# {{{ test_cycles_psd
 
 
-@pytest.mark.parametrize("method", ["welch", "lombscargle"])
-def test_cycles_welch_psd(method: str) -> None:
+@pytest.mark.parametrize("b", [0.1, 0.01, 0.001])
+def test_cycles_psd(b: float) -> None:
     rng = np.random.default_rng(seed=32)
 
     # generate some random data with some noise
     a = -0.001
-    b = 0.001
     theta = np.linspace(0.0, 32 * np.pi, 2048)
     x = np.sin(theta) * np.exp(-a * theta) + b * rng.normal(size=theta.shape)
 
     from orbitkit.cycles import (
-        evaluate_lomb_scargle_power_spectrum_density_deltas,
-        evaluate_welch_power_spectrum_density_deltas,
+        evaluate_power_spectrum_density,
     )
 
-    if method == "welch":
-        result = evaluate_welch_power_spectrum_density_deltas(x, nwindows=6)
-    elif method == "lombscargle":
-        result = evaluate_lomb_scargle_power_spectrum_density_deltas(
-            theta, x, nwindows=6
-        )
-    else:
-        raise ValueError(f"unknown method: '{method}'")
+    result = evaluate_power_spectrum_density(x, nwindows=6)
 
-    assert np.min(1.0 - result.deltas) < 20.0 * b
+    error = 1.0 - result.harmonic_energy / result.total_energy
+    log.info("Error: %.8e (%.8e)", error, b)
+    assert error < 15.0 * b
 
     if not enable_test_plotting():
         return
 
-    with figure(TEST_DIRECTORY / f"test_cycles_{method}_psd", normalize=True) as fig:
+    with figure(TEST_DIRECTORY / "test_cycles_psd", normalize=True) as fig:
         ax = fig.gca()
 
         ax.plot(result.freq, result.psd)
         ax.set_xlabel("$k$")
         ax.set_ylabel("PSD")
-
-    with figure(TEST_DIRECTORY / f"test_cycles_{method}_deltas", normalize=True) as fig:
-        ax = fig.gca()
-
-        ax.plot(result.deltas)
-        ax.set_ylim((0.0, 1.0))
-
-        ax.set_xlabel("Window")
-        ax.set_ylabel(r"$\Delta$")
 
 
 # }}}

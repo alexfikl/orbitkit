@@ -92,21 +92,18 @@ def is_periodic(
     x: Array1D[np.floating[Any]],
     *,
     rtol: float = 5.0e-1,
-    method: Literal["welch", "acf", "ls"] = "acf",
+    method: Literal["acf", "psd"] = "psd",
 ) -> bool:
     """Check if the given time series is periodic (has reached a limit cycle)."""
     from orbitkit.cycles import (
         is_limit_cycle_auto_correlation,
-        is_limit_cycle_lomb_scargle,
-        is_limit_cycle_welch,
+        is_limit_cycle_power_spectrum_density,
     )
 
     if method == "acf":
         return is_limit_cycle_auto_correlation(x, eps=rtol)
-    elif method == "welch":
-        return is_limit_cycle_welch(x, eps=rtol)
-    elif method == "ls":
-        return is_limit_cycle_lomb_scargle(np.linspace(0, 1, x.size), x, eps=rtol)
+    elif method == "psd":
+        return is_limit_cycle_power_spectrum_density(x, eps=rtol)
     else:
         raise ValueError(f"unknown periodicity checking method: {method!r}")
 
@@ -117,14 +114,13 @@ def determine_behavior(
     nwindow: int | None = None,
     fptol: float = 1.0e-3,
     lctol: float | None = None,
-    lcmethod: Literal["acf", "ls", "welch"] = "acf",
+    lcmethod: Literal["acf", "psd"] = "psd",
 ) -> Behavior:
     """Determine the coarse behavior of the time series *x*.
 
     For periodicity checking, we use the following methods:
     * ``acf``: :func:`~orbitkit.cycles.evaluate_auto_correlation`.
-    * ``welch``: :func:`~orbitkit.cycles.evaluate_welch_power_spectrum_density_deltas`.
-    * ``ls``: :func:`~orbitkit.cycles.evaluate_lomb_scargle_power_spectrum_density_deltas`.
+    * ``psd``: :func:`~orbitkit.cycles.evaluate_power_spectrum_density`.
 
     Note that the *lctol* tolerance has different meanings for all of these methods.
     Therefore, it should be chosen carefully and there is no reasonable default value.
@@ -139,7 +135,7 @@ def determine_behavior(
     :arg lctol: (relative) tolerance used to determine if the time series has
         reached a limit cycle.
     :arg lcmethod: method used to check the periodicity of each component.
-    """  # noqa: E501
+    """
 
     if x.ndim == 1:
         x = x.reshape(1, -1)
@@ -151,8 +147,7 @@ def determine_behavior(
     if lctol is None:
         lctol = {
             "acf": 5.0e-1,
-            "welch": 1.0e-2,
-            "ls": 1.0e-2,
+            "psd": 1.0e-2,
         }.get(lcmethod, 1.0e-3)
 
     # NOTE: do not be tempted to look at something like norm(x, axis=0) to
