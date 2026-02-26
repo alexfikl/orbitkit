@@ -273,14 +273,14 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
     if topology == "feedforward":
         return generate_adjacency_feed_forward(n, dtype=dtype)
     elif topology == "ring":
-        k = 2 if k is None else k
+        k = 1 if k is None else k
         return generate_adjacency_ring(n, k=k, dtype=dtype)
     elif topology == "ring1":
         return generate_adjacency_ring(n, k=1, dtype=dtype)
     elif topology == "ring2":
         return generate_adjacency_ring(n, k=2, dtype=dtype)
     elif topology == "bus":
-        k = 2 if k is None else k
+        k = 1 if k is None else k
         return generate_adjacency_bus(n, k=k, dtype=dtype)
     elif topology == "bus1":
         return generate_adjacency_bus(n, k=1, dtype=dtype)
@@ -295,7 +295,7 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
     elif topology == "erdosrenyi":
         return generate_adjacency_erdos_renyi(n, k=k, dtype=dtype, rng=rng)
     elif topology == "strogatzwatts":
-        k = 2 if k is None else k
+        k = 1 if k is None else k
         return generate_adjacency_strogatz_watts(n, k=k, dtype=dtype, rng=rng)
     elif topology == "barabasialbert":
         k = 2 if k is None else k
@@ -1102,7 +1102,7 @@ def generate_random_equal_row_sum(
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
 ) -> Array2D[np.floating[Any]]:
-    r"""Generate a random weights for the adjacency matrix *mat* with equal row sum.
+    r"""Generate random weights for the adjacency matrix *mat* with equal row sum.
 
     This is roughly equivalent to generating a random matrix using
     :func:`generate_random_weights` and then normalizing using
