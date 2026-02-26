@@ -74,6 +74,7 @@ ScalarLike: TypeAlias = Scalar | Array0D[np.number[Any]]
 """A scalar-like value, which may include array of shape ``()``."""
 
 InexactT = TypeVar("InexactT", bound=np.inexact[Any])
+"""A :class:`~typing.TypeVar` for :class:`numpy.inexact`."""
 
 
 class DataclassInstance(Protocol):

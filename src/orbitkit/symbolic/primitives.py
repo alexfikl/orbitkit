@@ -26,10 +26,15 @@ ArrayExpression: TypeAlias = Expression | np.ndarray[tuple[int, ...], np.dtype[A
 
 
 Variable = prim.Variable
+"""See :class:`pymbolic.primitives.Variable`."""
 Quotient = prim.Quotient
+"""See :class:`pymbolic.primitives.Quotient`."""
 Product = prim.Product
+"""See :class:`pymbolic.primitives.Product`."""
 Sum = prim.Sum
+"""See :class:`pymbolic.primitives.Sum`."""
 Call = prim.Call
+"""See :class:`pymbolic.primitives.Call`."""
 
 
 @prim.expr_dataclass()

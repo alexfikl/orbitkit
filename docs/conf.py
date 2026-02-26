@@ -222,6 +222,7 @@ nitpick_ignore_regex = [
     ["py:class", r"optype.*"],
     ["py:class", r"symengine.*"],
     ["py:class", r".*PymbolicToSymEngineMapper"],
+    ["py:class", r".*QuotientBase"],
     # https://github.com/sphinx-doc/sphinx/issues/14159
     ["py:class", r".*list\[tuple\[float"],
 ]
@@ -241,16 +242,23 @@ intersphinx_mapping = {
 custom_type_links = {
     # numpy
     "DTypeLike": ("numpy", "numpy.typing.DTypeLike", "obj"),
+    "np.floating": ("numpy", "numpy.floating", "obj"),
+    "np.integer": ("numpy", "numpy.integer", "obj"),
+    "np.inexact": ("numpy", "numpy.inexact", "obj"),
     "np.random.Generator": ("numpy", "numpy.random.Generator", "class"),
     # pytools
     "UniqueNameGenerator": ("pytools", "pytools.UniqueNameGenerator", "class"),
     # pymbolic
-    "prim.Variable": ("pymbolic", "pymbolic.primitives.Variable", "class"),
-    "prim.Call": ("pymbolic", "pymbolic.primitives.Call", "class"),
+    "_Expression": ("pymbolic", "pymbolic.typing.Expression", "obj"),
     # orbitkit
     "Array": (None, "orbitkit.typing.Array", "obj"),
+    "Array0D": (None, "orbitkit.typing.Array0D", "obj"),
+    "Array1D": (None, "orbitkit.typing.Array1D", "obj"),
+    "Array2D": (None, "orbitkit.typing.Array2D", "obj"),
     "Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
+    "sym.Call": (None, "orbitkit.symbolic.primitives.Call", "obj"),
     "sym.Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
+    "sym.Variable": (None, "orbitkit.symbolic.primitives.Variable", "class"),
     "sym.DiracDelayKernel": (None, "orbitkit.symbolic.primitives.DiracDelayKernel", "class"),  # noqa: E501
     "sym.UniformDelayKernel": (None, "orbitkit.symbolic.primitives.UniformDelayKernel", "class"),  # noqa: E501
     "sym.TriangularDelayKernel": (None, "orbitkit.symbolic.primitives.TriangularDelayKernel", "class"),  # noqa: E501
