@@ -1123,8 +1123,10 @@ def generate_random_equal_row_sum(
     for i in range(n):
         (j,) = np.where(mat[i] == 1)
         if j.size == 0:
-            continue
+            raise ValueError(f"row {i} has no connections")
 
+        # NOTE: the weights are guaranteed to not be zero here due to the
+        # Dirichlet distribution, but they can be arbitrarily small nonetheless.
         weights = rng.dirichlet([alpha] * j.size)
         result[i, j] = weights
 
