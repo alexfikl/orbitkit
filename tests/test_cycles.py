@@ -18,11 +18,11 @@ log = module_logger(__name__)
 set_plotting_defaults()
 
 
-# {{{ test_cycles_psd
+# {{{ test_cycles_harmonic
 
 
 @pytest.mark.parametrize("b", [0.1, 0.01, 0.001])
-def test_cycles_psd(b: float) -> None:
+def test_cycles_harmonic(b: float) -> None:
     rng = np.random.default_rng(seed=32)
 
     # generate some random data with some noise
@@ -30,11 +30,9 @@ def test_cycles_psd(b: float) -> None:
     theta = np.linspace(0.0, 32 * np.pi, 2048)
     x = np.sin(theta) * np.exp(-a * theta) + b * rng.normal(size=theta.shape)
 
-    from orbitkit.cycles import (
-        evaluate_power_spectrum_density,
-    )
+    from orbitkit.cycles import detect_cycle_harmonic
 
-    result = evaluate_power_spectrum_density(x, nwindows=6)
+    result = detect_cycle_harmonic(x, nwindows=6)
 
     error = 1.0 - result.harmonic_energy / result.total_energy
     log.info("Error: %.8e (%.8e)", error, b)
@@ -43,7 +41,7 @@ def test_cycles_psd(b: float) -> None:
     if not enable_test_plotting():
         return
 
-    with figure(TEST_DIRECTORY / "test_cycles_psd", normalize=True) as fig:
+    with figure(TEST_DIRECTORY / "test_cycles_harmonic_psd", normalize=True) as fig:
         ax = fig.gca()
 
         ax.plot(result.freq, result.psd)

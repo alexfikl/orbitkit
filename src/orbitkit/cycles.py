@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -15,11 +16,20 @@ from orbitkit.utils import module_logger
 log = module_logger(__name__)
 
 
-# {{{ power spectrum density
+class CycleResult(ABC):
+    @abstractmethod
+    def is_periodic(self, eps: float) -> bool:
+        """
+        :return: *True* if the signal is assumed to be periodic to the given
+            tolerance. The meaning of the tolerance will differ by method.
+        """
+
+
+# {{{ harmonic
 
 
 @dataclass(frozen=True, slots=True)
-class PowerSpectrumDensity:
+class HarmonicResult(CycleResult):
     harmonic_energy: float
     """Energy at all the harmonics of the mean power spectrum density."""
     total_energy: float
@@ -67,13 +77,7 @@ def make_harmonic_mask(
     return mask
 
 
-# }}}
-
-
-# {{{ Welch
-
-
-def evaluate_power_spectrum_density(
+def detect_cycle_harmonic(
     x: Array1D[np.floating[Any]],
     *,
     nwindows: int = 6,
@@ -81,22 +85,19 @@ def evaluate_power_spectrum_density(
     overlap: float = 0.5,
     nfft: int | None = None,
     fs: float = 1.0,
-    p: Any = None,
-) -> PowerSpectrumDensity:
-    """Evaluate *nwindows* power spectrum densities and check their correlation.
-
-    If the resulting correlations are sufficiently large, the signal can be said to
-    be periodic or approach a limit cycle.
+) -> HarmonicResult:
+    """Evaluate *nwindows* power spectrum densities and check the energy of the
+    harmonics.
 
     :arg x: an array of shape ``(d, n)``, where :math:`d` is the dimension of
         the state space and :math:`n` is the time step count.
+
     :arg nwindows: number of windows to consider.
     :arg window_length: length of a single window, which should match with the
         time series length when considering the number of windows.
     :arg overlap: overlap (percentage) between the windows.
     :arg nfft: length of the FFT used to compute the PSD in each window.
     :arg fs: sampling frequency.
-    :arg p: norm type used to compute the relative error differences.
     """
     # {{{ validate inputs
 
@@ -167,10 +168,10 @@ def evaluate_power_spectrum_density(
 
     # }}}
 
-    return PowerSpectrumDensity(harmonic_energy, total_energy, f, psds)
+    return HarmonicResult(harmonic_energy, total_energy, f, psds)
 
 
-def is_limit_cycle_power_spectrum_density(
+def is_limit_cycle_harmonic(
     x: Array1D[np.floating[Any]] | Array2D[np.floating[Any]],
     *,
     eps: float = 1.0e-3,
@@ -178,20 +179,17 @@ def is_limit_cycle_power_spectrum_density(
     if x.ndim == 1:
         x = x.reshape(1, -1)
 
-    return all(
-        evaluate_power_spectrum_density(x[i]).is_periodic(eps)
-        for i in range(x.shape[0])
-    )
+    return all(detect_cycle_harmonic(x[i]).is_periodic(eps) for i in range(x.shape[0]))
 
 
 # }}}
 
 
-# {{{ Autocorrelation
+# {{{ autocorrelation
 
 
 @dataclass(frozen=True)
-class Autocorrelation:
+class AutocorrelationCycleResult(CycleResult):
     corr: Array1D[np.floating[Any]]
     peaks: Array1D[np.integer[Any]]
 
@@ -217,13 +215,13 @@ class Autocorrelation:
         return confidence > eps and jitter < eps
 
 
-def evaluate_auto_correlation(
+def detect_cycle_auto_correlation(
     x: Array1D[np.floating[Any]],
     *,
     eps: float = 5.0e-1,
     prominence: float | None = None,
     distance: int | None = None,
-) -> Autocorrelation:
+) -> AutocorrelationCycleResult:
     if x.ndim != 1:
         raise ValueError(f"unsupported dimension: {x.ndim}")
 
@@ -255,7 +253,7 @@ def evaluate_auto_correlation(
 
     peaks, _ = find_peaks(corr, prominence=prominence, distance=distance)
 
-    return Autocorrelation(corr=corr, peaks=peaks)
+    return AutocorrelationCycleResult(corr=corr, peaks=peaks)
 
 
 def is_limit_cycle_auto_correlation(
@@ -267,7 +265,7 @@ def is_limit_cycle_auto_correlation(
         x = x.reshape(1, -1)
 
     return all(
-        evaluate_auto_correlation(x[i]).is_periodic(eps) for i in range(x.shape[0])
+        detect_cycle_auto_correlation(x[i]).is_periodic(eps) for i in range(x.shape[0])
     )
 
 

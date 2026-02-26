@@ -66,7 +66,7 @@ def test_periodic_behavior(figname: str) -> None:
 
     from orbitkit.behavior import Behavior, determine_behavior
 
-    lcmethod = "psd"
+    lcmethod = "harm"
     b = determine_behavior(ys, lcmethod=lcmethod)
     log.info("Behavior: %s", b)
 
@@ -83,8 +83,8 @@ def test_periodic_behavior(figname: str) -> None:
         return
 
     from orbitkit.cycles import (
-        evaluate_auto_correlation,
-        evaluate_power_spectrum_density,
+        detect_cycle_auto_correlation,
+        detect_cycle_harmonic,
     )
 
     n = int(0.25 * ts.size)
@@ -109,7 +109,7 @@ def test_periodic_behavior(figname: str) -> None:
 
         if lcmethod == "acf":
             for i in range(ys.shape[0]):
-                result = evaluate_auto_correlation(ys[i])
+                result = detect_cycle_auto_correlation(ys[i])
                 log.info("Peaks: %s", result.peaks)
 
                 ax.plot(result.corr, label=labels[i])
@@ -117,10 +117,10 @@ def test_periodic_behavior(figname: str) -> None:
 
             ax.set_xlabel("$n$")
             ax.set_ylim((-1.0, 1.0))
-        elif lcmethod == "psd":
+        elif lcmethod == "harm":
             ratio = np.zeros(ys.shape[0])
             for i in range(ys.shape[0]):
-                result = evaluate_power_spectrum_density(ys[i], fs=1.0 / dt)
+                result = detect_cycle_harmonic(ys[i], fs=1.0 / dt)
                 ratio[i] = 1 - result.harmonic_energy / result.total_energy
                 log.info(
                     "PSD: harmonic %.8e fraction %.8e", result.harmonic_energy, ratio[i]

@@ -92,18 +92,18 @@ def is_periodic(
     x: Array1D[np.floating[Any]],
     *,
     rtol: float = 5.0e-1,
-    method: Literal["acf", "psd"] = "psd",
+    method: Literal["acf", "harm"] = "harm",
 ) -> bool:
     """Check if the given time series is periodic (has reached a limit cycle)."""
     from orbitkit.cycles import (
         is_limit_cycle_auto_correlation,
-        is_limit_cycle_power_spectrum_density,
+        is_limit_cycle_harmonic,
     )
 
     if method == "acf":
         return is_limit_cycle_auto_correlation(x, eps=rtol)
-    elif method == "psd":
-        return is_limit_cycle_power_spectrum_density(x, eps=rtol)
+    elif method == "harm":
+        return is_limit_cycle_harmonic(x, eps=rtol)
     else:
         raise ValueError(f"unknown periodicity checking method: {method!r}")
 
@@ -114,13 +114,13 @@ def determine_behavior(
     nwindow: int | None = None,
     fptol: float = 1.0e-3,
     lctol: float | None = None,
-    lcmethod: Literal["acf", "psd"] = "psd",
+    lcmethod: Literal["acf", "harm"] = "harm",
 ) -> Behavior:
     """Determine the coarse behavior of the time series *x*.
 
     For periodicity checking, we use the following methods:
-    * ``acf``: :func:`~orbitkit.cycles.evaluate_auto_correlation`.
-    * ``psd``: :func:`~orbitkit.cycles.evaluate_power_spectrum_density`.
+    * ``acf``: :func:`~orbitkit.cycles.detect_cycle_auto_correlation`.
+    * ``harm``: :func:`~orbitkit.cycles.detect_cycle_harmonic`.
 
     Note that the *lctol* tolerance has different meanings for all of these methods.
     Therefore, it should be chosen carefully and there is no reasonable default value.
@@ -147,7 +147,7 @@ def determine_behavior(
     if lctol is None:
         lctol = {
             "acf": 5.0e-1,
-            "psd": 1.0e-2,
+            "harm": 1.0e-3,
         }.get(lcmethod, 1.0e-3)
 
     # NOTE: do not be tempted to look at something like norm(x, axis=0) to
