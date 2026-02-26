@@ -65,9 +65,17 @@ def enable_test_plotting() -> bool:
 # {{{ logging
 
 
+def orbitkit_quiet() -> None:
+    """Set the root logger to only show error messages."""
+    root = logging.getLogger("orbitkit")
+    root.setLevel(logging.ERROR)
+
+
 def module_logger(
     module: str,
     level: int | str | None = None,
+    *,
+    root_name: str = "orbitkit",
 ) -> logging.Logger:
     """Create a new logging for the module *module*.
 
@@ -91,12 +99,10 @@ def module_logger(
     # NOTE: insist on putting everything under the `orbitkit` root
     path = pathlib.Path(module)
     if path.exists():
-        module = f"orbitkit.{path.stem}".replace("-", "_")
+        module = f"{root_name}.{path.stem}".replace("-", "_")
 
-    name, *rest = module.split(".", maxsplit=1)
-    root = logging.getLogger(name)
-
-    # FIXME: what is this??
+    # set up the root logger
+    root = logging.getLogger(root_name)
     root.propagate = False
 
     if not root.handlers:
@@ -115,8 +121,9 @@ def module_logger(
         )
 
         root.addHandler(handler)
+        root.setLevel(level)
 
-    root.setLevel(level)
+    _, *rest = module.split(".", maxsplit=1)
     return root.getChild(rest[0]) if rest else root
 
 
