@@ -45,21 +45,21 @@ Array0D = TypeAliasType(
 """A type alias for a 0-dimensional :class:`ArrayND`."""
 
 Array1D = TypeAliasType(
-    "Array0D",
+    "Array1D",
     np.ndarray[tuple[int], np.dtype[ScalarTypeT]],
     type_params=(ScalarTypeT,),
 )
 """A type alias for a 1-dimensional :class:`ArrayND`."""
 
 Array2D = TypeAliasType(
-    "Array0D",
+    "Array2D",
     np.ndarray[tuple[int, int], np.dtype[ScalarTypeT]],
     type_params=(ScalarTypeT,),
 )
 """A type alias for a 2-dimensional :class:`ArrayND`."""
 
 Array3D = TypeAliasType(
-    "Array0D",
+    "Array3D",
     np.ndarray[tuple[int, int, int], np.dtype[ScalarTypeT]],
     type_params=(ScalarTypeT,),
 )
