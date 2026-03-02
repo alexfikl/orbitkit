@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import time
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
@@ -298,30 +299,36 @@ class JiTCDDETarget(JiTCODETarget):
                 max_delay=max_delay,
                 parameters=control_pars,
             )
-            dde.compile_C(
-                simplify=simplify,
-                do_cse=False,
-                extra_compile_args=(
-                    JITCDDE_DEBUG_CFLAGS if debug else JITCDDE_RELEASE_CFLAGS
-                ),
-                verbose=verbose,
-                chunk_size=32,
-                modulename=str(module_location) if module_location else None,
-                omp=openmp,
-            )
 
-            if module_location is not None:
-                t_start = time.time()
-                newfilename = dde.save_compiled(str(module_location), overwrite=True)
-                if verbose:
-                    log.info("Compilation time: %.3fs.", time.time() - t_start)
+            if module_location:
+                if module_location.exists():
+                    from jitcxde_common.modules import find_and_load_module
 
-                if newfilename != str(module_location):
-                    log.warning(
-                        "jitcdde saved compiled module in different file: '%s'. "
-                        "This may cause performance issues since it will be recompiled",
-                        newfilename,
+                    # FIXME: this is not exactly documented API
+                    dde.jitced = find_and_load_module(dde._modulename, dde._tmpfile())
+                    dde.compile_attempt = True
+                else:
+                    t_start = time.time()
+                    dde.compile_C(
+                        simplify=simplify,
+                        do_cse=False,
+                        extra_compile_args=(
+                            JITCDDE_DEBUG_CFLAGS if debug else JITCDDE_RELEASE_CFLAGS
+                        ),
+                        verbose=verbose,
+                        chunk_size=32,
+                        omp=openmp,
+                        modulename=module_location.stem if module_location else None,
                     )
+
+                    from jitcxde_common.modules import get_module_path
+
+                    # FIXME: this is not exactly documented API
+                    sourcefile = get_module_path(dde._modulename, dde._tmpfile())
+                    shutil.copy(sourcefile, module_location)
+
+                    if verbose:
+                        log.info("Compilation time: %.3fs.", time.time() - t_start)
 
         # NOTE: we cannot add parameters here because JiTCDDE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.
