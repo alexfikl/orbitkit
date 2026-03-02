@@ -547,6 +547,7 @@ class TicTocTimer:
     t_wall: float = field(default=0.0, init=False)
 
     n_calls: int = field(default=0, init=False)
+    t_total: float = field(default=0.0, init=False)
     t_avg: float = field(default=0.0, init=False)
     t_sqr: float = field(default=0.0, init=False)
 
@@ -561,6 +562,7 @@ class TicTocTimer:
 
         # statistics
         self.n_calls += 1
+        self.t_total += self.t_wall
 
         delta0 = self.t_wall - self.t_avg
         self.t_avg += delta0 / self.n_calls
