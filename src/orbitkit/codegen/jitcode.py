@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import time
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
@@ -171,27 +172,37 @@ class JiTCODETarget(NumpyTarget):
                 verbose=verbose,
             )
 
-            ode.compile_C(
-                extra_compile_args=(
-                    JITCODE_DEBUG_CFLAGS if debug else JITCODE_RELEASE_CFLAGS
-                ),
-                verbose=verbose,
-                modulename=str(module_location) if module_location else None,
-                omp=openmp,
-            )
+            if module_location:
+                if module_location.exists():
+                    from jitcxde_common.modules import find_and_load_module
 
-            if module_location is not None:
-                t_start = time.time()
-                newfilename = ode.save_compiled(str(module_location), overwrite=True)
-                if verbose:
-                    log.info("Compilation time: %.3fs.", time.time() - t_start)
+                    # FIXME: this is not exactly documented API
+                    ode.jitced = find_and_load_module(ode._modulename, ode._tmpfile())
+                    ode.f = ode.jitced.f
+                    if hasattr(ode.jitced, "jac"):
+                        ode.jac = ode.jitced.jac
 
-                if newfilename != str(module_location):
-                    log.warning(
-                        "jitcode saved compiled module in different file: '%s'. "
-                        "This may cause performance issues since it will be recompiled",
-                        newfilename,
+                    ode._initialise = ode.jitced.initialise
+                    ode.compile_attempt = True
+                else:
+                    t_start = time.time()
+                    ode.compile_C(
+                        extra_compile_args=(
+                            JITCODE_DEBUG_CFLAGS if debug else JITCODE_RELEASE_CFLAGS
+                        ),
+                        verbose=verbose,
+                        omp=openmp,
+                        modulename=module_location.stem if module_location else None,
                     )
+
+                    from jitcxde_common.modules import get_module_path
+
+                    # FIXME: this is not exactly documented API
+                    sourcefile = get_module_path(ode._modulename, ode._tmpfile())
+                    shutil.copy(sourcefile, module_location)
+
+                    if verbose:
+                        log.info("Compilation time: %.3fs.", time.time() - t_start)
 
         # NOTE: we cannot add parameters here because JiTCODE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.

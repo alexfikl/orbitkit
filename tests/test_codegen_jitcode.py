@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import pathlib
+import tempfile
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
 from orbitkit.utils import module_logger
 from orbitkit.visualization import set_plotting_defaults
+
+if TYPE_CHECKING:
+    import jitcode
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
@@ -21,25 +26,12 @@ set_plotting_defaults()
 # {{{ test_codegen_jitcode
 
 
-@pytest.mark.parametrize(
-    ("module_name", "model_name"),
-    [
-        ("fitzhugh_nagumo", "Omelchenko2019Figure4a"),
-        ("hiv", "CulshawRuanWebb2003Figure44"),
-        ("kuramoto", "Abrams2008Figure2a"),
-        ("pfeuty", "Pfeuty2007Figure2cl"),
-        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
-        ("wang_rinzel", "WangRinzel1992Figure1a"),
-        ("wang_rinzel", "WangRinzel1992Figure4a"),
-        ("wilson_cowan", "CustomSet1"),
-    ],
-)
-def test_codegen_jitcode(module_name: str, model_name: str) -> None:
-    """Check that the generated code works for these models."""
-
-    pytest.importorskip("pymbolic")
-    pytest.importorskip("jitcode")
-
+def _make_ode_from_name(
+    module_name: str,
+    model_name: str,
+    *,
+    module_location: pathlib.Path | None = None,
+) -> jitcode.jitcode:
     from testlib import get_model_from_module
 
     n = 1 if module_name == "hiv" else 2
@@ -61,15 +53,79 @@ def test_codegen_jitcode(module_name: str, model_name: str) -> None:
     log.info("\n%s", source)
     assert source.shape == (d * n,)
 
-    ode = target.compile(source, ys, method="RK45")
-    ode.set_initial_value(np.ones(d * n), 0.0)
+    from orbitkit.utils import tictoc
 
+    with tictoc(f"{module_name}[{model_name}]"):
+        ode = target.compile(source, ys, method="RK45", module_location=module_location)
+        ode.set_initial_value(np.ones(d * n), 0.0)
+
+    return ode
+
+
+@pytest.mark.parametrize(
+    ("module_name", "model_name"),
+    [
+        ("fitzhugh_nagumo", "Omelchenko2019Figure4a"),
+        ("hiv", "CulshawRuanWebb2003Figure44"),
+        ("kuramoto", "Abrams2008Figure2a"),
+        ("pfeuty", "Pfeuty2007Figure2cl"),
+        ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
+        ("wang_rinzel", "WangRinzel1992Figure1a"),
+        ("wang_rinzel", "WangRinzel1992Figure4a"),
+        ("wilson_cowan", "CustomSet1"),
+    ],
+)
+def test_codegen_jitcode(module_name: str, model_name: str) -> None:
+    """Check that the generated code works for these models."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcode")
+
+    ode = _make_ode_from_name(module_name, model_name)
     for t in [0.0, 0.01, 0.02]:
         ode.integrate(t)
 
 
 # }}}
 
+
+# {{{ test_codegen_jitcode_cache
+
+
+def test_codegen_jitcode_cache() -> None:
+    """Check that the generated code works for these models."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcode")
+
+    module_location = (
+        pathlib.Path(tempfile.gettempdir()) / "jitcode_orbitkit_codegen.so"
+    )
+
+    ode = _make_ode_from_name("hiv", "CulshawRuanWebb2003Figure44")
+    ode = _make_ode_from_name("hiv", "CulshawRuanWebb2003Figure44")
+    assert not module_location.exists()
+    ode = _make_ode_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        module_location=module_location,
+    )
+    assert module_location.exists()
+    ode = _make_ode_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        module_location=module_location,
+    )
+    assert module_location.exists()
+
+    for t in [0.0, 0.01, 0.02]:
+        ode.integrate(t)
+
+    if module_location.exists():
+        module_location.unlink()
+
+
+# }}}
 
 if __name__ == "__main__":
     import sys
