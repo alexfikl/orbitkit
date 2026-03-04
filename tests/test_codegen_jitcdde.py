@@ -57,12 +57,16 @@ def _make_dde_from_name(
     log.info("\n%s", source)
     assert source.shape == (d * n,)
 
-    dde = target.compile(
-        source,
-        ys,
-        max_delay=max_delay,
-        module_location=module_location,
-    )
+    from orbitkit.utils import tictoc
+
+    with tictoc(f"{module_name}[{model_name}]"):
+        dde = target.compile(
+            source,
+            ys,
+            max_delay=max_delay,
+            module_location=module_location,
+        )
+
     dde.constant_past(np.ones(d * n), 0.0)
     dde.adjust_diff()
 
@@ -103,6 +107,7 @@ def test_codegen_jitcdde_cache() -> None:
         pathlib.Path(tempfile.gettempdir()) / "jitcdde_orbitkit_codegen.so"
     )
 
+    dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", max_delay)
     dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", max_delay)
     assert not module_location.exists()
     dde = _make_dde_from_name(

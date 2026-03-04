@@ -300,35 +300,35 @@ class JiTCDDETarget(JiTCODETarget):
                 parameters=control_pars,
             )
 
-            if module_location:
-                if module_location.exists():
-                    from jitcxde_common.modules import find_and_load_module
+            if module_location is not None and module_location.exists():
+                from jitcxde_common.modules import find_and_load_module
 
-                    # FIXME: this is not exactly documented API
-                    dde.jitced = find_and_load_module(dde._modulename, dde._tmpfile())
-                    dde.compile_attempt = True
-                else:
-                    t_start = time.time()
-                    dde.compile_C(
-                        simplify=simplify,
-                        do_cse=False,
-                        extra_compile_args=(
-                            JITCDDE_DEBUG_CFLAGS if debug else JITCDDE_RELEASE_CFLAGS
-                        ),
-                        verbose=verbose,
-                        chunk_size=32,
-                        omp=openmp,
-                        modulename=module_location.stem if module_location else None,
-                    )
+                # FIXME: this is not exactly documented API
+                dde.jitced = find_and_load_module(dde._modulename, dde._tmpfile())
+                dde.compile_attempt = True
+            else:
+                t_start = time.time()
+                dde.compile_C(
+                    simplify=simplify,
+                    do_cse=False,
+                    extra_compile_args=(
+                        JITCDDE_DEBUG_CFLAGS if debug else JITCDDE_RELEASE_CFLAGS
+                    ),
+                    verbose=verbose,
+                    chunk_size=32,
+                    omp=openmp,
+                    modulename=module_location.stem if module_location else None,
+                )
 
+                if module_location is not None:
                     from jitcxde_common.modules import get_module_path
 
                     # FIXME: this is not exactly documented API
                     sourcefile = get_module_path(dde._modulename, dde._tmpfile())
                     shutil.copy(sourcefile, module_location)
 
-                    if verbose:
-                        log.info("Compilation time: %.3fs.", time.time() - t_start)
+                if verbose:
+                    log.info("Compilation time: %.3fs.", time.time() - t_start)
 
         # NOTE: we cannot add parameters here because JiTCDDE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.
