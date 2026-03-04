@@ -77,7 +77,7 @@ def is_fixed_point(
     slope, _ = np.polyfit(n, x, 1)
     slope = abs(slope)
 
-    log.info(
+    log.debug(
         "Fixed point: std %.8e (xtol %.8e) slope %.8e (gtol %.8e).",
         std,
         xtol,
