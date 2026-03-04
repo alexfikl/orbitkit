@@ -92,7 +92,7 @@ def test_codegen_jitcode(module_name: str, model_name: str) -> None:
 # {{{ test_codegen_jitcode_cache
 
 
-def test_codegen_jitcode_cache() -> None:
+def test_codegen_jitcode_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     """Check that the generated code works for these models."""
 
     pytest.importorskip("pymbolic")
@@ -117,6 +117,14 @@ def test_codegen_jitcode_cache() -> None:
         module_location=module_location,
     )
     assert module_location.exists()
+
+    def dummy_compile_c(self: jitcode.jitcode) -> None:
+        raise AssertionError()
+
+    # FIXME: not sure this is sufficient to check that no mode compilation is
+    # happening?
+    monkeypatch.setattr(ode, "_compile_C", dummy_compile_c)
+    monkeypatch.setattr(ode, "compile_C", dummy_compile_c)
 
     for t in [0.0, 0.01, 0.02]:
         ode.integrate(t)

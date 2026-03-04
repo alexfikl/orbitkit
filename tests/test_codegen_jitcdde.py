@@ -96,7 +96,7 @@ def test_codegen_jitcdde(module_name: str, model_name: str, max_delay: float) ->
 # {{{ test_codegen_jitcdde_cache
 
 
-def test_codegen_jitcdde_cache() -> None:
+def test_codegen_jitcdde_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     """Check that the generated code works for these models."""
 
     pytest.importorskip("pymbolic")
@@ -124,6 +124,14 @@ def test_codegen_jitcdde_cache() -> None:
         module_location=module_location,
     )
     assert module_location.exists()
+
+    def dummy_compile_c(self: jitcdde.jitcdde) -> None:
+        raise AssertionError()
+
+    # FIXME: not sure this is sufficient to check no more compilation is
+    # happening?
+    monkeypatch.setattr(dde, "_compile_C", dummy_compile_c)
+    monkeypatch.setattr(dde, "compile_C", dummy_compile_c)
 
     for t in [-max_delay, 0.0, 0.01, 0.02]:
         dde.integrate(max_delay + t)
