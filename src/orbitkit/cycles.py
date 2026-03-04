@@ -161,7 +161,7 @@ def detect_cycle_harmonic(
 
     if peaks.size:
         f0_idx = peaks[np.argmax(props["prominences"])]
-        mask = make_harmonic_mask(f, f[f0_idx], binwidth=2)
+        mask = make_harmonic_mask(f, f[f0_idx], binwidth=4)
         harmonic_energy = np.sum(mean_psd[mask])
     else:
         f0_idx = 0
