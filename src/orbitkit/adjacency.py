@@ -196,7 +196,7 @@ def stringify_adjacency(
             for i in range(mat.shape[0])
         )
     elif fmt == "tight":
-        symbols = {0: "  ", 1: "▒▒"}
+        symbols = {0: "··", 1: "▒▒"}
 
         return "\n".join(
             "".join(symbols[int(mat[i, j] != 0)] for j in range(mat.shape[1]))
@@ -204,25 +204,21 @@ def stringify_adjacency(
         )
     elif fmt == "braille":
         height = (mat.shape[0] // 4) * 4
-        width = (mat.shape[1] // 2) * 2
+        width = (mat.shape[1] // 4) * 4
         mat = (mat[:height, :width] != 0).astype(np.uint8)
+
+        def braille(block: Array2D[np.uint8]) -> str:
+            offset = sum(int(b) << i for i, b in enumerate(block.flat))
+            return "◌" if offset == 0 else chr(0x2800 + offset)
 
         result = []
         for i in range(0, height, 4):
             line = []
-            for j in range(0, width, 2):
-                dots = int(
-                    mat[i + 0, j + 0] << 0
-                    | mat[i + 1, j + 0] << 1
-                    | mat[i + 2, j + 0] << 2
-                    | mat[i + 0, j + 1] << 3
-                    | mat[i + 1, j + 1] << 4
-                    | mat[i + 2, j + 1] << 5
-                    | mat[i + 3, j + 0] << 6
-                    | mat[i + 3, j + 1] << 7
+            for j in range(0, width, 4):
+                line.append(
+                    braille(mat[i : i + 4, j : j + 2])
+                    + braille(mat[i : i + 4, j + 2 : j + 4])
                 )
-
-                line.append(chr(0x2800 + dots))
 
             result.append("".join(line))
 
