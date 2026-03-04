@@ -45,7 +45,7 @@ class HarmonicResult(CycleResult):
         total_energy = 1.0 if self.total_energy < 1.0e-8 else self.total_energy
         delta = 1 - self.harmonic_energy / total_energy
 
-        log.info("Periodic: delta %.8e (eps %.8e)", delta, eps)
+        log.debug("Periodic: delta %.8e (eps %.8e)", delta, eps)
         return bool(delta < eps)
 
 
@@ -155,8 +155,9 @@ def detect_cycle_harmonic(
     peaks, props = find_peaks(mean_psd, prominence=0.1 * np.max(mean_psd))
 
     # 1. Compute harmonic energy
+    eps = 10 * np.finfo(x.dtype).eps
     total_energy = np.sum(mean_psd)
-    total_energy = 1.0 if total_energy < 1.0e-8 else total_energy
+    total_energy = 1.0 if total_energy < eps else total_energy
 
     if peaks.size:
         f0_idx = peaks[np.argmax(props["prominences"])]
@@ -204,7 +205,7 @@ class AutocorrelationCycleResult(CycleResult):
             jitter = 0.0
 
         confidence = self.corr[self.peaks[0]]
-        log.info(
+        log.debug(
             "Periodic: peaks %.8e (eps %.8e) jitter %.8e (eps %.8e)",
             confidence,
             eps,
