@@ -160,7 +160,11 @@ def make_graph_laplacian_directed(
     return L
 
 
-def stringify_adjacency(mat: Array2D[np.floating[Any]], *, fmt: str = "box") -> str:
+def stringify_adjacency(
+    mat: Array2D[np.floating[Any]],
+    *,
+    fmt: str | None = None,
+) -> str:
     """Stringify a (preferably binary) adjacency matrix.
 
     The supported formats are:
@@ -175,6 +179,15 @@ def stringify_adjacency(mat: Array2D[np.floating[Any]], *, fmt: str = "box") -> 
     * ``latex``: a ``bmatrix`` environment with the matrix entries, written out
       verbatim.
     """
+    if fmt is None:
+        n = max(mat.shape)
+        if n < 50:
+            fmt = "box"
+        elif n < 75:
+            fmt = "tight"
+        else:
+            fmt = "braille"
+
     if fmt == "box":
         symbols = {0: " ◻ ", 1: " ◼ "}
 
