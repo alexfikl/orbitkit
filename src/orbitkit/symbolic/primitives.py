@@ -199,6 +199,23 @@ sech = Function("sech")
 gamma = Function("gamma")
 """The Gamma function."""
 
+
+def hill(x: Expression, c: Expression, n: Expression) -> Expression:
+    return x**n / (x**n + c**n)
+
+
+def hill1(x: Expression, c: Expression) -> Expression:
+    return hill(x, c, 1)
+
+
+def hill2(x: Expression, c: Expression) -> Expression:
+    return hill(x, c, 2)
+
+
+def hill4(x: Expression, c: Expression) -> Expression:
+    return hill(x, c, 4)
+
+
 # }}}
 
 

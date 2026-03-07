@@ -23,6 +23,48 @@ class RateFunction(Protocol):
 
 
 @dataclass(frozen=True)
+class LinearRationalRate:
+    r"""A linear rational rate function.
+
+    .. math::
+
+        f(V; a, V_0, V_1) = a \frac{V + V_0}{V + V_1}
+    """
+
+    a: sym.Expression
+    V0: sym.Expression
+    V1: sym.Expression
+
+    def __call__(self, V: sym.Expression) -> sym.Expression:
+        return self.a * (V + self.V0) / (V + self.V1)
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        return self.a * (self.V1 - self.V0) / (V + self.V1) ** 2
+
+
+@dataclass(frozen=True)
+class HillRate:
+    r"""A Hill function-like rate function.
+
+    .. math::
+
+        f(V; a, n) = \frac{V^n}{V^n + a^n}.
+    """
+
+    a: sym.Expression
+    n: int
+
+    def __call__(self, V: sym.Expression) -> sym.Expression:
+        return V**self.n / (V**self.n + self.a**self.n)
+
+    def diff(self, V: sym.Expression) -> sym.Expression:
+        an = self.a**self.n
+        Vn = V ** (self.n - 1) if self.n != 1 else 1
+
+        return self.n * an * Vn / (V**self.n + an) ** 2
+
+
+@dataclass(frozen=True)
 class ExponentialRate:
     r"""Exponential rate function.
 
