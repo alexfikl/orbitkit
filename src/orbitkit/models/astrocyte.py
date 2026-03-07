@@ -50,14 +50,14 @@ class LiRinzel(Model):
 
     .. math::
 
-        \begin{cases}
+        \begin{aligned}
         \frac{\mathrm{d} C}{\mathrm{d} t} & =
             c_1 v_1 m_\infty^3(I) n_\infty^3(C) h^3 (C_{\text{ER}} - C)
             + c_1 v_2 (C_{\text{ER}} - C)
             - v_3 \frac{C^2}{C^2 + k_3^2}, \\
         \frac{\mathrm{d} h}{\mathrm{d} t} & =
             \frac{h_\infty(C, I) - h_i}{\tau_h(C, I)},
-        \end{cases}
+        \end{aligned}
 
     where :math:`C` is the cytosolic :math:`\text{Ca}^{2+}` concentration
     and :math:`h` is a slow inactivation variable. The additional variables
@@ -133,7 +133,7 @@ class DePittaParameter:
 
     These parameters are mainly an extension of :class:`LiRinzelParameter` with
     different names. In particular, :math:`r_C \equiv v_1`, :math:`r_L \equiv v_2`,
-    :math:`v_{ER} \equiv v_3` and :math:`k_ER \equiv k_3`.
+    :math:`v_{ER} \equiv v_3` and :math:`k_{ER} \equiv k_3`.
     """
 
     # [Ca] equation
@@ -143,9 +143,9 @@ class DePittaParameter:
     """Ratio between the endoplasmic reticulum (ER) volume and cytosol volume."""
 
     r_C: float
-    """Maximum :math:`\text{InsP}_3 R` rate (Hz)."""
+    r"""Maximum :math:`\text{InsP}_3\text{R}` rate (Hz)."""
     r_L: float
-    """Maximum :math:`\text{Ca}^{2+}` leak from the ER (Hz)."""
+    r"""Maximum :math:`\text{Ca}^{2+}` leak from the ER (Hz)."""
 
     v_ER: float
     """Maximum rate of SERCA uptake (Hz)."""
@@ -154,7 +154,7 @@ class DePittaParameter:
 
     # [h] equation
     a_2: float
-    """:math:`\text{IP}_3\text{R}` binding rate for :math:`\text{Ca}^{2+}` inhibition.
+    r""":math:`\text{IP}_3\text{R}` binding rate for :math:`\text{Ca}^{2+}` inhibition.
     (Hz).
     """
 
@@ -164,14 +164,14 @@ class DePittaParameter:
     k_delta: float
     """Inhibition constant of PLCδ activity."""
     k_PLC: float
-    """:math:`\text{Ca}^{2+} afﬁnity of PLCδ."""
+    r""":math:`\text{Ca}^{2+}` affinity of PLCδ."""
 
     v_3K: float
-    """Maximal rate of degradation by :math:`\text{IP}_3\text{-3K}`."""
+    r"""Maximal rate of degradation by :math:`\text{IP}_3\text{-3K}`."""
     k_D: float
-    """:math:`\text{Ca}^{2+}` affinity of :math:`\text{IP}_3\text{-3K}`."""
+    r""":math:`\text{Ca}^{2+}` affinity of :math:`\text{IP}_3\text{-3K}`."""
     k_3: float
-    """:math:`\text{IP}_3` affinity of :math:`\text{IP}_3\text{-3K}`."""
+    r""":math:`\text{IP}_3` affinity of :math:`\text{IP}_3\text{-3K}`."""
 
     r_5P: float
     """Maximal rate of degradation by IP-5P"""
@@ -179,7 +179,19 @@ class DePittaParameter:
 
 @dataclass(frozen=True)
 class DePitta(Model):
-    """
+    r"""Right-hand side of the model from Equation (14) from [DePitta2009]_.
+
+    This is a 3 equation extensio of :class:`LiRinzel`. The first two equations
+    are the same and the third equation describes the evoluation of the
+    :math:`\text{IP}_3` concentration as
+
+    .. math::
+
+        \frac{\mathrm{d} I}{\mathrm{d} t} =
+            \frac{v_\delta}{I + k_\delta} \mathrm{Hill}_2(C, K_{\text{PLC}\delta})
+            - v_{3K} \mathrm{Hill}_4(C, K_D) \mathrm{Hill}_1(I, K_3)
+            - r_{5P} I.
+
     .. [DePitta2009] M. De Pittà, M. Goldberg, V. Volman, H. Berry, E. Ben-Jacob,
         *Glutamate Regulation of Calcium and IP3 Oscillating and Pulsating
         Dynamics in Astrocytes*,
@@ -249,9 +261,11 @@ class DePitta(Model):
 
 @dataclass(frozen=True)
 class GlutamateDePittaParameter(DePittaParameter):
+    """Parameters for the glutamate-dependent extension from [DePitta2009]_."""
+
     beta: float
     """Hill function exponent (should be in :math:`[0.5, 1]`) according to
-    Equation (16) in [DePitta2009].
+    Equation (16) in [DePitta2009]_.
     """
     v_beta: float
     """Maximal rate of :math:`\text{IP}_3` production by PLCβ."""
@@ -267,6 +281,19 @@ class GlutamateDePittaParameter(DePittaParameter):
 
 @dataclass(frozen=True)
 class GlutamateDePitta(DePitta):
+    r"""An extension of :class:`DePitta` from [DePitta2009]_.
+
+    This model extends :class:`DePitta` by adding another term to the
+    :math:`\text{IP}_3` equation. It is given by
+
+    .. math::
+
+        v_\beta \mathrm{Hill}_{\beta}\left(
+            \gamma,
+            K_R + K_p \mathrm{Hill}(C, K_\pi)
+        \right).
+    """
+
     param: GlutamateDePittaParameter
     """Parameters in the glutamate-dependent De Pittà model."""
 
