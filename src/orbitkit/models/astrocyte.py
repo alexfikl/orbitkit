@@ -4,11 +4,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.models.rate_functions import LinearRationalRate, RateFunction
+from orbitkit.models.rate_functions import HillRate, LinearRationalRate, RateFunction
 from orbitkit.utils import module_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = module_logger(__name__)
 
@@ -182,7 +186,7 @@ class DePitta(Model):
     r"""Right-hand side of the model from Equation (14) from [DePitta2009]_.
 
     This is a 3 equation extensio of :class:`LiRinzel`. The first two equations
-    are the same and the third equation describes the evoluation of the
+    are the same and the third equation describes the evolution of the
     :math:`\text{IP}_3` concentration as
 
     .. math::
@@ -235,7 +239,7 @@ class DePitta(Model):
 
         # Equation (14) from [DePitta2009]
         k_delta = param.k_delta
-        v_delta = param.v_delta / k_delta
+        v_delta = param.v_delta * k_delta
         k_PLC = param.k_PLC
         v_3K = param.v_3K
         k_D = param.k_D
@@ -269,8 +273,6 @@ class GlutamateDePittaParameter(DePittaParameter):
     """
     v_beta: float
     """Maximal rate of :math:`\text{IP}_3` production by PLCβ."""
-    gamma: float
-    """Extracellular glutamate concentration at the astrocytic plasma membrane."""
     k_R: float
     """Glutamate affinity of the receptor."""
     k_p: float
@@ -289,13 +291,16 @@ class GlutamateDePitta(DePitta):
     .. math::
 
         v_\beta \mathrm{Hill}_{\beta}\left(
-            \gamma,
+            \gamma(t),
             K_R + K_p \mathrm{Hill}(C, K_\pi)
         \right).
     """
 
     param: GlutamateDePittaParameter
     """Parameters in the glutamate-dependent De Pittà model."""
+
+    gamma: Callable[[sym.Expression], sym.Expression]
+    """Extracellular glutamate concentration at the astrocytic plasma membrane."""
 
     def evaluate(
         self, t: sym.Expression, *args: sym.MatrixSymbol
@@ -305,16 +310,16 @@ class GlutamateDePitta(DePitta):
 
         # Equation (20) in [DePitta2009]
         param = self.param
+        beta = param.beta
         v_beta = param.v_beta
-        gamma = param.gamma
         k_R = param.k_R
-        k_p = param.k_p / k_R
+        k_p = param.k_p
         k_pi = param.k_pi
 
         return (
             eqs[0],
             eqs[1],
-            v_beta * sym.hill(gamma, k_R * (1 + k_p * sym.hill1(C, k_pi)), param.beta)
+            v_beta * sym.hill(self.gamma(t), k_R + k_p * sym.hill1(C, k_pi), beta)
             + eqs[2],
         )
 
@@ -353,14 +358,65 @@ def _make_li_rinzel_1994(InsP3: float) -> LiRinzel:
 
     return LiRinzel(
         param=param,
-        minf=LinearRationalRate(1.0, 0.0, b_1 / a_1),
-        ninf=LinearRationalRate(1.0, 0.0, b_5 / a_5),
+        minf=HillRate(b_1 / a_1, 1),
+        ninf=HillRate(b_5 / a_5, 1),
         Q2=LinearRationalRate(b_2 / a_2, b_1 / a_1, b_3 / a_3),
+    )
+
+
+def _make_de_pitta_2009(
+    k_ER: float,
+    v_delta: float,
+    r_5P: float,
+    v_beta: float,
+    gammas: tuple[float, float],
+) -> GlutamateDePitta:
+    def gamma(t: sym.Expression) -> sym.Expression:
+        from pymbolic.primitives import Comparison, If
+
+        phase = (t % 125.0) / 125.0  # ty: ignore[unsupported-operator]
+        return If(Comparison(phase, ">", 0.5), gammas[1], gammas[0])
+
+    param = GlutamateDePittaParameter(
+        c_0=2.0,
+        c_1=0.185,
+        r_C=6.0,
+        r_L=0.11,
+        v_ER=0.9,
+        k_ER=k_ER,
+        a_2=0.2,
+        v_delta=v_delta,
+        k_PLC=0.1,
+        k_delta=1.5,
+        r_5P=r_5P,
+        v_3K=2,
+        k_D=0.7,
+        k_3=1.0,
+        beta=0.7,
+        v_beta=v_beta,
+        k_R=1.3,
+        k_p=10.0,
+        k_pi=0.6,
+    )
+
+    d1 = 0.13
+    d2 = 1.049
+    d3 = 0.9434
+    d5 = 0.08234
+
+    return GlutamateDePitta(
+        param=param,
+        minf=HillRate(d1, 1),
+        ninf=HillRate(d5, 1),
+        Q2=LinearRationalRate(d2, d1, d3),
+        gamma=gamma,
     )
 
 
 ASTROCYTE_MODEL = {
     "LiRinzel1994Figure3": _make_li_rinzel_1994(0.4),
+    "DePitta2009Figure12am": _make_de_pitta_2009(0.1, 0.02, 0.04, 0.2, (0.002, 5.0)),
+    "DePitta2009Figure12fm": _make_de_pitta_2009(0.05, 0.05, 0.05, 0.5, (0.001, 6.0)),
 }
 
 
