@@ -18,8 +18,9 @@ log = module_logger(__name__)
 
 @dataclass(frozen=True)
 class LiRinzelParameter:
-    """Parameters for the astrocyte calcium model from [LiRinzel1994]."""
+    """Parameters for the astrocyte calcium model from [LiRinzel1994]_."""
 
+    # [Ca] equation
     InsP3: float
     """:math:`\text{InsP}_3` concentration (microM)."""
 
@@ -37,9 +38,10 @@ class LiRinzelParameter:
     k_3: float
     r"""The dissociation constant of :math:`\text{Ca}^{2+}` to the pump (microM)."""
 
+    # [h] equation
     a_2: float
     """The on-rate for :math:`\text{Ca}^{2+}` binding to the inactivation site
-    (Hz/microM)."""
+    (Hz)."""
 
 
 @dataclass(frozen=True)
@@ -114,7 +116,7 @@ class LiRinzel(Model):
         return (
             V_1 * minf**3 * h**3 * (C_ER - C)
             + V_2 * (C_ER - C)
-            - V_3 * C**2 / (param.k_3**2 + C**2),
+            - V_3 * sym.hill2(C, param.k_3),
             (hinf - h) / tau,
         )
 
@@ -122,8 +124,61 @@ class LiRinzel(Model):
 # }}}
 
 
+# {{{{ DePitta model
+
+
 @dataclass(frozen=True)
-class DePitta(LiRinzel):
+class DePittaParameter:
+    r"""Parameters used in the De Pittà model described in Table 1 from [DePitta2009]_.
+
+    These parameters are mainly an extension of :class:`LiRinzelParameter` with
+    different names. In particular, :math:`r_C \equiv v_1`, :math:`r_L \equiv v_2`,
+    :math:`v_{ER} \equiv v_3` and :math:`k_ER \equiv k_3`.
+    """
+
+    # [Ca] equation
+    c_0: float
+    """Total free calcium per cytosolic volume (microM)."""
+    c_1: float
+    """Ratio between the endoplasmic reticulum (ER) volume and cytosol volume."""
+
+    r_C: float
+    """Maximum :math:`\text{InsP}_3 R` rate (Hz)."""
+    r_L: float
+    """Maximum :math:`\text{Ca}^{2+}` leak from the ER (Hz)."""
+
+    v_ER: float
+    """Maximum rate of SERCA uptake (Hz)."""
+    k_ER: float
+    r"""SERCA :math:`\text{Ca}^{2+}` affinity (microM)."""
+
+    # [h] equation
+    a_2: float
+    """:math:`\text{IP}_3\text{R}` binding rate for :math:`\text{Ca}^{2+}` inhibition.
+    (Hz).
+    """
+
+    # [InsP3] equation
+    v_delta: float
+    r"""Maximal rate of :math:`\text{IP}_3` production by PLCδ."""
+    k_delta: float
+    """Inhibition constant of PLCδ activity."""
+    k_PLC: float
+    """:math:`\text{Ca}^{2+} afﬁnity of PLCδ."""
+
+    v_3K: float
+    """Maximal rate of degradation by :math:`\text{IP}_3\text{-3K}`."""
+    k_D: float
+    """:math:`\text{Ca}^{2+}` affinity of :math:`\text{IP}_3\text{-3K}`."""
+    k_3: float
+    """:math:`\text{IP}_3` affinity of :math:`\text{IP}_3\text{-3K}`."""
+
+    r_5P: float
+    """Maximal rate of degradation by IP-5P"""
+
+
+@dataclass(frozen=True)
+class DePitta(Model):
     """
     .. [DePitta2009] M. De Pittà, M. Goldberg, V. Volman, H. Berry, E. Ben-Jacob,
         *Glutamate Regulation of Calcium and IP3 Oscillating and Pulsating
@@ -131,6 +186,113 @@ class DePitta(LiRinzel):
         Journal of Biological Physics, Vol. 35, pp. 383--411, 2009,
         `doi:10.1007/s10867-009-9155-y <https://doi.org/10.1007/s10867-009-9155-y>`__.
     """
+
+    param: DePittaParameter
+    """Parameters in the De Pittà model."""
+
+    minf: RateFunction
+    r"""Steady-state activation function :math:`m_\infty(I)`."""
+    ninf: RateFunction
+    r"""Steady-state activation function :math:`n_\infty(C)`."""
+    Q2: RateFunction
+    """Rate function for the inactivation variable :math:`h`."""
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("C", "h", "I")
+
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
+        C, h, IP3 = args
+        param = self.param
+
+        # Equations (1-3) in [DePitta2009].
+        C_ER = (param.c_0 - C) / param.c_1
+        r_C = param.r_C * param.c_1
+        r_L = param.r_L * param.c_1
+        v_ER = param.v_ER
+
+        minf = self.minf(IP3)
+        ninf = self.ninf(C)
+
+        # Equation (6) in [DePitta2009]
+        Q2 = self.Q2(IP3)
+        hinf = Q2 / (Q2 + C)
+        tau = 1 / (param.a_2 * (Q2 + C))
+
+        # Equation (14) from [DePitta2009]
+        k_delta = param.k_delta
+        v_delta = param.v_delta / k_delta
+        k_PLC = param.k_PLC
+        v_3K = param.v_3K
+        k_D = param.k_D
+        k_3 = param.k_3
+        r_5P = param.r_5P
+
+        return (
+            r_C * minf**3 * ninf**3 * h**3 * (C_ER - C)
+            + r_L * (C_ER - C)
+            - v_ER * sym.hill2(C, param.k_ER),
+            (hinf - h) / tau,
+            v_delta / (IP3 + k_delta) * sym.hill2(C, k_PLC)
+            - v_3K * sym.hill4(C, k_D) * sym.hill1(IP3, k_3)
+            - r_5P * IP3,
+        )
+
+
+# }}}
+
+
+# {{{ GlutamateDePitta model
+
+
+@dataclass(frozen=True)
+class GlutamateDePittaParameter(DePittaParameter):
+    beta: float
+    """Hill function exponent (should be in :math:`[0.5, 1]`) according to
+    Equation (16) in [DePitta2009].
+    """
+    v_beta: float
+    """Maximal rate of :math:`\text{IP}_3` production by PLCβ."""
+    gamma: float
+    """Extracellular glutamate concentration at the astrocytic plasma membrane."""
+    k_R: float
+    """Glutamate affinity of the receptor."""
+    k_p: float
+    """:math:`\text{Ca}^{2+}`/PKC-dependent inhibition factor."""
+    k_pi: float
+    """:matr:`\text{Ca}^{2+}` afﬁnity of PKC."""
+
+
+@dataclass(frozen=True)
+class GlutamateDePitta(DePitta):
+    param: GlutamateDePittaParameter
+    """Parameters in the glutamate-dependent De Pittà model."""
+
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
+        C, h, IP3 = args
+        eqs = super().evaluate(t, C, h, IP3)
+
+        # Equation (20) in [DePitta2009]
+        param = self.param
+        v_beta = param.v_beta
+        gamma = param.gamma
+        k_R = param.k_R
+        k_p = param.k_p / k_R
+        k_pi = param.k_pi
+
+        return (
+            eqs[0],
+            eqs[1],
+            v_beta * sym.hill(gamma, k_R * (1 + k_p * sym.hill1(C, k_pi)), param.beta)
+            + eqs[2],
+        )
+
+
+# }}}
 
 
 # {{{ parameters
