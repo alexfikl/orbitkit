@@ -68,7 +68,7 @@ with figure(
 ) as fig:
     ax = fig.gca()
 
-    ax.plot(result.t, result.y[0], label=r"$C$ (microM)")
+    ax.plot(result.t, result.y[0], label=r"[Ca] ($\mu M$)")
     ax.plot(result.t, result.y[1], label="$h$")
 
     ax.set_xlabel("$t$ (s)")
