@@ -91,9 +91,6 @@ def detect_cycle_harmonic(
     """Evaluate *nwindows* power spectrum densities and check the energy of the
     harmonics.
 
-    :arg x: an array of shape ``(d, n)``, where :math:`d` is the dimension of
-        the state space and :math:`n` is the time step count.
-
     :arg nwindows: number of windows to consider.
     :arg window_length: length of a single window, which should match with the
         time series length when considering the number of windows.
