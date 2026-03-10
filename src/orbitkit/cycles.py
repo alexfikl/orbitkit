@@ -68,9 +68,9 @@ def make_harmonic_mask(
     *,
     nharmonics: int = 5,
     binwidth: int = 1,
-) -> Array1D[np.bool]:
+) -> Array1D[np.bool_]:
     df = f[1] - f[0]
-    mask = np.zeros(f.shape, dtype=np.bool)
+    mask = np.zeros(f.shape, dtype=np.bool_)
     for k in range(1, nharmonics + 1):
         mask |= np.abs(f - k * f0) < binwidth * df
 
