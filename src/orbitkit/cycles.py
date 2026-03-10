@@ -37,8 +37,8 @@ class HarmonicResult(CycleResult):
 
     freq: Array1D[np.floating[Any]]
     """Frequencies of the last computed power spectrum density."""
-    psd: Array1D[np.floating[Any]]
-    """The last computed power spectrum density."""
+    psd: Array2D[np.floating[Any]]
+    """The computed power spectrum density over all windows."""
 
     def is_periodic(self, eps: float = 1.0e-3) -> bool:
         """Check if the corresponding time series is periodic based on the PSD."""
