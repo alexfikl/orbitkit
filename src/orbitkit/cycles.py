@@ -104,7 +104,7 @@ def detect_cycle_harmonic(
         raise ValueError(f"unsupported dimension: {x.ndim}")
 
     if nwindows <= 0:
-        raise ValueError(f"'nwindows' cannot be negative: {nwindows}")
+        raise ValueError(f"'nwindows' most be positive: {nwindows}")
 
     (n,) = x.shape
     if window_length is None:
