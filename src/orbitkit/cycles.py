@@ -56,6 +56,9 @@ def make_windows(
     overlap: float = 0.5,
 ) -> Iterator[tuple[int, int]]:
     step = int((1 - overlap) * length)
+    if step == 0:
+        raise ValueError(f"overlap too large: {overlap}")
+
     w_ends = [n - i * step for i in reversed(range(nwindows))]
     w_starts = [max(0, e - length) for e in w_ends]
 
