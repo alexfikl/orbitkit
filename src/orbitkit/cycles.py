@@ -42,8 +42,7 @@ class HarmonicResult(CycleResult):
 
     def is_periodic(self, eps: float = 1.0e-3) -> bool:
         """Check if the corresponding time series is periodic based on the PSD."""
-        total_energy = 1.0 if self.total_energy < 1.0e-8 else self.total_energy
-        delta = 1 - self.harmonic_energy / total_energy
+        delta = 1 - self.harmonic_energy / self.total_energy
 
         log.debug("Periodic: delta %.8e (eps %.8e)", delta, eps)
         return bool(delta < eps)
