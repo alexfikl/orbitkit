@@ -173,18 +173,19 @@ def detect_cycle_harmonic(
     if np.max(mean_psd[1:]) < eps:
         return HarmonicResult(1.0, 1.0, f, psds)
 
-    peaks, props = find_peaks(mean_psd[1:], prominence=0.1 * np.max(mean_psd[1:]))
+    # FIXME: this 0.05 is essentially random here, not great..
+    peaks, _ = find_peaks(mean_psd[1:], prominence=0.05 * np.max(mean_psd[1:]))
 
     # 1. Compute harmonic energy
     total_energy = np.sum(mean_psd)
     total_energy = 1.0 if total_energy < eps else total_energy
 
-    if peaks.size:
-        f0_idx = peaks[np.argmax(props["prominences"])]
-        mask = make_harmonic_mask(f, f[f0_idx + 1], binwidth=4)
-        harmonic_energy = np.sum(mean_psd[mask])
-    else:
-        harmonic_energy = 0.0
+    harmonic_energy = 0.0
+    for peak in peaks:
+        f0_idx = f[peak + 1]
+        # FIXME: this nharmonics and binwidth is essentially random here, not great..
+        mask = make_harmonic_mask(f, f0_idx, nharmonics=5, binwidth=4)
+        harmonic_energy = max(np.sum(mean_psd[mask]), harmonic_energy)
 
     # }}}
 

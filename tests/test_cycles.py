@@ -207,6 +207,24 @@ def test_detect_cycle_harmonic_nonlinear() -> None:
 
 # }}}
 
+# {{{ test_detect_cycle_harmonic_subharmonic
+
+
+def test_detect_cycle_harmonic_subharmonic() -> None:
+    """A signal dominated by its 2nd harmonic is still detected as periodic."""
+    from orbitkit.cycles import detect_cycle_harmonic
+
+    # 2nd harmonic has 3x the amplitude of the fundamental
+    n = 8192
+    theta = np.linspace(0.0, 128 * np.pi, n)
+    x = 0.3 * np.sin(theta) + np.sin(2 * theta)
+
+    result = detect_cycle_harmonic(x, nwindows=6)
+    assert result.is_periodic(), f"expected periodic, error={result.error}"
+
+
+# }}}
+
 
 if __name__ == "__main__":
     import sys
