@@ -133,7 +133,7 @@ def detect_cycle_harmonic(
     from scipy.signal import periodogram
 
     # Compute PSD for each window
-    psds = np.empty((nwindows, window_length // 2 + 1))
+    psds = np.empty((nwindows, nfft // 2 + 1))
     for i, (start, end) in enumerate(
         make_windows(n, nwindows, window_length, overlap=overlap)
     ):
