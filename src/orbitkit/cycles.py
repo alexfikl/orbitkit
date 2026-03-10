@@ -56,8 +56,7 @@ def make_windows(
     overlap: float = 0.5,
 ) -> Iterator[tuple[int, int]]:
     step = int((1 - overlap) * length)
-    if step == 0:
-        raise ValueError(f"overlap too large: {overlap}")
+    assert step != 0
 
     w_ends = [n - i * step for i in reversed(range(nwindows))]
     w_starts = [max(0, e - length) for e in w_ends]
@@ -128,6 +127,19 @@ def detect_cycle_harmonic(
 
     if fs <= 0:
         raise ValueError(f"'fs' frequency should be positive: '{fs}'")
+
+    step = int((1 - overlap) * window_length)
+    if step == 0:
+        raise ValueError(
+            f"'overlap' is too large for 'window_length' (results in 0 step): {overlap}"
+        )
+
+    required = window_length + (nwindows - 1) * step
+    if required > n:
+        raise ValueError(
+            "signal length too small: choose smaller window length or less windows "
+            "or more overlap such that `n > window_length + (nwindows - 1) * step`"
+        )
 
     eps = 10 * np.finfo(x.dtype).eps
 
