@@ -40,12 +40,16 @@ class HarmonicResult(CycleResult):
     psd: Array2D[np.floating[Any]]
     """The computed power spectrum density over all windows."""
 
+    @property
+    def error(self) -> float:
+        return 1 - self.harmonic_energy / self.total_energy
+
     def is_periodic(self, eps: float = 1.0e-3) -> bool:
         """Check if the corresponding time series is periodic based on the PSD."""
-        delta = 1 - self.harmonic_energy / self.total_energy
+        error = self.error
 
-        log.debug("Periodic: delta %.8e (eps %.8e)", delta, eps)
-        return bool(delta < eps)
+        log.debug("Periodic: delta %.8e (eps %.8e)", error, eps)
+        return bool(error < eps)
 
 
 def make_windows(
