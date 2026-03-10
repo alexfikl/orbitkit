@@ -42,6 +42,7 @@ class HarmonicResult(CycleResult):
 
     @property
     def error(self) -> float:
+        """Error metric used to determine if the signal is periodic."""
         return 1 - self.harmonic_energy / self.total_energy
 
     def is_periodic(self, eps: float = 1.0e-3) -> bool:
@@ -107,7 +108,7 @@ def detect_cycle_harmonic(
         raise ValueError(f"unsupported dimension: {x.ndim}")
 
     if nwindows <= 0:
-        raise ValueError(f"'nwindows' most be positive: {nwindows}")
+        raise ValueError(f"'nwindows' must be positive: {nwindows}")
 
     (n,) = x.shape
     if window_length is None:
@@ -183,7 +184,6 @@ def detect_cycle_harmonic(
         mask = make_harmonic_mask(f, f[f0_idx + 1], binwidth=4)
         harmonic_energy = np.sum(mean_psd[mask])
     else:
-        f0_idx = 0
         harmonic_energy = 0.0
 
     # }}}

@@ -34,7 +34,7 @@ def test_detect_cycle_harmonic(b: float) -> None:
 
     result = detect_cycle_harmonic(x, nwindows=6)
 
-    error = 1.0 - result.harmonic_energy / result.total_energy
+    error = result.error
     log.info("Error: %.8e (%.8e)", error, b)
     assert error < 15.0 * b
 
@@ -146,7 +146,7 @@ def test_detect_cycle_harmonic_nfft_shape() -> None:
 
 
 def test_detect_cycle_harmonic_zero_signal() -> None:
-    """All-zero input is handled gracefully and is not declared periodic."""
+    """All-zero input is handled gracefully and is declared periodic."""
     from orbitkit.cycles import detect_cycle_harmonic
 
     x = np.zeros(2048)
