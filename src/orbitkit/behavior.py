@@ -15,19 +15,19 @@ log = module_logger(__name__)
 
 
 @enum.unique
-class Behavior(enum.Enum):
+class Behavior(enum.IntEnum):
     """Macro view of the behavior of a dynamical system."""
 
-    Unknown = enum.auto()
+    Unknown = 0
     """System has an unknown behavior that could not be determined."""
 
-    Divergent = enum.auto()
+    Divergent = 1
     """System has diverged to infinity."""
-    Chaotic = enum.auto()
+    Chaotic = 2
     """System is chaotic, i.e. it has a positive Lyapunov exponent."""
-    FixedPoint = enum.auto()
+    FixedPoint = 4
     """System has reached a fixed point (or steady state)."""
-    Periodic = enum.auto()
+    Periodic = 8
     """System has reached a cycle, i.e. all components are periodic, but not
     necessarily synchronized.
     """
