@@ -126,6 +126,8 @@ def detect_cycle_harmonic(
     if fs <= 0:
         raise ValueError(f"'fs' frequency should be positive: '{fs}'")
 
+    eps = 10 * np.finfo(x.dtype).eps
+
     # }}}
 
     # {{{ compute approximate PSD over multiple windows
@@ -152,10 +154,12 @@ def detect_cycle_harmonic(
     from scipy.signal import find_peaks
 
     mean_psd = np.mean(psds, axis=0)
+    if np.max(mean_psd) < eps:
+        return HarmonicResult(1.0, 1.0, f, psds)
+
     peaks, props = find_peaks(mean_psd, prominence=0.1 * np.max(mean_psd))
 
     # 1. Compute harmonic energy
-    eps = 10 * np.finfo(x.dtype).eps
     total_energy = np.sum(mean_psd)
     total_energy = 1.0 if total_energy < eps else total_energy
 
