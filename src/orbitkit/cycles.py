@@ -90,7 +90,7 @@ def detect_cycle_harmonic(
     window_length: int | None = None,
     overlap: float = 0.5,
     nfft: int | None = None,
-    binwidth: int = 2,
+    binwidth: int = 4,
     nharmonics: int = 6,
     fs: float = 1.0,
 ) -> HarmonicResult:
@@ -106,7 +106,7 @@ def detect_cycle_harmonic(
         i.e. frequencies in :math:`[k - b, k + b]`. A larger number will catch
         more of the harmonic energy (if simulations make it spread out a bit), but
         could also catch more noise.
-    :arg nharmonics: maximum number of harmmonics to consider. A larger number
+    :arg nharmonics: maximum number of harmonics to consider. A larger number
         will include harmonics with lower energy that could improve the tolerance
         check for periodicity.
     :arg fs: sampling frequency.
