@@ -189,7 +189,7 @@ def detect_cycle_harmonic(
         return HarmonicResult(1.0, 1.0, f, psds)
 
     # FIXME: this 0.05 is essentially random here, not great..
-    peaks, _ = find_peaks(mean_psd[1:], prominence=0.05 * np.max(mean_psd[1:]))
+    peaks, _ = find_peaks(mean_psd, prominence=0.05 * np.median(mean_psd[1:]))
 
     # 1. Compute harmonic energy
     total_energy = np.sum(mean_psd)

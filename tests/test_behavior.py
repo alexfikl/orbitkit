@@ -142,25 +142,21 @@ def test_periodic_behavior_culshaw(figname: str) -> None:
     b = determine_behavior(ys, lcmethod=lcmethod)
     log.info("Behavior: %s", b)
 
+    if enable_test_plotting():
+        visualize_behavior(
+            ts,
+            ys,
+            f"test_behavior_culshaw_{figname}",
+            lcmethod=lcmethod,
+            ylabels=("$C(t)$", "$I(t)$"),
+        )
+
     if figname == "Figure42":
         assert b == Behavior.FixedPoint
     elif figname == "Figure44":
         assert b == Behavior.Periodic
     else:
         raise ValueError(f"unsupported parameters: {figname}")
-
-    # }}}
-
-    if not enable_test_plotting():
-        return
-
-    visualize_behavior(
-        ts,
-        ys,
-        f"test_behavior_culshaw_{figname}",
-        lcmethod=lcmethod,
-        ylabels=("$C(t)$", "$I(t)$"),
-    )
 
 
 # }}}
