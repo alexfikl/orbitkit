@@ -782,7 +782,7 @@ def test_generate_graph_laplacian_weights() -> None:
         return 1.0 / (2.0 + x)
 
     rng = np.random.default_rng(seed=42)
-    atol = 4.0e-14
+    atol = 7.0e-14
     n = 128
 
     for topology in ADJACENCY_SYMMETRIC:

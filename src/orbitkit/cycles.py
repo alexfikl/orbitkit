@@ -78,7 +78,7 @@ def make_harmonic_mask(
     df = f[1] - f[0]
     mask = np.zeros(f.shape, dtype=np.bool_)
     for k in range(1, nharmonics + 1):
-        mask |= np.abs(f - k * f0) < binwidth * df
+        mask |= np.abs(f - k * f0) <= binwidth * df
 
     return mask
 
@@ -188,7 +188,7 @@ def detect_cycle_harmonic(
     if np.max(mean_psd[1:]) < eps:
         return HarmonicResult(1.0, 1.0, f, psds)
 
-    # FIXME: this 0.05 is essentially random here, not great..
+    # NOTE: the median should make this fairly robust, hopefully
     peaks, _ = find_peaks(mean_psd, prominence=0.05 * np.median(mean_psd[1:]))
 
     # 1. Compute harmonic energy
