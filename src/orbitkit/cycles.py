@@ -73,7 +73,7 @@ def make_harmonic_mask(
     f0: float,
     *,
     nharmonics: int = 5,
-    binwidth: int = 1,
+    binwidth: int = 2,
 ) -> Array1D[np.bool_]:
     df = f[1] - f[0]
     mask = np.zeros(f.shape, dtype=np.bool_)
@@ -90,6 +90,8 @@ def detect_cycle_harmonic(
     window_length: int | None = None,
     overlap: float = 0.5,
     nfft: int | None = None,
+    binwidth: int = 2,
+    nharmonics: int = 6,
     fs: float = 1.0,
 ) -> HarmonicResult:
     """Evaluate *nwindows* power spectrum densities and check the energy of the
@@ -100,6 +102,13 @@ def detect_cycle_harmonic(
         time series length when considering the number of windows.
     :arg overlap: overlap (percentage) between the windows.
     :arg nfft: length of the FFT used to compute the PSD in each window.
+    :arg binwidth: the width of each bin used to determine the energy of a harmonic,
+        i.e. frequencies in :math:`[k - b, k + b]`. A larger number will catch
+        more of the harmonic energy (if simulations make it spread out a bit), but
+        could also catch more noise.
+    :arg nharmonics: maximum number of harmmonics to consider. A larger number
+        will include harmonics with lower energy that could improve the tolerance
+        check for periodicity.
     :arg fs: sampling frequency.
     """
     # {{{ validate inputs
@@ -127,7 +136,13 @@ def detect_cycle_harmonic(
         raise ValueError(f"'nfft' should be positive: {nfft}")
 
     if fs <= 0:
-        raise ValueError(f"'fs' frequency should be positive: '{fs}'")
+        raise ValueError(f"'fs' frequency should be positive: {fs}")
+
+    if binwidth <= 0:
+        raise ValueError(f"'binwidth' must be positive: {binwidth}")
+
+    if nharmonics <= 0:
+        raise ValueError(f"'nharmonics' must be positive: {nharmonics}")
 
     step = int((1 - overlap) * window_length)
     if step == 0:
@@ -182,9 +197,8 @@ def detect_cycle_harmonic(
 
     harmonic_energy = 0.0
     for peak in peaks:
-        f0_idx = f[peak + 1]
-        # FIXME: this nharmonics and binwidth is essentially random here, not great..
-        mask = make_harmonic_mask(f, f0_idx, nharmonics=5, binwidth=4)
+        f0_idx = f[peak]
+        mask = make_harmonic_mask(f, f0_idx, nharmonics=nharmonics, binwidth=binwidth)
         harmonic_energy = max(np.sum(mean_psd[mask]), harmonic_energy)
 
     # }}}
