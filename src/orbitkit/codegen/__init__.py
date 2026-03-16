@@ -18,6 +18,19 @@ log = module_logger(__name__)
 
 # {{{ code
 
+ORBTIKIT_PREFIX = "_ok_"
+"""Prefix for generated variables."""
+
+
+def make_var(name: str) -> sym.Variable:
+    """Make a variable for codegen."""
+    return sym.Variable(f"{ORBTIKIT_PREFIX}{name}")
+
+
+def make_vector(name: str, n: int) -> sym.MatrixSymbol:
+    """Make a vector for codegen."""
+    return sym.MatrixSymbol(f"{ORBTIKIT_PREFIX}{name}", (n,))
+
 
 @dataclass
 class Code:
@@ -114,8 +127,8 @@ class Target(ABC):
         # FIXME: all this implicitly assumes that inputs[0] is "t" and the rest
         # are the actual variables. Should make this explicit
         inputs, exprs = model.symbolify(n)
-        t = sym.Variable("__t")
-        y = sym.MatrixSymbol("__y", (sum(n),))
+        t = make_var("t")
+        y = make_vector("y", sum(n))
 
         return self.generate_code(
             (t, y),
