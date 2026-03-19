@@ -72,7 +72,7 @@ def make_harmonic_mask(
     f: Array1D[np.number[Any]],
     f0: float,
     *,
-    nharmonics: int = 5,
+    nharmonics: int = 12,
     binwidth: int = 2,
 ) -> Array1D[np.bool_]:
     df = f[1] - f[0]
@@ -91,7 +91,7 @@ def detect_cycle_harmonic(
     overlap: float = 0.5,
     nfft: int | None = None,
     binwidth: int = 4,
-    nharmonics: int = 6,
+    nharmonics: int = 12,
     fs: float = 1.0,
 ) -> HarmonicResult:
     """Evaluate *nwindows* power spectrum densities and check the energy of the
