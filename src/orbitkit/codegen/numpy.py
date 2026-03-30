@@ -31,7 +31,7 @@ CODEGEN_IGNORE_PARAMS = {"make_delay_variable"}
 
 
 @dataclass(frozen=True)
-class NumpyCodeGenerator(StringifyMapper[Any]):
+class NumpyCodeGenerator(StringifyMapper[[]]):
     """A code generator that stringifies a symbolic :mod:`pymbolic` expression."""
 
     inputs: set[str]
@@ -62,7 +62,7 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     def handle_unsupported_expression(self, expr: object, enclosing_prec: int) -> str:
         raise NotImplementedError(f"{type(self)} cannot handle {type(expr)}: {expr}")
 
-    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:
+    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
         if expr.name not in self.inputs and expr.name not in CODEGEN_IGNORE_PARAMS:
             self.parameters.add(expr.name)
 
@@ -71,7 +71,7 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
     def map_function(self, expr: sym.Function, /, enclosing_prec: int) -> str:
         return f"{self.module}.{expr.name}"
 
-    def map_numpy_array(self, expr: Array, /, enclosing_prec: int) -> str:
+    def map_numpy_array(self, expr: Array, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
         if expr.dtype.char == "O":
             for name, ary in self.object_array_arguments.items():
                 if ary is expr:
@@ -98,11 +98,11 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         return f"{self.module}.reshape({aggregate}, shape={expr.shape})"
 
     def map_dot_product(self, expr: sym.DotProduct, /, enclosing_prec: int) -> str:
-        left = self.rec(expr.left, PREC_NONE)
-        right = self.rec(expr.right, PREC_NONE)
+        left = self.rec(expr.left, PREC_NONE)  # ty: ignore[invalid-argument-type]
+        right = self.rec(expr.right, PREC_NONE)  # ty: ignore[invalid-argument-type]
         return f"{self.module}.dot({left}, {right})"
 
-    def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:
+    def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
         # NOTE: just unwrap the ZeroDelayKernel
         func = expr.function
         if isinstance(func, sym.ZeroDelayKernel):
@@ -112,7 +112,7 @@ class NumpyCodeGenerator(StringifyMapper[Any]):
         return super().map_call(expr, enclosing_prec)
 
 
-def cgen_obj_array(cgen: StringifyMapper[Any], ary: Array) -> str:
+def cgen_obj_array(cgen: NumpyCodeGenerator, ary: Array) -> str:
     from orbitkit.symbolic.mappers import flatten
 
     def _cgen_obj_array(subary: Array) -> str:
