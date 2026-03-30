@@ -19,6 +19,8 @@ from orbitkit.typing import Array1D, Array2D, ArrayND, PathLike, Scalar, T
 if TYPE_CHECKING:
     from types import TracebackType
 
+    from numpy.typing import DTypeLike
+
 # {{{ environment
 
 
@@ -824,6 +826,73 @@ def load_from_mat(filename: pathlib.Path) -> Any:
     )
 
     return Contents(filename=filename, **data)
+
+
+# }}}
+
+
+# {{{ generate_points
+
+
+def generate_random_points_in_disk(
+    n: int,
+    rspan: tuple[float, float] = (0.0, 1.0),
+    thetaspan: tuple[float, float] = (0.0, 2.0 * np.pi),
+    *,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array1D[np.complexfloating[Any]] | Array2D[np.floating[Any]]:
+    """Generate random points in a disk.
+
+    :arg rspan: a span for the radius of the generated points.
+    :arg thetaspan: a span for the angle sweep of the generated points (in radians).
+    :arg dtype: the type of the output array. This can also be a complex dtype,
+        in which case a 1D complex array of points is returned instead.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # NOTE: avoid picking points exactly on the circle
+    rmin, rmax = rspan[0], rspan[1]
+    tmin, tmax = thetaspan[0], thetaspan[1]
+    radius = rmin + (rmax - rmin) * np.sqrt(rng.random(n))
+    theta = tmin + (tmax - tmin) * rng.random(n)
+
+    if np.issubdtype(dtype, np.complexfloating):
+        return (radius * np.exp(1j * theta)).astype(dtype)
+    else:
+        return np.stack(
+            [
+                radius * np.cos(theta),
+                radius * np.sin(theta),
+            ],
+            dtype=dtype,
+        )
+
+
+def generate_random_points_in_square(
+    n: int,
+    xlim: tuple[float, float] = (-1.5, 1.5),
+    ylim: tuple[float, float] = (-1.5, 1.5),
+    *,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array1D[np.complexfloating[Any]] | Array2D[np.floating[Any]]:
+    """Generate random points in a square.
+
+    :arg dtype: the type of the output array. This can also be a complex dtype,
+        in which case a 1D complex array of points is returned instead.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    x = rng.uniform(*xlim, size=n)
+    y = rng.uniform(*ylim, size=n)
+
+    if np.issubdtype(dtype, np.complexfloating):
+        return (x + 1j * y).astype(dtype)
+    else:
+        return np.stack([x, y], dtype=dtype)
 
 
 # }}}
