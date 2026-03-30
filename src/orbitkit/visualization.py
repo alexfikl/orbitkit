@@ -232,6 +232,7 @@ def to_color(
     vmin: float | None = -1.0,
     vmax: float | None = 1.0,
 ) -> tuple[str, ...]:
+    """Map an array of numbers to a list of HEX values in the given colormap."""
     from matplotlib import cm
     from matplotlib.colors import Normalize, to_hex
 
