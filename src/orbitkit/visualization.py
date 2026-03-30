@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 log = module_logger(__name__)
 
 
-# {{{ utils
+# {{{ set_plotting_defaults
 
 
 def _check_usetex(*, s: bool) -> bool:
@@ -50,6 +50,7 @@ def _check_usetex(*, s: bool) -> bool:
 
 
 def set_plotting_defaults(
+    mplstyle: pathlib.Path | str | None = None,
     *,
     use_tex: bool | None = None,
     dark: bool | None = None,
@@ -63,6 +64,8 @@ def set_plotting_defaults(
     For other applications, it is recommended to use local settings (e.g. in
     `matplotlibrc`).
 
+    :arg mplstyle: a path to a :mod:`matplotlib` style configuration file. If
+        not provided, a default set is used.
     :arg use_tex: if *True*, LaTeX labels are enabled. By default, this checks
         if LaTeX is available on the system and only enables it if possible.
     :arg dark: if *True*, a dark default theme is selected instead of the
@@ -119,54 +122,57 @@ def set_plotting_defaults(
         mp.style.use("petroff10")
         prop_cycle = mp.rcParams["axes.prop_cycle"]
 
-    defaults: dict[str, dict[str, Any]] = {
-        "figure": {
-            "figsize": (8, 8),
-            "dpi": 300,
-            "constrained_layout.use": True,
-        },
-        "savefig": {"format": savefig_format},
-        "text": {"usetex": use_tex},
-        "legend": {
-            "fontsize": 20,
-            "frameon": True,
-            "fancybox": False,
-            "edgecolor": "black",
-        },
-        "lines": {"linewidth": 2, "markersize": 10},
-        "axes": {
-            "labelsize": 28,
-            "titlesize": 28,
-            "grid": True,
-            "grid.axis": "both",
-            "grid.which": "both",
-            "prop_cycle": prop_cycle,
-        },
-        "xtick": {"labelsize": 20, "direction": "in"},
-        "ytick": {"labelsize": 20, "direction": "in"},
-        "xtick.major": {"size": 6.5, "width": 1.5},
-        "ytick.major": {"size": 6.5, "width": 1.5},
-        "xtick.minor": {"size": 4.0},
-        "ytick.minor": {"size": 4.0},
-    }
+    if mplstyle is not None:
+        mp.style.use(mplstyle)
+    else:
+        defaults: dict[str, dict[str, Any]] = {
+            "figure": {
+                "figsize": (8, 8),
+                "dpi": 300,
+                "constrained_layout.use": True,
+            },
+            "savefig": {"format": savefig_format},
+            "text": {"usetex": use_tex},
+            "legend": {
+                "fontsize": 20,
+                "frameon": True,
+                "fancybox": False,
+                "edgecolor": "black",
+            },
+            "lines": {"linewidth": 2, "markersize": 10},
+            "axes": {
+                "labelsize": 28,
+                "titlesize": 28,
+                "grid": True,
+                "grid.axis": "both",
+                "grid.which": "both",
+                "prop_cycle": prop_cycle,
+            },
+            "xtick": {"labelsize": 20, "direction": "in"},
+            "ytick": {"labelsize": 20, "direction": "in"},
+            "xtick.major": {"size": 6.5, "width": 1.5},
+            "ytick.major": {"size": 6.5, "width": 1.5},
+            "xtick.minor": {"size": 4.0},
+            "ytick.minor": {"size": 4.0},
+        }
 
-    if dark:
-        # NOTE: this is the black color used by the sphinx-book theme
-        black = "111111"
-        gray = "28313D"
-        defaults["text"].update({"color": "white"})
-        defaults["axes"].update({
-            "labelcolor": "white",
-            "facecolor": gray,
-            "edgecolor": "white",
-        })
-        defaults["xtick"].update({"color": "white"})
-        defaults["ytick"].update({"color": "white"})
-        defaults["figure"].update({"facecolor": black, "edgecolor": black})
-        defaults["savefig"].update({"facecolor": black, "edgecolor": black})
+        if dark:
+            # NOTE: this is the black color used by the sphinx-book theme
+            black = "111111"
+            gray = "28313D"
+            defaults["text"].update({"color": "white"})
+            defaults["axes"].update({
+                "labelcolor": "white",
+                "facecolor": gray,
+                "edgecolor": "white",
+            })
+            defaults["xtick"].update({"color": "white"})
+            defaults["ytick"].update({"color": "white"})
+            defaults["figure"].update({"facecolor": black, "edgecolor": black})
+            defaults["savefig"].update({"facecolor": black, "edgecolor": black})
 
-    for group, params in defaults.items():
-        mp.rc(group, **params)
+        for group, params in defaults.items():
+            mp.rc(group, **params)
 
     if overrides:
         for group, params in overrides.items():
