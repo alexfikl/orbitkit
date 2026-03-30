@@ -123,7 +123,7 @@ class FitzHughNagumoOmelchenko(Model):
 # }}}
 
 
-# {{{
+# {{{ make_model_from_name
 
 
 def _make_fhn_omelchenko_2019(sigma: float) -> FitzHughNagumoOmelchenko:
