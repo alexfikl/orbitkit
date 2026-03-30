@@ -7,7 +7,7 @@ import enum
 import pathlib
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 
@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     import matplotlib.pyplot as mp
 
 log = module_logger(__name__)
+
+ColorTuple: TypeAlias = tuple[float, float, float]
+"""An RGB color tuple with values in :math:`[0, 1]` denoting RGB values."""
+RGB: TypeAlias = tuple[int, int, int]
+"""An RGB color tuple with integer values in :math:`[0, 255]`."""
 
 
 # {{{ set_plotting_defaults
@@ -177,6 +182,47 @@ def set_plotting_defaults(
     if overrides:
         for group, params in overrides.items():
             mp.rc(group, **params)
+
+
+# {{{ scale_color
+
+
+def scale_color(color: ColorTuple, fac: float) -> ColorTuple:
+    """Scale a color tuple by a given factor.
+
+    :arg color: a floating point RGB 3-tuple with values in :math:`[0, 1]`.
+    :arg fac: a factor with values in :math:`[0, 1]`.
+    """
+    if len(color) != 3:
+        raise ValueError(f"'color' should be a 3-tuple: {color}")
+
+    if not 0 <= fac <= 1.0:
+        raise ValueError(f"'fac' should be in [0, 1]: {fac}")
+
+    assert all(0 <= c <= 1.0 for c in color)
+    return fac * color[0], fac * color[1], fac * color[2]
+
+
+def scale_rgb(color: RGB, fac: float) -> RGB:
+    """Scale a color tuple by a given factor.
+
+    :arg color: an integer RGB 3-tuple with values in :math:`[0, 255]`.
+    :arg fac: a factor with values in :math:`[0, 1]`.
+    """
+    if len(color) != 3:
+        raise ValueError(f"'color' should be a 3-tuple: {color}")
+
+    if not 0 <= fac <= 1.0:
+        raise ValueError(f"'fac' should be in [0, 1]: {fac}")
+
+    assert all(0 <= c <= 255 for c in color)
+    return round(fac * color[0]), round(fac * color[1]), round(fac * color[2])
+
+
+# }}}
+
+
+# {{{ to_color
 
 
 def to_color(
