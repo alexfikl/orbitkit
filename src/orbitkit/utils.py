@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 
-from orbitkit.typing import Array, PathLike, Scalar, T
+from orbitkit.typing import Array1D, Array2D, ArrayND, PathLike, Scalar, T
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -149,7 +149,12 @@ class EOCRecorder:
 
     @classmethod
     def from_data(
-        cls, name: str, h: Array, error: Array, *, order: float | None = None
+        cls,
+        name: str,
+        h: Array1D[np.floating[Any]],
+        error: Array1D[np.floating[Any]],
+        *,
+        order: float | None = None,
     ) -> EOCRecorder:
         eoc = cls(name=name, order=order)
         for i in range(h.size):
@@ -157,12 +162,16 @@ class EOCRecorder:
 
         return eoc
 
-    def add_data_points(self, h: Array, error: Array) -> None:
+    def add_data_points(
+        self,
+        h: Array1D[np.floating[Any]],
+        error: Array1D[np.floating[Any]],
+    ) -> None:
         """Add multiple data points using :meth:`add_data_point`."""
         for h_i, e_i in zip(h, error, strict=True):
             self.add_data_point(h_i, e_i)
 
-    def add_data_point(self, h: Any, error: Any) -> None:
+    def add_data_point(self, h: Scalar, error: Scalar) -> None:
         """Add a data point to the estimation.
 
         Note that both *h* and *error* need to be convertible to a float.
@@ -195,7 +204,10 @@ class EOCRecorder:
         return stringify_eoc(self)
 
 
-def estimate_order_of_convergence(x: Array, y: Array) -> tuple[float, float]:
+def estimate_order_of_convergence(
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+) -> tuple[float, float]:
     r"""Computes an estimate of the order of convergence in the least-square sense.
     This assumes that the :math:`(x, y)` pair follows a law of the form
 
@@ -218,8 +230,11 @@ def estimate_order_of_convergence(x: Array, y: Array) -> tuple[float, float]:
 
 
 def estimate_gliding_order_of_convergence(
-    x: Array, y: Array, *, gliding_mean: int | None = None
-) -> Array:
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    *,
+    gliding_mean: int | None = None,
+) -> Array1D[np.floating[Any]]:
     assert x.size == y.size
     if x.size <= 1:
         raise RuntimeError("need at least two values to estimate order")
@@ -431,7 +446,10 @@ def visualize_eoc(
 # {{{ scaling
 
 
-def estimate_scaling(x: Array, y: Array) -> tuple[float, float, float]:
+def estimate_scaling(
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+) -> tuple[float, float, float]:
     r"""Estimate scaling in the least squared sense.
 
     This assumes that the :math:`(x, y)` pair follows a law of the form
@@ -799,7 +817,8 @@ def load_from_mat(filename: pathlib.Path) -> Any:
 
     Contents = make_dataclass(
         "Contents",
-        [("filename", pathlib.Path)] + [(key, Array) for key in data],
+        [("filename", pathlib.Path)]
+        + [(key, ArrayND[np.floating[Any]]) for key in data],
         frozen=True,
         eq=False,
     )
