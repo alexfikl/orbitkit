@@ -8,11 +8,11 @@ numpy==2.2.6 ; python_full_version < '3.11'
     # via
     #   orbitkit (pyproject.toml)
     #   scipy
-numpy==2.4.3 ; python_full_version >= '3.11'
+numpy==2.4.4 ; python_full_version >= '3.11'
     # via
     #   orbitkit (pyproject.toml)
     #   scipy
-pygments==2.19.2
+pygments==2.20.0
     # via rich
 rich==14.3.3
     # via orbitkit (pyproject.toml)
