@@ -17,7 +17,7 @@ rng = np.random.default_rng(seed=42)
 try:
     import jitcode
 except ImportError:
-    log.error("This example requires `jitcdde`.")
+    log.error("This example requires `jitcode`.")
     raise SystemExit(0) from None
 
 # FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
