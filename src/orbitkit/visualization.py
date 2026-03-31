@@ -252,6 +252,21 @@ def to_color(
 # }}}
 
 
+# {{{ get_color_cycle
+
+
+def get_color_cycle() -> tuple[str, ...]:
+    """
+    :return: current color cycle used by :mod:`matplotlib` line plots.
+    """
+    import matplotlib.pyplot as mp
+
+    return tuple(mp.rcParams["axes.prop_cycle"].by_key()["color"])
+
+
+# }}}
+
+
 # {{{ figure context manager
 
 
