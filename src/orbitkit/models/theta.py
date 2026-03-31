@@ -124,10 +124,14 @@ class FixedPoints:
 
     @property
     def points(self) -> Array1D[np.complexfloating[Any]]:
+        """Concatenated array of all the fixed points."""
         return np.concatenate([self.on_circle, self.in_disk])
 
     @property
     def stacked_points(self) -> Array2D[np.floating[Any]]:
+        """Concatenated array of all fixed points and stacked with real and imaginary
+        parts.
+        """
         return np.stack([
             np.concatenate([self.on_circle.real, self.in_disk.real]),
             np.concatenate([self.on_circle.imag, self.in_disk.imag]),
@@ -144,7 +148,13 @@ def _roots_unit_circle(
     return rhat[index]
 
 
-def find_equilibrium_points(p: ThetaModel) -> FixedPoints:
+def find_fixed_points(p: ThetaModel) -> FixedPoints:
+    """Find all the fixed points of the :class:`ThetaModel`.
+
+    The Theta model has only two types of fixed points: on the boundary of the
+    unit disk and on the real line (inside the unit disk).
+    """
+
     kappa, eta = p.kappa, p.eta
     assert isinstance(kappa, float)
     assert isinstance(eta, float)
