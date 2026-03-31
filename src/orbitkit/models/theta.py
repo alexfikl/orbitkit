@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -101,6 +105,89 @@ def get_registered_parameters() -> tuple[str, ...]:
 
 def make_model_from_name(name: str) -> ThetaModel:
     return THETA_MODEL[name]
+
+
+# }}}
+
+
+# {{{ find_fixed_points
+
+
+@dataclass(frozen=True)
+class FixedPoints:
+    """Fixed points in the Theta neuron model."""
+
+    on_circle: Array1D[np.complexfloating[Any]]
+    """An array of fixed points on the disk boundary."""
+    in_disk: Array1D[np.complexfloating[Any]]
+    """An array of fixed points inside the disk."""
+
+    @property
+    def points(self) -> Array1D[np.complexfloating[Any]]:
+        return np.concatenate([self.on_circle, self.in_disk])
+
+    @property
+    def stacked_points(self) -> Array2D[np.floating[Any]]:
+        return np.stack([
+            np.concatenate([self.on_circle.real, self.in_disk.real]),
+            np.concatenate([self.on_circle.imag, self.in_disk.imag]),
+        ])
+
+
+def _roots_unit_circle(
+    poly: np.polynomial.Polynomial,
+) -> Array1D[np.complexfloating[Any]]:
+    rhat = poly.roots()
+    rhat = rhat[np.isreal(rhat) & (np.abs(rhat) <= 1.0)]
+
+    _, index = np.unique(np.round(rhat, decimals=2), return_index=True)
+    return rhat[index]
+
+
+def find_equilibrium_points(p: ThetaModel) -> FixedPoints:
+    kappa, eta = p.kappa, p.eta
+    assert isinstance(kappa, float)
+    assert isinstance(eta, float)
+
+    # {{{ Case 1. rho = 1
+
+    poly = np.polynomial.Polynomial(
+        [eta + kappa + 1, eta - kappa - 1, -kappa, kappa],
+        domain=[-1.0, 1.0],
+        symbol="cos_phi",
+    )
+    cos_phi = _roots_unit_circle(poly)
+    phi = np.where(np.abs(cos_phi - 1.0) < 1.0e-15, 0.0, np.arccos(cos_phi))
+    phi = np.hstack([phi, -phi])
+
+    # NOTE: remove any duplicates that might have shown up
+    _, index = np.unique(np.round(phi, decimals=2), return_index=True)
+    phi = phi[index]
+
+    # }}}
+
+    # {{{ Case 2. phi = [0, pi]
+
+    poly = np.polynomial.Polynomial(
+        [
+            eta + 1.5 * kappa - 1.0,
+            2.0 * eta + kappa + 2.0,
+            eta - 2.0 * kappa - 1,
+            -kappa,
+            kappa / 2.0,
+        ],
+        domain=[-1.0, 1.0],
+        symbol="z",
+    )
+    z = _roots_unit_circle(poly)
+
+    # NOTE: remove points that are on the circle, as those might be the same
+    # as in the previous case and we do not want to count them twice!
+    z = z[np.abs(np.abs(z) - 1) > 1.0e-12]
+
+    # }}}
+
+    return FixedPoints(on_circle=np.exp(1j * phi), in_disk=z)
 
 
 # }}}
