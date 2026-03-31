@@ -10,6 +10,8 @@ import numpy as np
 import pymbolic.primitives as prim
 from pymbolic.mapper import IdentityMapper as IdentityMapperBase
 from pymbolic.mapper import WalkMapper as WalkMapperBase
+from pymbolic.mapper.dependency import Dependencies
+from pymbolic.mapper.dependency import DependencyMapper as DependencyMapperBase
 from pymbolic.mapper.flattener import FlattenMapper as FlattenMapperBase
 from pymbolic.mapper.stringifier import PREC_NONE
 from pymbolic.mapper.stringifier import StringifyMapper as StringifyMapperBase
@@ -296,6 +298,27 @@ def rename_variables(
     assert isinstance(result, tuple)
 
     return result  # ty: ignore[invalid-return-type]
+
+
+# }}}
+
+
+# {{{ VariableFinderMapper
+
+
+class VariableFinderMapper(DependencyMapperBase[[]]):
+    def __init__(self) -> None:
+        super().__init__(
+            include_subscripts=False,
+            include_lookups=False,
+            include_cses=False,
+            include_calls="descend_args",
+        )
+
+    def map_delay_kernel(self, expr: sym.DelayKernel, /) -> Dependencies:
+        from dataclasses import fields
+
+        return self.combine([self.rec(getattr(expr, f.name)) for f in fields(expr)])
 
 
 # }}}
