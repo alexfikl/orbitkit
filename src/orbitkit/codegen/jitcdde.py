@@ -267,6 +267,7 @@ class JiTCDDETarget(JiTCODETarget):
         y: Array,
         *,
         max_delay: float,
+        first_step: float | None = None,
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         parameters: tuple[str, ...] = (),
@@ -330,9 +331,15 @@ class JiTCDDETarget(JiTCODETarget):
                 if verbose:
                     log.info("Compilation time: %.3fs.", time.time() - t_start)
 
+        # NOTE: first_step is 1 by default: if the delays are < 1.0, then it
+        # will needlessly start from a too large step. We try to help it out..
+        if first_step is None:
+            first_step = max_delay / 2 if max_delay > 0 else 1.0
+
+        dde.set_integration_parameters(rtol=rtol, atol=atol, first_step=first_step)
+
         # NOTE: we cannot add parameters here because JiTCDDE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.
-        dde.set_integration_parameters(rtol=rtol, atol=atol)
 
         return dde
 
