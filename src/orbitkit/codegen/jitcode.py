@@ -142,7 +142,7 @@ class JiTCODETarget(NumpyTarget):
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         parameters: tuple[str, ...] = (),
-        debug: bool = False,
+        debug: bool | None = None,
         # jitcode arguments
         module_location: str | pathlib.Path | None = None,
         openmp: bool = False,
@@ -150,6 +150,9 @@ class JiTCODETarget(NumpyTarget):
     ) -> jitcode.jitcode:
         import jitcode
         import symengine as sp
+
+        if debug is None:
+            debug = __debug__
 
         if module_location is not None:
             module_location = pathlib.Path(module_location)

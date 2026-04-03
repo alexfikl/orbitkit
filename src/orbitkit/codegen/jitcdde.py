@@ -271,7 +271,7 @@ class JiTCDDETarget(JiTCODETarget):
         atol: float = 1.0e-6,
         rtol: float = 1.0e-8,
         parameters: tuple[str, ...] = (),
-        debug: bool = False,
+        debug: bool | None = None,
         # jitcdde arguments
         module_location: str | pathlib.Path | None = None,
         simplify: bool = False,
@@ -279,6 +279,9 @@ class JiTCDDETarget(JiTCODETarget):
         verbose: bool = False,
     ) -> jitcdde.jitcdde:
         import symengine as sp
+
+        if debug is None:
+            debug = __debug__
 
         if module_location is not None:
             module_location = pathlib.Path(module_location)
