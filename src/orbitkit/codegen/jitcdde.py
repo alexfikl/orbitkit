@@ -38,14 +38,19 @@ JITCDDE_RELEASE_CFLAGS = [
     *JITCDDE_COMMON_CFLAGS,
     "-O3",
     "-ffast-math",
+    # NOTE: this seemed to cause some issues with points near bifurcations, so
+    # it's turned off by default for now.
+    "-fno-associative-math",
     "-g0",
 ]
+"""Compiler flags used for release builds of the JiTCDDE module."""
 
 JITCDDE_DEBUG_CFLAGS = [
     *JITCDDE_COMMON_CFLAGS,
     "-O0",
     "-ggdb",
 ]
+"""Compiler flags used for debug builds of the JiTCODE module."""
 
 # {{{ gather mapper
 
