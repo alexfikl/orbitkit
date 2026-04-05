@@ -34,10 +34,15 @@ JITCODE_COMMON_CFLAGS = [
 JITCODE_RELEASE_CFLAGS = [
     *JITCODE_COMMON_CFLAGS,
     "-O3",
+    # FIXME: -O3 and -ffast-math is not exactly safe. We should update our own
+    # code generation and check if this actually makes things better.
     "-ffast-math",
     # NOTE: this seemed to cause some issues with points near bifurcations, so
     # it's turned off by default for now.
     "-fno-associative-math",
+    # NOTE: this seems to cause some invalid-writes or straight-up leaks in the
+    # jitcdde C template. We disable it for now for safety.
+    "-mno-avx512f",
     "-g0",
 ]
 """Compiler flags used for release builds of the JiTCODE module."""
