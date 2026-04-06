@@ -36,9 +36,9 @@ JITCDDE_COMMON_CFLAGS = [
 
 JITCDDE_RELEASE_CFLAGS = [
     *JITCDDE_COMMON_CFLAGS,
-    "-O3",
     # FIXME: -O3 and -ffast-math is not exactly safe. We should update our own
     # code generation and check if this actually makes things better.
+    "-O3",
     "-ffast-math",
     # NOTE: this seemed to cause some issues with points near bifurcations. We
     # disable it for now for safety.
