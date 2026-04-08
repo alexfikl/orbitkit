@@ -41,6 +41,11 @@ Wilson-Cowan
 
 .. automodule:: orbitkit.models.wilson_cowan
 
+Astrocyte
+---------
+
+.. automodule:: orbitkit.models.astrocyte
+
 Symbolic Utilities
 ------------------
 
