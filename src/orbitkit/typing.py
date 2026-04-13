@@ -28,7 +28,9 @@ Array: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 #   optype/numpy/_scalar.py
 
 ShapeT = TypeVar("ShapeT", bound=tuple[int, ...], default=tuple[Any, ...])
+"""An invariant type alias for ``tuple[int, ...]``."""
 ScalarTypeT = TypeVar("ScalarTypeT", bound=np.generic, default=Any)
+"""An invariant type alias for :mod:`numpy` scalars."""
 
 ArrayND = TypeAliasType(
     "ArrayND",

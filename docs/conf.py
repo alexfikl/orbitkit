@@ -242,6 +242,7 @@ intersphinx_mapping = {
 custom_type_links = {
     # numpy
     "DTypeLike": ("numpy", "numpy.typing.DTypeLike", "obj"),
+    "np.complexfloating": ("numpy", "numpy.complexfloating", "obj"),
     "np.floating": ("numpy", "numpy.floating", "obj"),
     "np.integer": ("numpy", "numpy.integer", "obj"),
     "np.inexact": ("numpy", "numpy.inexact", "obj"),
