@@ -129,6 +129,11 @@ def set_plotting_defaults(
 
     if mplstyle is not None:
         mp.style.use(mplstyle)
+
+        defaults: dict[str, dict[str, Any]] = {
+            "savefig": {"format": savefig_format},
+            "text": {"usetex": use_tex},
+        }
     else:
         defaults: dict[str, dict[str, Any]] = {
             "figure": {
@@ -176,8 +181,8 @@ def set_plotting_defaults(
             defaults["figure"].update({"facecolor": black, "edgecolor": black})
             defaults["savefig"].update({"facecolor": black, "edgecolor": black})
 
-        for group, params in defaults.items():
-            mp.rc(group, **params)
+    for group, params in defaults.items():
+        mp.rc(group, **params)
 
     if overrides:
         for group, params in overrides.items():
