@@ -24,7 +24,7 @@ class Behavior(enum.IntEnum):
     Divergent = 1
     """System has diverged to infinity."""
     Chaotic = 2
-    """System is chaotic, i.e. it has a positive Lyapunov exponent."""
+    """System is chaotic, i.e. it has a (sufficiently) positive Lyapunov exponent."""
     FixedPoint = 4
     """System has reached a fixed point (or steady state)."""
     Periodic = 8
