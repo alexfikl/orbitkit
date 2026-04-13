@@ -585,6 +585,54 @@ def heatmap(
 # }}}
 
 
+# {{{
+
+
+def kymograph(
+    ax: mp.Axes,
+    t: Array1D[np.floating[Any]],
+    z: Array2D[np.floating[Any]],
+    *,
+    cmap: str = "seismic",
+    linecolor: str = "w",
+    linewidth: float | None = None,
+) -> Any:
+    """Plot a kymograph of the given array.
+
+    This is essentially a 2D plot, where the x axis is time and the y axis
+    is space, i.e. the components of *z*.
+
+    :linewidth: if provided (and positive), a horizontal line is drawn between
+        each component to better differentiate them.
+    """
+
+    if t.ndim != 1:
+        raise ValueError(f"'t' should be a 1-dimensional array: {t.shape}")
+
+    if z.ndim != 2:
+        raise ValueError(f"'z' should be a 2-dimensional array: {z.shape}")
+
+    n, _ = z.shape
+    im = ax.imshow(
+        z,
+        aspect="auto",
+        interpolation="none",
+        origin="lower",
+        cmap=cmap,
+        extent=(t[0], t[-1], -0.5, n - 0.5),
+    )
+
+    if linewidth is not None and linewidth > 0.0:
+        for i in range(1, n):
+            ax.axhline(i - 0.5, color=linecolor, lw=linewidth)
+
+    ax.grid(visible=False, which="both")
+
+    return im
+
+
+# }}}
+
 # {{{ rastergram
 
 
