@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 
-from orbitkit.typing import Array1D, Array2D, PathLike
+from orbitkit.typing import Array1D, Array2D, Array3D, PathLike
 from orbitkit.utils import BOOLEAN_STATES, module_logger, on_ci
 
 if TYPE_CHECKING:
@@ -187,6 +187,9 @@ def set_plotting_defaults(
     if overrides:
         for group, params in overrides.items():
             mp.rc(group, **params)
+
+
+# }}}
 
 
 # {{{ scale_color
@@ -407,6 +410,84 @@ def savefig(
 # }}}
 
 
+# {{{ axlines
+
+
+def axhlines(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    *,
+    dx: float = 0.0,
+    linecolor: str = "w",
+    linewidth: float = 1.5,
+) -> None:
+    """Create multiple horizontal lines at the *x* positions."""
+    if linewidth <= 0:
+        return
+
+    for j in range(x.size - 1):
+        ax.axhline(x[j] + 0.5 * dx, color=linecolor, lw=linewidth)
+
+
+def axvlines(
+    ax: mp.Axes,
+    y: Array1D[np.floating[Any]],
+    *,
+    dy: float = 0.0,
+    linecolor: str = "w",
+    linewidth: float = 1.5,
+) -> None:
+    """Create multiple vertical lines at the *y* positions."""
+    if linewidth <= 0:
+        return
+
+    for j in range(y.size - 1):
+        ax.axvline(y[j] + 0.5 * dy, color=linecolor, lw=linewidth)
+
+
+# }}}
+
+
+# {{{ set_uniform_ticks
+
+
+def set_uniform_ticks(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    *,
+    which: str = "x",
+    fraction: float = 1.0,
+    labelsize: int | None = None,
+    rotation: float | None = None,
+) -> None:
+    """Set uniform ticks in the axis.
+
+    :arg which: can be one of "x", "y" or "both".
+    :arg fraction: only ``fraction * x.size`` of  elements from *x* are used to
+        set the ticks.
+    """
+    if fraction <= 0.0:
+        return
+
+    if not 0.0 < fraction <= 1.0:
+        raise ValueError(f"'fraction' must be in (0, 1]: {fraction}")
+
+    n = x.size
+    m = max(10, int(fraction * n))
+    indices = np.linspace(0.0, n - 1, m, endpoint=True, dtype=np.int32)
+
+    if which in {"x", "both"}:
+        ax.set_xticks(x[indices], [f"{xi:.2f}" for xi in x[indices]])
+        ax.tick_params(axis="x", rotation=rotation, labelsize=labelsize)
+
+    if which in {"y", "both"}:
+        ax.set_yticks(x[indices], [f"{xi:.2f}" for xi in x[indices]])
+        ax.tick_params(axis="y", rotation=rotation, labelsize=labelsize)
+
+
+# }}}
+
+
 # {{{ heatmap
 
 
@@ -414,9 +495,8 @@ def heatmap(
     ax: mp.Axes,
     x: Array1D[np.floating[Any]],
     y: Array1D[np.floating[Any]],
-    z: Array2D[np.floating[Any]],
+    z: Array2D[np.floating[Any]] | Array3D[np.floating[Any]],
     *,
-    title: str | None = None,
     cmap: str = "jet",
     alpha: float | Array2D[np.floating[Any]] | None = None,
     vmin: float | None = None,
@@ -426,6 +506,7 @@ def heatmap(
     xlinewidth: float = 1.0,
     ylinewidth: float = 1.0,
     xrotation: float = 45.0,
+    tick_fraction: float = 0.1,
 ) -> Any:
     """Plot a heatmap for a given array.
 
@@ -439,11 +520,11 @@ def heatmap(
     if y.ndim != 1:
         raise ValueError(f"'y' should be a 1-dimensional array: {y.shape}")
 
-    if z.ndim != 1:
-        raise ValueError(f"'z' should be a 2-dimensional array: {z.shape}")
+    if z.ndim not in {2, 3}:
+        raise ValueError(f"'z' should be a 2/3-dimensional array: {z.shape}")
 
     nx, ny = (*x.shape, *y.shape)
-    if z.shape != (nx, ny):
+    if z.shape not in {(nx, ny), (nx, ny, 3)}:
         raise ValueError(f"incorrect data size: {z.shape} (expected ({nx}, {ny}))")
 
     if xlinewidth < 0:
@@ -473,22 +554,15 @@ def heatmap(
         origin="lower",
     )
 
-    indices = np.linspace(0, nx - 1, 10, endpoint=True, dtype=np.int32)
-    ax.set_xticks(xs[indices], [f"{xi:.2f}" for xi in x[indices]])
-    indices = np.linspace(0, ny - 1, 10, endpoint=True, dtype=np.int32)
-    ax.set_yticks(ys[indices], [f"{yi:.2f}" for yi in y[indices]])
-    ax.tick_params(which="minor", length=0)
+    axhlines(ax, xs, dx=dx, linecolor=linecolor, linewidth=xlinewidth)
+    axvlines(ax, ys, dy=dy, linecolor=linecolor, linewidth=ylinewidth)
 
+    set_uniform_ticks(ax, xs, which="x", fraction=tick_fraction, rotation=xrotation)
+    set_uniform_ticks(ax, ys, which="y", fraction=tick_fraction, rotation=xrotation)
+
+    ax.set_box_aspect(1)
     ax.grid(visible=False, which="both")
-    ax.tick_params(axis="x", rotation=xrotation)
-
-    if xlinewidth > 0.0:
-        for j in range(xs.size - 1):
-            ax.axvline(xs[j] + 0.5 * dx, color=linecolor, lw=xlinewidth)
-
-    if ylinewidth >= 0:
-        for j in range(ys.size - 1):
-            ax.axhline(ys[j] + 0.5 * dy, color=linecolor, lw=ylinewidth)
+    ax.tick_params(which="minor", length=0)
 
     return im
 
