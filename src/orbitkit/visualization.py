@@ -265,11 +265,22 @@ def to_color(
 
 def get_color_cycle() -> tuple[str, ...]:
     """
-    :return: current color cycle used by :mod:`matplotlib` line plots.
+    :return: current color cycle used by :mod:`matplotlib` line plots as individual
+        hexadecimal strings.
     """
     import matplotlib.pyplot as mp
 
     return tuple(mp.rcParams["axes.prop_cycle"].by_key()["color"])
+
+
+def get_rgb_color_cycle() -> tuple[ColorTuple, ...]:
+    """
+    :return: current color cycle used by :mod:`matplotlib` line plots as individual
+        RGB 3-tuples with values in :math:`[0, 1]`.
+    """
+    from matplotlib.colors import hex2color
+
+    return tuple(hex2color(color) for color in get_color_cycle())
 
 
 # }}}
