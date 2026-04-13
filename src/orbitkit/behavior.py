@@ -4,14 +4,21 @@
 from __future__ import annotations
 
 import enum
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
+if TYPE_CHECKING:
+    import matplotlib.pyplot as mp
+
+
 log = module_logger(__name__)
+
+
+# {{{ determine_behavior
 
 
 @enum.unique
@@ -177,3 +184,57 @@ def determine_behavior(
         return Behavior.Periodic
     else:
         raise ValueError(f"unsupported combination of behaviors: {bs}")
+
+
+# }}}
+
+# {{{ visualize_behavior_probability_entropy
+
+
+def visualize_behavior_probability_entropy(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    zs: dict[Behavior, Array2D[np.floating[Any]]],
+    *,
+    cmap: str = "Blues",
+    contours: bool = False,
+    level: float = 0.95,
+    linewidth: float | None = None,
+    base: int = 2,
+) -> Any:
+    """Visualize the entropy in the systems behaviors in *zs*.
+
+    The dictionary *zs* contains a mapping from behaviors to their probability
+    in :math:`[0, 1]` for each of the parameter pairs ``(x[i], y[j])``.
+    """
+    from scipy.stats import entropy
+
+    Z = np.stack(list(zs.values()), axis=-1)
+    residual = np.clip(1.0 - Z.sum(axis=-1, keepdims=True), 0, 1)
+    Z = np.concatenate([Z, residual], axis=-1)
+    H = entropy(Z, axis=-1, base=base)
+
+    from orbitkit.visualization import get_color_cycle, heatmap
+
+    im = heatmap(ax, x, y, H, cmap="Blues", xlinewidth=0, ylinewidth=0)
+
+    if contours:
+        X, Y = np.meshgrid(x, y)
+        colors = get_color_cycle()
+
+        for i, z in enumerate(zs.values()):
+            ax.contour(
+                X,
+                Y,
+                z,
+                levels=[level],
+                colors=colors[i],
+                linestyles="-",
+                linewidths=linewidth,
+            )
+
+    return im
+
+
+# }}}
