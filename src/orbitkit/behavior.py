@@ -188,6 +188,26 @@ def determine_behavior(
 
 # }}}
 
+# {{{ visualize_behavior_probability
+
+
+def visualize_behavior_probability(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    z: Array2D[np.floating[Any]],
+    *,
+    cmap: str = "seismic",
+) -> Any:
+    from orbitkit.visualization import heatmap
+
+    im = heatmap(ax, x, y, z, cmap=cmap, vmin=0.0, vmax=1.0)
+
+    return im
+
+
+# }}}
+
 # {{{ visualize_behavior_probability_entropy
 
 
