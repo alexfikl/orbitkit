@@ -467,24 +467,25 @@ def set_uniform_ticks(
     x: Array1D[np.floating[Any]],
     *,
     which: str = "x",
-    fraction: float = 1.0,
+    density: float = 1.0,
     labelsize: int | None = None,
     rotation: float | None = None,
 ) -> None:
     """Set uniform ticks in the axis.
 
     :arg which: can be one of "x", "y" or "both".
-    :arg fraction: only ``fraction * x.size`` of  elements from *x* are used to
-        set the ticks.
+    :arg density: only ``density * x.size`` of  elements from *x* are used to
+        set the ticks. This can be set to a negative value to keep the default
+        ticks or a value in :math:`(0, 1]` to show a reduced number of ticks.
     """
-    if fraction <= 0.0:
+    if density <= 0.0:
         return
 
-    if not 0.0 < fraction <= 1.0:
-        raise ValueError(f"'fraction' must be in (0, 1]: {fraction}")
+    if density > 1.0:
+        raise ValueError(f"'density' must be <= 1: {density}")
 
     n = x.size
-    m = max(10, int(fraction * n))
+    m = max(10, int(density * n))
     indices = np.linspace(0.0, n - 1, m, endpoint=True, dtype=np.int32)
 
     if which in {"x", "both"}:
@@ -517,7 +518,7 @@ def heatmap(
     xlinewidth: float = 1.0,
     ylinewidth: float = 1.0,
     xrotation: float = 45.0,
-    tick_fraction: float = 0.1,
+    tickdensity: float = 0.1,
 ) -> Any:
     """Plot a heatmap for a given array.
 
@@ -544,6 +545,9 @@ def heatmap(
     if ylinewidth < 0:
         raise ValueError(f"'ylinewidth' should be non-negative: {ylinewidth}")
 
+    if tickdensity > 1.0:
+        raise ValueError(f"'tickdensity' must be <= 1: {tickdensity}")
+
     # make uniform grid for display
     xs = np.linspace(x[0], x[-1], nx)
     ys = np.linspace(y[0], y[-1], ny)
@@ -565,11 +569,11 @@ def heatmap(
         origin="lower",
     )
 
-    axhlines(ax, xs, dx=dx, linecolor=linecolor, linewidth=xlinewidth)
-    axvlines(ax, ys, dy=dy, linecolor=linecolor, linewidth=ylinewidth)
+    set_uniform_ticks(ax, xs, which="x", density=tickdensity, rotation=xrotation)
+    set_uniform_ticks(ax, ys, which="y", density=tickdensity, rotation=xrotation)
 
-    set_uniform_ticks(ax, xs, which="x", fraction=tick_fraction, rotation=xrotation)
-    set_uniform_ticks(ax, ys, which="y", fraction=tick_fraction, rotation=xrotation)
+    axvlines(ax, xs, dy=dx, linecolor=linecolor, linewidth=xlinewidth)
+    axhlines(ax, ys, dx=dy, linecolor=linecolor, linewidth=ylinewidth)
 
     ax.set_box_aspect(1)
     ax.grid(visible=False, which="both")
