@@ -423,7 +423,8 @@ def heatmap(
     vmax: float | None = None,
     shrink: float = 0.7,
     linecolor: str = "w",
-    linewidth: float = 1.0,
+    xlinewidth: float = 1.0,
+    ylinewidth: float = 1.0,
     xrotation: float = 45.0,
 ) -> Any:
     """Plot a heatmap for a given array.
@@ -432,9 +433,28 @@ def heatmap(
     commands. In particular, it overlays a custom grid on top of the image
     that exactly corresponds to the "pixels" in *z*.
     """
+    if x.ndim != 1:
+        raise ValueError(f"'x' should be a 1-dimensional array: {x.shape}")
+
+    if y.ndim != 1:
+        raise ValueError(f"'y' should be a 1-dimensional array: {y.shape}")
+
+    if z.ndim != 1:
+        raise ValueError(f"'z' should be a 2-dimensional array: {z.shape}")
+
+    nx, ny = (*x.shape, *y.shape)
+    if z.shape != (nx, ny):
+        raise ValueError(f"incorrect data size: {z.shape} (expected ({nx}, {ny}))")
+
+    if xlinewidth < 0:
+        raise ValueError(f"'xlinewidth' should be non-negative: {xlinewidth}")
+
+    if ylinewidth < 0:
+        raise ValueError(f"'ylinewidth' should be non-negative: {ylinewidth}")
+
     # make uniform grid for display
-    xs = np.linspace(x[0], x[-1], x.size)
-    ys = np.linspace(y[0], y[-1], y.size)
+    xs = np.linspace(x[0], x[-1], nx)
+    ys = np.linspace(y[0], y[-1], ny)
 
     # define extent
     dx = xs[1] - xs[0]
@@ -448,27 +468,27 @@ def heatmap(
         aspect="auto",
         cmap=cmap,
         alpha=alpha,
-        vmin=0.0,
+        vmin=vmin,
         vmax=vmax,
         origin="lower",
     )
 
-    indices = np.linspace(0, x.size - 1, 10, endpoint=True, dtype=np.int32)
+    indices = np.linspace(0, nx - 1, 10, endpoint=True, dtype=np.int32)
     ax.set_xticks(xs[indices], [f"{xi:.2f}" for xi in x[indices]])
-    indices = np.linspace(0, y.size - 1, 10, endpoint=True, dtype=np.int32)
+    indices = np.linspace(0, ny - 1, 10, endpoint=True, dtype=np.int32)
     ax.set_yticks(ys[indices], [f"{yi:.2f}" for yi in y[indices]])
     ax.tick_params(which="minor", length=0)
 
-    ax.set_box_aspect(1)
     ax.grid(visible=False, which="both")
     ax.tick_params(axis="x", rotation=xrotation)
 
-    if linewidth > 0.0:
+    if xlinewidth > 0.0:
         for j in range(xs.size - 1):
-            ax.axvline(xs[j] + 0.5 * dx, color=linecolor, lw=linewidth)
+            ax.axvline(xs[j] + 0.5 * dx, color=linecolor, lw=xlinewidth)
 
+    if ylinewidth >= 0:
         for j in range(ys.size - 1):
-            ax.axhline(ys[j] + 0.5 * dy, color=linecolor, lw=linewidth)
+            ax.axhline(ys[j] + 0.5 * dy, color=linecolor, lw=ylinewidth)
 
     return im
 
