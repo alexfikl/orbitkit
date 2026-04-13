@@ -14,7 +14,7 @@ numpy==2.4.4 ; python_full_version >= '3.11'
     #   scipy
 pygments==2.20.0
     # via rich
-rich==14.3.3
+rich==15.0.0
     # via orbitkit (pyproject.toml)
 scipy==1.15.3 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml)
