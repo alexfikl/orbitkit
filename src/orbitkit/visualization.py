@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 
-from orbitkit.typing import Array, PathLike
+from orbitkit.typing import Array1D, Array2D, PathLike
 from orbitkit.utils import BOOLEAN_STATES, module_logger, on_ci
 
 if TYPE_CHECKING:
@@ -231,7 +231,7 @@ def scale_rgb(color: RGB, fac: float) -> RGB:
 
 
 def to_color(
-    w: Array,
+    w: Array1D[np.floating[Any]],
     *,
     colormap: str = "turbo",
     vmin: float | None = -1.0,
@@ -412,14 +412,15 @@ def savefig(
 
 def heatmap(
     ax: mp.Axes,
-    x: Array,
-    y: Array,
-    z: Array,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    z: Array2D[np.floating[Any]],
     *,
     title: str | None = None,
     cmap: str = "jet",
-    alpha: float | Array | None = None,
-    vmax: float = 1.0,
+    alpha: float | Array2D[np.floating[Any]] | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
     shrink: float = 0.7,
     linecolor: str = "w",
     linewidth: float = 1.0,
@@ -480,8 +481,8 @@ def heatmap(
 
 def rastergram(
     ax: mp.Axes,
-    t: Array,
-    y: Array,
+    t: Array1D[np.floating[Any]],
+    y: Array2D[np.floating[Any]],
     *,
     height: float | None = None,
     distance: float | None = None,
@@ -565,7 +566,7 @@ class NetworkXLayout(enum.Enum):
 
 def write_nx_from_adjacency(
     filename: PathLike,
-    mat: Array,
+    mat: Array2D[np.floating[Any]],
     *,
     layout: NetworkXLayout = NetworkXLayout.ARF,
     overwrite: bool = False,
@@ -659,7 +660,7 @@ class DotLayout(enum.Enum):
 
 def write_dot_from_adjacency(
     filename: PathLike,
-    mat: Array,
+    mat: Array2D[np.floating[Any]],
     *,
     nodenames: Iterable[str] | None = None,
     nodecolors: Iterable[str] | None = None,
@@ -743,7 +744,7 @@ def write_dot_from_adjacency(
 
 def write_gexf_from_adjacency(
     filename: PathLike,
-    mat: Array,
+    mat: Array2D[np.floating[Any]],
     *,
     directed: bool = False,
     nodenames: Iterable[str] | None = None,
