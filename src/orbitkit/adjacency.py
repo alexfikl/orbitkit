@@ -582,11 +582,17 @@ def generate_adjacency_erdos_renyi(
     if k is not None and not 0 <= k < n:
         raise ValueError(f"cannot have more edges 'k' than nodes 'n': {k} > {n}")
 
+    if dtype is None:
+        dtype = np.int32
+
+    if n == 1:
+        return np.zeros((n, n), dtype=dtype)
+
     if p is None:
         p = 0.25 if k is None else (k / (n - 1))
 
-    if dtype is None:
-        dtype = np.int32
+    if p == 0:
+        return np.zeros((n, n), dtype=dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -602,6 +608,14 @@ def generate_adjacency_erdos_renyi(
         # NOTE: setting the diagonal to zero should not change the statistics
         result = (rng.random(size=(n, n)) < p).astype(dtype)
         np.fill_diagonal(result, 0)
+
+    # NOTE: reconnect any isolated nodes to ensure no zero rows
+    for i in range(n):
+        if np.all(result[i] == 0):
+            j = rng.choice([j for j in range(n) if j != i])
+            result[i, j] = 1
+            if symmetric:
+                result[j, i] = 1
 
     return result
 
