@@ -477,6 +477,19 @@ def test_generate_adjacency_distance_decay(n: int, symmetric: bool) -> None:  # 
     assert np.mean(mat) < 0.01
 
 
+@pytest.mark.parametrize("n", [16, 32, 64, 128])
+def test_generate_adjacency_distance_decay_small_n(n: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_distance_decay
+
+    rng = np.random.default_rng(seed=42)
+
+    for _ in range(100):
+        mat = generate_adjacency_distance_decay(n, rng=rng)
+        assert mat.shape == (n, n)
+        row_sums = mat.sum(axis=1)
+        assert np.all(row_sums > 0), f"Zero row at n={n}: row_sums={row_sums}"
+
+
 def test_generate_adjacency_distance_decay_edge_cases() -> None:
     from orbitkit.adjacency import generate_adjacency_distance_decay
 

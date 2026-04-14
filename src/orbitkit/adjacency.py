@@ -723,7 +723,9 @@ def generate_adjacency_distance_decay(
     :arg ylim: limits for the y coordinate (defaults to the x coordinate limits).
     :arg beta: a probability scaling that must be in :math:`(0, 1]`.
     :arg sigma: variance-like parameter that controls how probable connections to
-        farther away vertices is. Defaults to 0.1 of the domain size.
+        farther away vertices is. Defaults to the domain diagonal divided by
+        ``log(max(n, 4))``, which scales with the number of vertices to avoid
+        isolated nodes for small graphs.
     """
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
@@ -741,7 +743,7 @@ def generate_adjacency_distance_decay(
         ylim = (ylim[1], ylim[0])
 
     if sigma is None:
-        sigma = 0.2 * max(xlim[1] - xlim[0], ylim[1] - ylim[0])
+        sigma = 1.4 * np.hypot(xlim[1] - xlim[0], ylim[1] - ylim[0]) / np.log(max(n, 4))
 
     if sigma <= 0.0:
         raise ValueError(f"'sigma' cannot be negative: {sigma}")
