@@ -16,6 +16,8 @@ from orbitkit.utils import BOOLEAN_STATES, module_logger, on_ci
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as mp
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.collections import EventCollection
 
 log = module_logger(__name__)
 
@@ -519,7 +521,7 @@ def heatmap(
     ylinewidth: float = 1.0,
     xrotation: float = 45.0,
     tickdensity: float = 0.1,
-) -> Any:
+) -> ScalarMappable:
     """Plot a heatmap for a given array.
 
     This is just a :func:`~matplotlib.pyplot.imshow` plot with some specific
@@ -596,7 +598,7 @@ def kymograph(
     cmap: str = "seismic",
     linecolor: str = "w",
     linewidth: float | None = None,
-) -> Any:
+) -> ScalarMappable:
     """Plot a kymograph of the given array.
 
     This is essentially a 2D plot, where the x axis is time and the y axis
@@ -645,7 +647,7 @@ def rastergram(
     distance: float | None = None,
     markerheight: float = 0.5,
     markerwidth: float | None = None,
-) -> None:
+) -> EventCollection:
     """Plot the rastergram for the given signal.
 
     This is a simple wrapper around :func:`matplotlib.pyplot.eventplot`.
@@ -680,7 +682,14 @@ def rastergram(
 
     # }}}
 
-    ax.eventplot(peaks, linelengths=markerheight, linewidths=markerwidth, color="black")
+    evs = ax.eventplot(
+        peaks,
+        linelengths=markerheight,
+        linewidths=markerwidth,
+        color="black",
+    )
+
+    return evs
 
 
 # }}}
