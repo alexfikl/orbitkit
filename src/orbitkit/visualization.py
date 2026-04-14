@@ -432,10 +432,10 @@ def axhlines(
     *,
     dx: float = 0.0,
     linecolor: str = "w",
-    linewidth: float = 1.5,
+    linewidth: float | None = 1.5,
 ) -> None:
     """Create multiple horizontal lines at the *x* positions."""
-    if linewidth <= 0:
+    if linewidth is None or linewidth <= 0:
         return
 
     for j in range(x.size - 1):
@@ -448,10 +448,10 @@ def axvlines(
     *,
     dy: float = 0.0,
     linecolor: str = "w",
-    linewidth: float = 1.5,
+    linewidth: float | None = 1.5,
 ) -> None:
     """Create multiple vertical lines at the *y* positions."""
-    if linewidth <= 0:
+    if linewidth is None or linewidth <= 0:
         return
 
     for j in range(y.size - 1):
@@ -517,8 +517,8 @@ def heatmap(
     vmax: float | None = None,
     shrink: float = 0.7,
     linecolor: str = "w",
-    xlinewidth: float = 1.0,
-    ylinewidth: float = 1.0,
+    xlinewidth: float | None = 1.0,
+    ylinewidth: float | None = 1.0,
     xrotation: float = 45.0,
     tickdensity: float = 0.1,
 ) -> ScalarMappable:
@@ -541,10 +541,10 @@ def heatmap(
     if z.shape not in {(nx, ny), (nx, ny, 3)}:
         raise ValueError(f"incorrect data size: {z.shape} (expected ({nx}, {ny}))")
 
-    if xlinewidth < 0:
+    if xlinewidth is not None and xlinewidth < 0:
         raise ValueError(f"'xlinewidth' should be non-negative: {xlinewidth}")
 
-    if ylinewidth < 0:
+    if ylinewidth is not None and ylinewidth < 0:
         raise ValueError(f"'ylinewidth' should be non-negative: {ylinewidth}")
 
     if tickdensity > 1.0:

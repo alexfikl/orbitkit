@@ -12,8 +12,11 @@ from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     import matplotlib.pyplot as mp
     from matplotlib.cm import ScalarMappable
+    from matplotlib.contour import ContourSet
 
 log = module_logger(__name__)
 
@@ -230,6 +233,7 @@ def visualize_behavior_probability_entropy(
     contours: bool = False,
     level: float = 0.95,
     linewidth: float | None = None,
+    linecolor: str = "w",
     base: int = 2,
 ) -> ScalarMappable:
     """Visualize the entropy in the systems behaviors in *zs*.
@@ -244,26 +248,66 @@ def visualize_behavior_probability_entropy(
     Z = np.concatenate([Z, residual], axis=-1)
     H = entropy(Z, axis=-1, base=base)
 
-    from orbitkit.visualization import get_color_cycle, heatmap
+    from orbitkit.visualization import heatmap
 
-    im = heatmap(ax, x, y, H, cmap="Blues", xlinewidth=0, ylinewidth=0)
+    im = heatmap(
+        ax,
+        x,
+        y,
+        H,
+        cmap="Blues",
+        linecolor=linecolor,
+        xlinewidth=linewidth,
+        ylinewidth=linewidth,
+    )
 
     if contours:
-        X, Y = np.meshgrid(x, y)
-        colors = get_color_cycle()
-
-        for i, z in enumerate(zs.values()):
-            ax.contour(
-                X,
-                Y,
-                z,
-                levels=[level],
-                colors=colors[i],
-                linestyles="-",
-                linewidths=linewidth,
-            )
+        visualize_behavior_probability_contour(
+            ax, x, y, zs, level=level, linewidth=linewidth
+        )
 
     return im
+
+
+# }}}
+
+
+# {{{ visualize_behavior_probability_contour
+
+
+def visualize_behavior_probability_contour(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    zs: dict[Behavior, Array2D[np.floating[Any]]],
+    *,
+    level: float = 0.95,
+    linewidth: float | None = None,
+) -> Sequence[ContourSet]:
+    """Visualize the contours in the systems behaviors in *zs*.
+
+    The dictionary *zs* contains a mapping from behaviors to their probability
+    in :math:`[0, 1]` for each of the parameter pairs ``(x[i], y[j])``.
+    """
+    from orbitkit.visualization import get_color_cycle
+
+    X, Y = np.meshgrid(x, y)
+    colors = get_color_cycle()
+
+    contours = []
+    for i, z in enumerate(zs.values()):
+        c = ax.contour(
+            X,
+            Y,
+            z,
+            levels=[level],
+            colors=colors[i],
+            linestyles="-",
+            linewidths=linewidth,
+        )
+        contours.append(c)
+
+    return contours
 
 
 # }}}
