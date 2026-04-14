@@ -13,7 +13,7 @@ from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as mp
-
+    from matplotlib.cm import ScalarMappable
 
 log = module_logger(__name__)
 
@@ -27,9 +27,9 @@ class Behavior(enum.IntEnum):
 
     Unknown = 0
     """System has an unknown behavior that could not be determined."""
-
     Divergent = 1
     """System has diverged to infinity."""
+
     Chaotic = 2
     """System is chaotic, i.e. it has a (sufficiently) positive Lyapunov exponent."""
     FixedPoint = 4
@@ -38,6 +38,15 @@ class Behavior(enum.IntEnum):
     """System has reached a cycle, i.e. all components are periodic, but not
     necessarily synchronized.
     """
+
+
+BEHAVIOR_FULL_NAME = {
+    Behavior.Unknown: "Unknown",
+    Behavior.Divergent: "Divergent",
+    Behavior.Chaotic: "Chaotic",
+    Behavior.FixedPoint: "Fixed Point",
+    Behavior.Periodic: "Periodic",
+}
 
 
 def is_divergent(x: Array1D[np.floating[Any]]) -> bool:
@@ -198,7 +207,7 @@ def visualize_behavior_probability(
     z: Array2D[np.floating[Any]],
     *,
     cmap: str = "seismic",
-) -> Any:
+) -> ScalarMappable:
     from orbitkit.visualization import heatmap
 
     im = heatmap(ax, x, y, z, cmap=cmap, vmin=0.0, vmax=1.0)
@@ -222,7 +231,7 @@ def visualize_behavior_probability_entropy(
     level: float = 0.95,
     linewidth: float | None = None,
     base: int = 2,
-) -> Any:
+) -> ScalarMappable:
     """Visualize the entropy in the systems behaviors in *zs*.
 
     The dictionary *zs* contains a mapping from behaviors to their probability
@@ -253,6 +262,62 @@ def visualize_behavior_probability_entropy(
                 linestyles="-",
                 linewidths=linewidth,
             )
+
+    return im
+
+
+# }}}
+
+
+# {{{ visualize_behavior_probability_phase
+
+
+def visualize_behavior_probability_phase(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    zs: dict[Behavior, Array2D[np.floating[Any]]],
+    *,
+    cmap: str = "Blues",
+) -> ScalarMappable:
+    from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
+
+    from orbitkit.visualization import get_rgb_color_cycle, heatmap
+
+    colors = get_rgb_color_cycle()
+    hues = {
+        btype: rgb_to_hsv(color)[0] for btype, color in zip(zs, colors, strict=False)
+    }
+
+    # compute confidence
+    Z = np.stack(list(zs.values()), axis=-1)  # (ny, nx, K)
+    Zidx = Z.argmax(axis=-1)
+    confidence = Z.max(axis=-1)
+
+    ny, nx = Zidx.shape
+    hsv = np.zeros((ny, nx, 3))
+    for i, btype in enumerate(zs):
+        mask = Zidx == i
+        hsv[mask, 0] = hues[btype]
+    hsv[:, :, 1] = confidence**1.25
+    hsv[:, :, 2] = 0.88
+
+    # plot
+    rgb = hsv_to_rgb(hsv)
+    im = heatmap(ax, x, y, rgb, linecolor="k", tickdensity=1.0)
+
+    from matplotlib.patches import Patch
+
+    ax.legend(
+        handles=[
+            Patch(
+                facecolor=hsv_to_rgb([hues[btype], 0.85, 0.88]),  # ty: ignore[invalid-argument-type]
+                label=BEHAVIOR_FULL_NAME[btype],
+            )
+            for btype in zs
+        ],
+        loc="upper right",
+    )
 
     return im
 
