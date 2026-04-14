@@ -1013,9 +1013,14 @@ def generate_adjacency_configuration(
     :arg degrees: an array of desired node degrees that should sum up to an even
         number.
     """
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
 
     if dtype is None:
         dtype = np.int32
+
+    if n == 1:
+        return np.zeros((n, n), dtype=dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -1058,6 +1063,12 @@ def generate_adjacency_configuration(
             continue
 
         result[i, j] = result[j, i] = 1
+
+    # NOTE: reconnect any isolated nodes to ensure no zero rows
+    for i in range(n):
+        if np.all(result[i] == 0):
+            j = rng.choice([j for j in range(n) if j != i])
+            result[i, j] = result[j, i] = 1
 
     return result
 
