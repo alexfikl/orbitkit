@@ -176,7 +176,10 @@ class StringifyMapper(StringifyMapperBase[[]]):
     def map_numpy_array(  # noqa: PLR6301 # ty: ignore[invalid-method-override]
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], /, enclosing_prec: int
     ) -> str:
-        return repr(expr)
+        if expr.size >= 10:
+            return f"array(..., shape={expr.shape}, dtype={expr.dtype})"
+        else:
+            return repr(expr)
 
     def map_contract(self, expr: sym.Contract, /, enclosing_prec: int) -> str:
         aggregate = self.rec(expr.aggregate, PREC_NONE)
