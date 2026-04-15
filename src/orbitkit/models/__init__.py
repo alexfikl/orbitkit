@@ -16,6 +16,9 @@ from orbitkit.utils import module_logger
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from orbitkit.models.linear_chain_tricks import AuxiliaryEquation
+    from orbitkit.typing import Array1D
+
 log = module_logger(__name__)
 
 
@@ -178,7 +181,7 @@ class Model(ABC):
 class ExtendedLinearChainTrickModel(Model):
     orig: Model
     exprs: tuple[sym.Expression, ...]
-    equations: Mapping[str, sym.Expression]
+    equations: Mapping[str, AuxiliaryEquation]
 
     @property
     def n(self) -> int:
@@ -201,11 +204,30 @@ class ExtendedLinearChainTrickModel(Model):
     ) -> tuple[sym.Expression, ...]:
         from orbitkit.symbolic.mappers import rename_variables
 
-        result = (*self.exprs, *self.equations.values())
+        result = (*self.exprs, *(eq.expr for eq in self.equations.values()))
         return rename_variables(
             result,
             {vfrom: vto.name for vfrom, vto in zip(self.variables, args, strict=True)},
         )
+
+
+def constant_past_initial_conditions(
+    equations: Mapping[str, AuxiliaryEquation],
+    y0: Mapping[str, Array1D[np.floating]],
+) -> Array1D[np.floating]:
+    r"""Compute initial conditions for auxiliary variables under a constant-past
+    assumption.
+
+    :arg y0: a mapping of original variable names to their initial conditions.
+    :returns: a concatenated array of all the initial conditions for the system.
+    """
+    from pymbolic.mapper.evaluator import evaluate
+
+    y0aux: list[Array1D[np.floating]] = []
+    for eq in equations.values():
+        y0aux.append(eq.kernel.mass * evaluate(eq.arg, context=y0))
+
+    return np.hstack([*y0.values(), *y0aux])
 
 
 def transform_distributed_delay_model(

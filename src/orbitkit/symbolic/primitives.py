@@ -213,6 +213,10 @@ class DelayKernel(ExpressionNode):
     def avg(self) -> Expression:
         raise AttributeError(f"kernel {self} does not define an average delay")
 
+    @property
+    def mass(self) -> Expression:
+        raise AttributeError(f"kernel {self} does not define a mass")
+
 
 @prim.expr_dataclass()
 class ZeroDelayKernel(DelayKernel):
@@ -221,6 +225,10 @@ class ZeroDelayKernel(DelayKernel):
     @property
     def avg(self) -> Expression:
         return 0
+
+    @property
+    def mass(self) -> Expression:
+        return 1
 
 
 @prim.expr_dataclass()
@@ -238,6 +246,10 @@ class DiracDelayKernel(DelayKernel):
     @property
     def avg(self) -> Expression:
         return self.tau
+
+    @property
+    def mass(self) -> Expression:
+        return 1
 
 
 @prim.expr_dataclass()
@@ -260,6 +272,10 @@ class GammaDelayKernel(DelayKernel):
     @property
     def avg(self) -> Expression:
         return self.p / self.alpha
+
+    @property
+    def mass(self) -> Expression:
+        return 1
 
 
 class WeakGammaDelayKernel(GammaDelayKernel):
@@ -299,6 +315,10 @@ class UniformDelayKernel(DelayKernel):
     def avg(self) -> Expression:
         return self.tau
 
+    @property
+    def mass(self) -> Expression:
+        return 1
+
 
 @prim.expr_dataclass()
 class TriangularDelayKernel(DelayKernel):
@@ -324,6 +344,50 @@ class TriangularDelayKernel(DelayKernel):
     @property
     def avg(self) -> Expression:
         return self.tau
+
+    @property
+    def mass(self) -> Expression:
+        return 1
+
+
+@prim.expr_dataclass()
+class TriangularDerivativeDelayKernel(DelayKernel):
+    r"""A delay kernel based on the a derivative of the triangular distribution.
+
+    .. warning::
+
+        This kernel is not a probability distribution (it has a zero mass). It
+        should not be used in equations without careful consideration. It is
+        mainly here to allow defining the linear chain trick for the
+        :class:`TriangularDelayKernel`.
+
+    .. math::
+
+        \mathrm{TriangularD}(t; \epsilon, \tau) =
+        \frac{\tau}{(\epsilon \tau)^2}
+        \begin{cases}
+        -1, & \quad t \in [(1 - \epsilon) \tau, \tau], \\
+        +1, & \quad t \in [\tau, (1 + epsilon) \tau], \\
+        0, & \quad \text{otherwise}.
+        \end{cases}
+
+    This kernel was obtained from taking the derivative of :math:`(h \ast y)(t)`,
+    where :math:`h` is the triangular kernel and gathering up the remaining
+    integral terms.
+    """
+
+    epsilon: Expression
+    """Parameter controlling the width of the base of the triangle."""
+    tau: Expression
+    """Average delay of the kernel."""
+
+    @property
+    def avg(self) -> Expression:
+        return self.tau
+
+    @property
+    def mass(self) -> Expression:
+        return 0
 
 
 # }}}

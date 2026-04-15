@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, NamedTuple, overload
 
 import numpy as np
 from pymbolic.typing import Expression
@@ -19,6 +19,30 @@ if TYPE_CHECKING:
     from pytools import UniqueNameGenerator
 
 log = module_logger(__name__)
+
+
+# {{{ AuxiliaryEquation
+
+
+class AuxiliaryEquation(NamedTuple):
+    """An auxiliary equation produced by the linear chain trick.
+
+    This equation should provide sufficient information to construct an additional
+    differential equation (i.e. the variable and right-hand side) and to obtain
+    its initial conditions from the original expression it is replacing.
+    """
+
+    varname: str
+    """The variable (found in the right-hand side :attr:`expr`) for this equation."""
+    kernel: sym.DelayKernel
+    """The delay kernel replaced by this equation."""
+    arg: sym.Expression
+    """The expression to which the kernel was applied."""
+    expr: sym.Expression
+    """Right-hand side of the auxiliary equation."""
+
+
+# }}}
 
 
 # {{{ apply
@@ -101,10 +125,10 @@ class DelayKernelReplacer(IdentityMapper):
     """A mapping from delay kernel calls to the variables that replaced them. This
     attribute is mainly used as a cache for deduplication.
     """
-    var_to_eqs: dict[sym.Expression, dict[str, sym.Expression]]
-    r"""A mapping from new variables to a set of equations required to solve
-    for those new variables, of the form :math:`\dot{z}_k = f_k(t, z)`. This
-    set of equations will generally contain one equation for each variables.
+    var_to_eqs: dict[sym.Expression, dict[str, AuxiliaryEquation]]
+    r"""A mapping from new variables to a set of :class:`AuxiliaryEquation` objects
+    required to solve equations of the form :math:`\dot{z}_k = f_k(t, z)`.
+    This set of equations will generally contain one equation for each variable.
     """
 
     unique_name_generator: UniqueNameGenerator
@@ -177,7 +201,7 @@ def transform_delay_kernels(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[sym.Expression, Mapping[str, sym.Expression]]: ...
+) -> tuple[sym.Expression, Mapping[str, AuxiliaryEquation]]: ...
 
 
 @overload
@@ -186,7 +210,7 @@ def transform_delay_kernels(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[tuple[sym.Expression, ...], Mapping[str, sym.Expression]]: ...
+) -> tuple[tuple[sym.Expression, ...], Mapping[str, AuxiliaryEquation]]: ...
 
 
 def transform_delay_kernels(
@@ -194,7 +218,10 @@ def transform_delay_kernels(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[sym.Expression | tuple[sym.Expression, ...], Mapping[str, sym.Expression]]:
+) -> tuple[
+    sym.Expression | tuple[sym.Expression, ...],
+    Mapping[str, AuxiliaryEquation],
+]:
     """Replace all distributed delay kernels with additional differential equations.
 
     The transformations can be found in [Macdonald2013]_. The supported kernels are
@@ -212,15 +239,14 @@ def transform_delay_kernels(
 
     :returns: a tuple of ``(expr, equations)``, where ``expr`` is the input
         expression with all delay kernels replaced by additional variables and
-        ``equations`` is a mapping from variable names to right-hand side
-        expressions.
+        ``equations`` is a mapping from variable names to :class:`AuxiliaryEquation`.
     """
     from constantdict import constantdict
 
     mapper = DelayKernelReplacer(time, inputs)
     expr = mapper(expr)  # ty: ignore[invalid-assignment]
 
-    alleqs = {}
+    alleqs: dict[str, AuxiliaryEquation] = {}
     for eqs in mapper.var_to_eqs.values():
         assert not any(name in alleqs for name in eqs)
         alleqs.update(eqs)
@@ -241,7 +267,7 @@ def transform_dirac_delay_kernel(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[sym.Expression, dict[str, sym.Expression]]:
+) -> tuple[sym.Expression, dict[str, AuxiliaryEquation]]:
     """Transform the Dirac kernel applied to the given *expr*.
 
     The Dirac kernel is a limit case, where we simply distribute it over the
@@ -260,7 +286,7 @@ def transform_uniform_delay_kernel(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[sym.Expression, dict[str, sym.Expression]]:
+) -> tuple[sym.Expression, dict[str, AuxiliaryEquation]]:
     r"""Transform the uniform kernel into additional delay differential equation.
 
     .. math::
@@ -268,6 +294,9 @@ def transform_uniform_delay_kernel(
         \dot{z} = \frac{1}{2 \epsilon \tau} (
             expr(t - (1 - \epsilon) \tau) - expr(t - (1 + \epsilon) \tau)
         ).
+
+    Under a constant past, :math:`z(0) = y_0` (the kernel integrates to 1
+    over a constant).
 
     :returns: a mapping of variable names to equations. One of these variable
         names is the provided *z* variable and others can be derived from it.
@@ -278,9 +307,14 @@ def transform_uniform_delay_kernel(
         return DiracDelayDistributor(tau, time=time, inputs=inputs)(expr)
 
     return z, {
-        z.name: (
-            (dirac((1 - epsilon) * tau, expr) - dirac((1 + epsilon) * tau, expr))
-            / (2 * epsilon * tau)
+        z.name: AuxiliaryEquation(
+            varname=z.name,
+            kernel=kernel,
+            arg=expr,
+            expr=(
+                (dirac((1 - epsilon) * tau, expr) - dirac((1 + epsilon) * tau, expr))
+                / (2 * epsilon * tau)
+            ),
         )
     }
 
@@ -292,7 +326,7 @@ def transform_triangular_delay_kernel(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[sym.Expression, dict[str, sym.Expression]]:
+) -> tuple[sym.Expression, dict[str, AuxiliaryEquation]]:
     r"""Transform the triangular kernel into additional delay differential equations.
 
     .. math::
@@ -305,6 +339,9 @@ def transform_triangular_delay_kernel(
             + y(t - (1 + \epsilon) \tau).
         \end{aligned}
 
+    Under a constant past, :math:`z(0) = y_0` (the kernel integrates to 1
+    over a constant) and :math:`w(0) = 0` (the three delayed terms cancel).
+
     :returns: a mapping of variable names to equations. One of these variable
         names is the provided *z* variable and others can be derived from it.
     """
@@ -315,11 +352,22 @@ def transform_triangular_delay_kernel(
 
     w = sym.Variable(f"{z.name}_tr")
     return z, {
-        z.name: w / (epsilon * tau) ** 2,
-        w.name: (
-            dirac((1 - epsilon) * tau, expr)
-            - 2 * dirac(tau, expr)
-            + dirac((1 + epsilon) * tau, expr)
+        z.name: AuxiliaryEquation(
+            varname=z.name,
+            kernel=kernel,
+            arg=expr,
+            expr=-w,
+        ),
+        w.name: AuxiliaryEquation(
+            varname=w.name,
+            kernel=sym.TriangularDerivativeDelayKernel(kernel.epsilon, kernel.tau),
+            arg=expr,
+            expr=-(
+                dirac((1 - epsilon) * tau, expr)
+                - 2 * dirac(tau, expr)
+                + dirac((1 + epsilon) * tau, expr)
+            )
+            / (epsilon * tau) ** 2,
         ),
     }
 
@@ -331,7 +379,7 @@ def transform_gamma_delay_kernel(
     *,
     time: sym.Variable | None = None,
     inputs: Collection[sym.Variable] | None = None,
-) -> tuple[sym.Expression, dict[str, sym.Expression]]:
+) -> tuple[sym.Expression, dict[str, AuxiliaryEquation]]:
     r"""Transform the Gamma kernel into additional ordinary differential equations.
 
     .. math::
@@ -342,19 +390,41 @@ def transform_gamma_delay_kernel(
         \dot{z}_1 & = \alpha (y - z_1).
         \end{aligned}
 
+    Under a constant past all chain variables start at :math:`y_0`.
+
     :returns: a mapping of variable names to equations. One of these variable
         names is the provided *z* variable and others can be derived from it.
     """
     p, alpha = kernel.p, kernel.alpha
 
     if p == 1:
-        return z, {z.name: alpha * (expr - z)}
+        return z, {
+            z.name: AuxiliaryEquation(
+                varname=z.name,
+                kernel=kernel,
+                arg=expr,
+                expr=alpha * (expr - z),
+            )
+        }
     elif isinstance(p, int):
         zs = (z, *(sym.Variable(f"{z.name}_g{p}_{k}") for k in range(p - 1)))
 
         return z, {
-            **{zs[k].name: alpha * (zs[k + 1] - zs[k]) for k in range(p - 1)},
-            zs[p - 1].name: alpha * (expr - zs[p - 1]),
+            **{
+                zs[k].name: AuxiliaryEquation(
+                    varname=zs[k].name,
+                    kernel=sym.GammaDelayKernel(k + 1, kernel.alpha),
+                    arg=expr,
+                    expr=alpha * (zs[k + 1] - zs[k]),
+                )
+                for k in range(p - 1)
+            },
+            zs[p - 1].name: AuxiliaryEquation(
+                varname=zs[p - 1].name,
+                kernel=kernel,
+                arg=expr,
+                expr=alpha * (expr - zs[p - 1]),
+            ),
         }
     else:
         raise NotImplementedError(
