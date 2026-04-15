@@ -126,7 +126,7 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
     finder = DelayFinder()
     finder(result)
     for eq in equations.values():
-        finder(eq)
+        finder(eq.expr)
 
     assert not finder.kernels
     if isinstance(knl, sym.DiracDelayKernel):
@@ -150,7 +150,7 @@ def test_linear_chain_trick(knl: sym.DelayKernel) -> None:
     log.info("%4s: %s", stringify(y), stringify(flatten(result)))
 
     for name, eq in equations.items():
-        log.info("%4s: %s", stringify(sym.Variable(name)), stringify(flatten(eq)))
+        log.info("%4s: %s", stringify(sym.Variable(name)), stringify(flatten(eq.expr)))
 
 
 # }}}
@@ -220,7 +220,7 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
     for i, (name, eq) in enumerate(eqs.items()):
         i += len(exprs)  # noqa: PLW2901
         y = sym.Variable(name)
-        lines.append(f"[{i:02d}]:\n\td{stringify(y)}/dt = {stringify(eq)}")
+        lines.append(f"[{i:02d}]:\n\td{stringify(y)}/dt = {stringify(eq.expr)}")
 
     log.info("Model:\n%s", "\n".join(lines))
 
@@ -228,7 +228,7 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
     finder = DelayFinder()
     finder(result)
     for eq in eqs.values():
-        finder(eq)
+        finder(eq.expr)
 
     assert not finder.kernels
     if isinstance(knl, sym.DiracDelayKernel):
