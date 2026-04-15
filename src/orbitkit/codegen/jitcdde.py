@@ -98,8 +98,11 @@ class DiracDelayReplacer(IdentityMapper):
         if y.name not in self.name_to_inputs:
             raise ValueError(f"variable '{y}' is not a known input")
 
-        if not isinstance(func.tau, (int, float, sym.Variable)):
-            raise NotImplementedError(f"delay 'tau' must be a number: {func.tau}")
+        # FIXME: what do we want to allow here? jitcdde supports pretty arbitrary
+        # expressions, including state-dependent, so it doesn't make sense to be
+        # too restrictive? Maybe just let it fail later..
+        # if not isinstance(func.tau, (int, float, sym.Variable)):
+        #     raise NotImplementedError(f"delay 'tau' must be a number: {func.tau}")
 
         inp = self.name_to_inputs[y.name]
         try:
