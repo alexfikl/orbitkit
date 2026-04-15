@@ -7,7 +7,10 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.models import transform_distributed_delay_model
+from orbitkit.models import (
+    constant_past_initial_conditions,
+    transform_distributed_delay_model,
+)
 from orbitkit.models.wilson_cowan import make_model_from_name
 from orbitkit.utils import module_logger, on_ci
 
@@ -68,10 +71,13 @@ elif figname[:7] in {"Figure3", "Figure4", "Figure5"}:
 else:
     raise ValueError(f"unsupported figure: {figname!r}")
 
-y0 = np.concatenate([
-    0.25 + 0.0 * rng.random(model.n),
-    0.75 + 0.0 * rng.random(model.n),
-])
+y0 = constant_past_initial_conditions(
+    ext_model,
+    {
+        "E": 0.25 + 0.0 * rng.random(model.n),
+        "I": 0.75 + 0.0 * rng.random(model.n),
+    },
+)
 dde.constant_past(y0, time=tspan[0])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].

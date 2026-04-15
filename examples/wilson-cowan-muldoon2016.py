@@ -10,7 +10,10 @@ from dataclasses import replace
 
 import numpy as np
 
-from orbitkit.models import transform_distributed_delay_model
+from orbitkit.models import (
+    constant_past_initial_conditions,
+    transform_distributed_delay_model,
+)
 from orbitkit.models.wilson_cowan import make_model_from_name
 from orbitkit.symbolic.primitives import DiracDelayKernel
 from orbitkit.utils import download_from_data_dryad, load_from_mat, module_logger, on_ci
@@ -112,10 +115,10 @@ dde = target.compile(source, y, max_delay=tau)
 
 tspan = (0.0, 1000.0)
 
-y0 = np.concatenate([
-    0.1 + 0.1 * rng.random(model.n),
-    0.0 + 0.1 * rng.random(model.n),
-])
+y0 = constant_past_initial_conditions(
+    ext_model,
+    {"E": 0.1 + 0.1 * rng.random(model.n), "I": 0.0 + 0.1 * rng.random(model.n)},
+)
 dde.constant_past(y0, time=tspan[0])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].

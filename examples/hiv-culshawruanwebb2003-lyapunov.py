@@ -7,7 +7,10 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.models import transform_distributed_delay_model
+from orbitkit.models import (
+    constant_past_initial_conditions,
+    transform_distributed_delay_model,
+)
 from orbitkit.models.hiv import CulshawRuanWebb, make_model_from_name
 from orbitkit.symbolic.primitives import DiracDelayKernel
 from orbitkit.utils import module_logger, on_ci
@@ -51,7 +54,9 @@ log.info("\n%s", source)
 # {{{ evolve
 
 tspan = (0.0, 2500.0)
-y0 = np.array([5.0e5, 500])
+y0 = constant_past_initial_conditions(
+    ext_model, {"C": np.array([5.0e5]), "I": np.array([500.0])}
+)
 
 dde = target.compile(source, y, max_delay=model.h.tau)
 dde.constant_past(y0, time=tspan[0])

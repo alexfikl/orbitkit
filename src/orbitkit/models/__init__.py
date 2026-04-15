@@ -214,7 +214,7 @@ class ExtendedLinearChainTrickModel(Model):
 
 
 def constant_past_initial_conditions(
-    equations: Mapping[str, AuxiliaryEquation],
+    model: ExtendedLinearChainTrickModel,
     y0: Mapping[str, Array1D[np.floating]],
 ) -> Array1D[np.floating]:
     r"""Compute initial conditions for auxiliary variables under a constant-past
@@ -226,7 +226,7 @@ def constant_past_initial_conditions(
     from pymbolic.mapper.evaluator import evaluate
 
     y0aux: list[Array1D[np.floating]] = []
-    for eq in equations.values():
+    for eq in model.equations.values():
         y0aux.append(eq.kernel.mass * evaluate(eq.arg, context=y0))
 
     return np.hstack([*y0.values(), *y0aux])

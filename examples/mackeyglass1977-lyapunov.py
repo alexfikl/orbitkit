@@ -9,7 +9,10 @@ from dataclasses import replace
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
-from orbitkit.models import transform_distributed_delay_model
+from orbitkit.models import (
+    constant_past_initial_conditions,
+    transform_distributed_delay_model,
+)
 from orbitkit.models.mackey_glass import MackeyGlass1, make_model_from_name
 from orbitkit.symbolic.primitives import DiracDelayKernel
 from orbitkit.utils import module_logger, on_ci
@@ -60,7 +63,7 @@ dde = target.compile(source, y, max_delay=tau, parameters=("k",))
 dt = 0.01
 tspan = (0.0, 3000.0)
 
-y0 = np.array([0.1])
+y0 = constant_past_initial_conditions(ext_model, {"P": np.array([0.1])})
 ts = np.arange(tspan[0] + tau, tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 

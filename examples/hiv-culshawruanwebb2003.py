@@ -7,7 +7,10 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.models import transform_distributed_delay_model
+from orbitkit.models import (
+    constant_past_initial_conditions,
+    transform_distributed_delay_model,
+)
 from orbitkit.models.hiv import CulshawRuanWebb, make_model_from_name
 from orbitkit.symbolic.primitives import DiracDelayKernel
 from orbitkit.utils import module_logger, on_ci
@@ -65,20 +68,17 @@ log.info("\n%s", source)
 
 tspan = (0.0, 300.0)
 
-if figname in {"Figure52", "Figure54"}:
-    # NOTE: the extra variable in the new system is given by
-    #   z = (h * (C * I))(0) = C(0) * I(0)
-    # since we assume a constant history for the two variables.
-    y0 = np.array([5.0e5, 500, 5.0e5 * 500])
+y0 = constant_past_initial_conditions(
+    ext_model, {"C": np.array([5.0e5]), "I": np.array([500.0])}
+)
 
+if figname in {"Figure52", "Figure54"}:
     dde = target.compile(source, y)
     dde.set_initial_value(y0, tspan[0])
 else:
     assert isinstance(target, JiTCDDETarget)
     assert isinstance(model.h, DiracDelayKernel)
     assert isinstance(model.h.tau, (int, float))
-
-    y0 = np.array([5.0e5, 500])
 
     dde = target.compile(source, y, max_delay=model.h.tau)
     dde.constant_past(y0, time=tspan[0])
