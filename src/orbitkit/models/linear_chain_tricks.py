@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, overload
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from pymbolic.typing import Expression
@@ -24,7 +25,8 @@ log = module_logger(__name__)
 # {{{ AuxiliaryEquation
 
 
-class AuxiliaryEquation(NamedTuple):
+@dataclass(frozen=True)
+class AuxiliaryEquation:
     """An auxiliary equation produced by the linear chain trick.
 
     This equation should provide sufficient information to construct an additional

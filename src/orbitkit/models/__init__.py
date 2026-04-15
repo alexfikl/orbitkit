@@ -46,15 +46,17 @@ def ds_symbolic(
     ) -> object:
         from pymbolic.primitives import ExpressionNode
 
-        if isinstance(attr, tuple):
+        if is_dataclass(attr):
+            return ds_symbolic(attr, rec=rec, rattrs=rattrs)  # ty: ignore[invalid-argument-type]
+        elif isinstance(attr, tuple):
             if rec or any(fname.startswith(rattr) for rattr in rattrs):
-                return tuple(
+                return type(attr)(
                     _ds_field_symbolic(attr[i], f"{fname}_{i}", rec=rec, rattrs=rattrs)
                     for i in range(len(attr))
                 )
             else:
                 return tuple(sym.Variable(f"{fname}_{i}") for i in range(len(attr)))
-        if isinstance(attr, dict):
+        elif isinstance(attr, dict):
             if rec or any(fname.startswith(rattr) for rattr in rattrs):
                 return {
                     k: _ds_field_symbolic(
@@ -70,7 +72,7 @@ def ds_symbolic(
 
         elif isinstance(attr, np.ndarray):
             return sym.MatrixSymbol(fname, attr.shape)
-        elif isinstance(attr, (int, float, np.number, ExpressionNode)):
+        elif isinstance(attr, (int, float, str, np.number, ExpressionNode)):
             return attr
         else:
             return sym.Variable(fname)

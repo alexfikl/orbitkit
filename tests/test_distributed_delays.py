@@ -410,6 +410,7 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
     lambda_star = _uniform_homogeneous_root(model)
     ta, tb = (1.0 - epsilon) * tau, (1.0 + epsilon) * tau
 
+    # NOTE: the solution to these equations is Y0 * exp(lambda * t)
     Y0 = rng.random()
     Z0 = (
         Y0
