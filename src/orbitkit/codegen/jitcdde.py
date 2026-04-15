@@ -132,7 +132,7 @@ def make_input_variable(
     import jitcdde
     import symengine as sp
 
-    if isinstance(tau, (int, float, sp.Symbol)):
+    if isinstance(tau, (int, float, sp.Expr)):
         tau = np.full(n, tau)
 
     y = np.empty(n, dtype=object)
@@ -149,7 +149,7 @@ def make_delay_variable(
     import jitcdde
     import symengine as sp
 
-    if isinstance(tau, (int, float, sp.Symbol)):
+    if isinstance(tau, (int, float, sp.Expr)):
         tau = np.full(ys.shape, tau)
 
     if tau.shape != ys.shape:
