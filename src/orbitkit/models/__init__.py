@@ -214,11 +214,25 @@ class ExtendedLinearChainTrickModel(Model):
 
 
 def constant_past_initial_conditions(
-    model: ExtendedLinearChainTrickModel,
+    model: Model,
     y0: Mapping[str, Array1D[np.floating]],
 ) -> Array1D[np.floating]:
     r"""Compute initial conditions for auxiliary variables under a constant-past
     assumption.
+
+    If the model is an :class:`ExtendedLinearChainTrickModel`, we need to add
+    additional initial conditions based on *y0*. This function computes the new
+    initial conditions based on the kernels used in
+    :class:`~orbitkit.symbolic.linear_chain_trick.AuxiliaryEquation`. In the
+    constant case, the initial conditions are always:
+
+    .. math::
+
+        z_0^k = \left(\int_{-\infty}^\infty h(s) \,\mathrm{d} s\right) g(\mathbf{y}_0)
+
+    where :math:`g` is the expression used to define the auxiliary variable *z*.
+    For standard models, nothing needs to be done and the initial conditions are
+    returned as is.
 
     :arg y0: a mapping of original variable names to their initial conditions.
     :returns: a concatenated array of all the initial conditions for the system.
@@ -226,8 +240,9 @@ def constant_past_initial_conditions(
     from pymbolic.mapper.evaluator import evaluate
 
     y0aux: list[Array1D[np.floating]] = []
-    for eq in model.equations.values():
-        y0aux.append(eq.kernel.mass * evaluate(eq.arg, context=y0))
+    if isinstance(model, ExtendedLinearChainTrickModel):
+        for eq in model.equations.values():
+            y0aux.append(eq.kernel.mass * evaluate(eq.arg, context=y0))
 
     return np.hstack([*y0.values(), *y0aux])
 
