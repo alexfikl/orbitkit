@@ -7,13 +7,18 @@ import pathlib
 import shutil
 import time
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code
-from orbitkit.codegen.numpy import NumpyCodeGenerator, NumpyTarget
+from orbitkit.codegen.jitcxde import (
+    JiTCXDEExpression,
+    JiTCXDETarget,
+    cflags,
+    linker_flags,
+)
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
 
@@ -24,42 +29,11 @@ if TYPE_CHECKING:
 
 log = module_logger(__name__)
 
-JITCODE_COMMON_CFLAGS = [
-    "-std=c11",
-    "-march=native",
-    "-mtune=native",
-    "-Wno-unknown-pragmas",
-]
-
-JITCODE_RELEASE_CFLAGS = [
-    *JITCODE_COMMON_CFLAGS,
-    "-O3",
-    # FIXME: -O3 and -ffast-math is not exactly safe. We should update our own
-    # code generation and check if this actually makes things better.
-    "-ffast-math",
-    # NOTE: this seemed to cause some issues with points near bifurcations, so
-    # it's turned off by default for now.
-    "-fno-associative-math",
-    # NOTE: this seems to cause some invalid-writes or straight-up leaks in the
-    # jitcdde C template. We disable it for now for safety.
-    "-mno-avx512f",
-    "-g0",
-]
-"""Compiler flags used for release builds of the JiTCODE module."""
-
-JITCODE_DEBUG_CFLAGS = [
-    *JITCODE_COMMON_CFLAGS,
-    "-O0",
-    "-ggdb",
-]
-"""Compiler flags used for debug builds of the JiTCODE module."""
 
 # {{{ target
 
-JiTCODEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 
-
-def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCODEExpression:
+def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExpression:
     import jitcode
 
     y = np.empty(n, dtype=object)
@@ -70,24 +44,7 @@ def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCODEExp
 
 
 @dataclass(frozen=True)
-class JiTCODECodeGenerator(NumpyCodeGenerator):
-    sym_module: str = "sp"
-
-    def map_function(self, expr: sym.Function, enclosing_prec: int) -> str:
-        return f"vectorized({self.sym_module}.{expr.name})"
-
-
-@dataclass(frozen=True)
-class JiTCODETarget(NumpyTarget):
-    module: ClassVar[str] = "np"
-    sym_module: ClassVar[str] = "sp"
-    funcname: ClassVar[str] = "_lambdify_generated_func_jitcode_symengine"
-
-    def _get_code_generator(self, inputs: set[str]) -> NumpyCodeGenerator:
-        return JiTCODECodeGenerator(
-            inputs=inputs, module=self.module, sym_module=self.sym_module
-        )
-
+class JiTCODETarget(JiTCXDETarget):
     def generate_code(
         self,
         inputs: sym.Variable | tuple[sym.Variable, ...],
@@ -197,9 +154,8 @@ class JiTCODETarget(NumpyTarget):
             else:
                 t_start = time.time()
                 ode.compile_C(
-                    extra_compile_args=(
-                        JITCODE_DEBUG_CFLAGS if debug else JITCODE_RELEASE_CFLAGS
-                    ),
+                    extra_compile_args=cflags(debug=debug),
+                    extra_linker_args=linker_flags(debug=debug),
                     verbose=verbose,
                     omp=openmp,
                     modulename=module_location.stem if module_location else None,

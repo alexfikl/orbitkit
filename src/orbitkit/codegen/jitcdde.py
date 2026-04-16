@@ -6,14 +6,19 @@ from __future__ import annotations
 import pathlib
 import shutil
 import time
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from dataclasses import replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code
-from orbitkit.codegen.jitcode import JiTCODECodeGenerator, JiTCODETarget
+from orbitkit.codegen.jitcxde import (
+    JiTCXDEExpression,
+    JiTCXDETarget,
+    cflags,
+    linker_flags,
+)
 from orbitkit.symbolic.mappers import IdentityMapper
 from orbitkit.typing import Array
 from orbitkit.utils import module_logger
@@ -23,39 +28,7 @@ if TYPE_CHECKING:
     import symengine as sp
     from pymbolic.typing import Expression as PymbolicExpression
 
-    from orbitkit.codegen.numpy import NumpyCodeGenerator
-
 log = module_logger(__name__)
-
-JITCDDE_COMMON_CFLAGS = [
-    "-std=c11",
-    "-march=native",
-    "-mtune=native",
-    "-Wno-unknown-pragmas",
-]
-
-JITCDDE_RELEASE_CFLAGS = [
-    *JITCDDE_COMMON_CFLAGS,
-    # FIXME: -O3 and -ffast-math is not exactly safe. We should update our own
-    # code generation and check if this actually makes things better.
-    "-O3",
-    "-ffast-math",
-    # NOTE: this seemed to cause some issues with points near bifurcations. We
-    # disable it for now for safety.
-    "-fno-associative-math",
-    # NOTE: this seems to cause some invalid-writes or straight-up leaks in the
-    # jitcdde C template. We disable it for now for safety.
-    "-mno-avx512f",
-    "-g0",
-]
-"""Compiler flags used for release builds of the JiTCDDE module."""
-
-JITCDDE_DEBUG_CFLAGS = [
-    *JITCDDE_COMMON_CFLAGS,
-    "-O0",
-    "-ggdb",
-]
-"""Compiler flags used for debug builds of the JiTCODE module."""
 
 # {{{ gather mapper
 
@@ -121,14 +94,11 @@ class DiracDelayReplacer(IdentityMapper):
 # {{{ target
 
 
-JiTCDDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
-
-
 def make_input_variable(
     n: int | tuple[int, ...],
     tau: int | float | sp.Symbol | Array = 0,
     offset: int = 0,
-) -> JiTCDDEExpression:
+) -> JiTCXDEExpression:
     import jitcdde
     import symengine as sp
 
@@ -143,9 +113,9 @@ def make_input_variable(
 
 
 def make_delay_variable(
-    ys: JiTCDDEExpression,
+    ys: JiTCXDEExpression,
     tau: int | float | sp.Symbol | Array = 0,
-) -> JiTCDDEExpression:
+) -> JiTCXDEExpression:
     import jitcdde
     import symengine as sp
 
@@ -171,21 +141,7 @@ def make_delay_variable(
     return result
 
 
-@dataclass(frozen=True)
-class JiTCDDECodeGenerator(JiTCODECodeGenerator):
-    pass
-
-
-class JiTCDDETarget(JiTCODETarget):
-    module: ClassVar[str] = "np"
-    sym_module: ClassVar[str] = "sp"
-    funcname: ClassVar[str] = "_lambdify_generated_func_jitcdde_symengine"
-
-    def _get_code_generator(self, inputs: set[str]) -> NumpyCodeGenerator:
-        return JiTCDDECodeGenerator(
-            inputs=inputs, module=self.module, sym_module=self.sym_module
-        )
-
+class JiTCDDETarget(JiTCXDETarget):
     def generate_code(
         self,
         inputs: sym.Variable | tuple[sym.Variable, ...],
@@ -328,9 +284,8 @@ class JiTCDDETarget(JiTCODETarget):
                 dde.compile_C(
                     simplify=simplify,
                     do_cse=False,
-                    extra_compile_args=(
-                        JITCDDE_DEBUG_CFLAGS if debug else JITCDDE_RELEASE_CFLAGS
-                    ),
+                    extra_compile_args=cflags(debug=debug),
+                    extra_linker_args=linker_flags(debug=debug),
                     verbose=verbose,
                     chunk_size=32,
                     omp=openmp,
