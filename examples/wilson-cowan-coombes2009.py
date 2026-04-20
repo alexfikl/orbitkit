@@ -7,6 +7,7 @@ import pathlib
 
 import numpy as np
 
+from orbitkit.codegen.jitcdde import JiTCDDETarget
 from orbitkit.models import (
     constant_past_initial_conditions,
     transform_distributed_delay_model,
@@ -20,11 +21,9 @@ from orbitkit.utils import module_logger, on_ci
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
-try:
-    import jitcdde
-except ImportError:
+if not JiTCDDETarget.has_jitcdde():
     log.error("This example requires 'jitcdde'.")
-    raise SystemExit(0) from None
+    raise SystemExit(0)
 
 # {{{ create right-hand side
 
@@ -43,21 +42,11 @@ log.info("Equations:\n%s", ext_model)
 
 # {{{ codegen
 
-from orbitkit.codegen.jitcdde import JiTCDDETarget, make_input_variable
-
 target = JiTCDDETarget()
-source_func = target.lambdify_model(ext_model, model.n)
+code = target.generate_model_code(ext_model, model.n)
+integrator = target.compile(code, debug=False)
 
-y = make_input_variable(2 * model.n)
-source = source_func(jitcdde.t, y)
-
-log.info("\n%s", source)
-
-max_delay = max(  # ty: ignore[no-matching-overload]
-    *(h.avg for h in model.E.kernels),
-    *(h.avg for h in model.I.kernels),
-)
-dde = target.compile(source, y, max_delay=max_delay)
+log.info("\n%s", integrator.f)
 
 # }}}
 
@@ -70,21 +59,24 @@ else:
 
 y0 = constant_past_initial_conditions(
     ext_model,
-    {"E": 0.25 + 0.1 * rng.random(model.n), "I": 0.75 + 0.1 * rng.random(model.n)},
+    {
+        "E": 0.25 + 0.1 * rng.random(model.n),
+        "I": 0.75 + 0.1 * rng.random(model.n),
+    },
 )
-dde.constant_past(y0, time=tspan[0])
+integrator.set_initial_conditions(y0, t=tspan[0])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
 # Maybe that's what MATLAB uses as well? Or similar at least..
-# dde.step_on_discontinuities()
-dde.adjust_diff()
+# integrator.step_on_discontinuities()
+integrator.adjust_diff()
 
 dt = (tspan[1] - tspan[0]) / 10000
 ts = np.arange(tspan[0], tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
 for i in range(ts.size):
-    ys[:, i] = dde.integrate(ts[i])
+    ys[:, i], _, _ = integrator.integrate(ts[i])
 
 # }}}
 

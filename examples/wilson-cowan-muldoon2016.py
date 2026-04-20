@@ -10,6 +10,8 @@ from dataclasses import replace
 
 import numpy as np
 
+from orbitkit.adjacency import stringify_adjacency
+from orbitkit.codegen.jitcdde import JiTCDDETarget
 from orbitkit.models import (
     constant_past_initial_conditions,
     transform_distributed_delay_model,
@@ -24,9 +26,7 @@ rng = np.random.default_rng(seed=42)
 if on_ci():
     raise SystemExit(0)
 
-try:
-    import jitcdde
-except ImportError:
+if not JiTCDDETarget.has_jitcdde():
     log.error("This example requires 'jitcdde'.")
     raise SystemExit(0) from None
 
@@ -69,9 +69,7 @@ tau = round(np.mean(dataset.delay_matrix), ndigits=5)
 assert A.shape[0] == A.shape[1]
 n = A.shape[0]
 
-from orbitkit.adjacency import stringify_adjacency
-
-print(stringify_adjacency(A, fmt="tight"))
+log.info("Adjacency:\n%s", stringify_adjacency(A, fmt="braille"))
 
 # }}}
 
@@ -99,15 +97,9 @@ log.info("Equations:\n%s", model)
 
 # {{{ codegen
 
-from orbitkit.codegen.jitcdde import JiTCDDETarget, make_input_variable
-
 target = JiTCDDETarget()
-source_func = target.lambdify_model(ext_model, model.n)
-
-y = make_input_variable(2 * model.n)
-source = source_func(jitcdde.t, y)
-
-dde = target.compile(source, y, max_delay=tau)
+code = target.generate_model_code(ext_model, model.n)
+integrator = target.compile(code, debug=False)
 
 # }}}
 
@@ -119,19 +111,19 @@ y0 = constant_past_initial_conditions(
     ext_model,
     {"E": 0.1 + 0.1 * rng.random(model.n), "I": 0.0 + 0.1 * rng.random(model.n)},
 )
-dde.constant_past(y0, time=tspan[0])
+integrator.set_initial_conditions(y0, t=tspan[0])
 
 # NOTE: using adjust_diff seems to give results a lot closer to [ContiGorder2019].
 # Maybe that's what MATLAB uses as well? Or similar at least..
-# dde.step_on_discontinuities()
-dde.adjust_diff()
+# integrator.step_on_discontinuities()
+integrator.adjust_diff()
 
 dt = (tspan[1] - tspan[0]) / 100000
 ts = np.arange(tspan[0], tspan[1], dt)
 ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
 for i in range(ts.size):
-    ys[:, i] = dde.integrate(ts[i])
+    ys[:, i], _, _ = integrator.integrate(ts[i])
 
 # }}}
 

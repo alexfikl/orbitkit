@@ -7,7 +7,7 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.codegen.jitcxde import has_jitcdde
+from orbitkit.codegen.jitcdde import JiTCDDETarget
 from orbitkit.models import (
     constant_past_initial_conditions,
     transform_distributed_delay_model,
@@ -18,7 +18,7 @@ from orbitkit.utils import module_logger, on_ci
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
-if not has_jitcdde():
+if not JiTCDDETarget.has_jitcdde():
     log.error("This example requires 'jitcdde'.")
     raise SystemExit(0) from None
 
@@ -34,8 +34,6 @@ log.info("Equations:\n%s", model)
 ext_model = transform_distributed_delay_model(model, 1)
 log.info("Model: %s", type(ext_model))
 log.info("Equations:\n%s", ext_model)
-
-from orbitkit.codegen.jitcdde import JiTCDDETarget
 
 target = JiTCDDETarget(nlyapunov=4)
 code = target.generate_model_code(ext_model, model.n)

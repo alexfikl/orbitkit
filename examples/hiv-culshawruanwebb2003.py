@@ -7,7 +7,8 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.codegen.jitcxde import has_jitcdde, has_jitcode
+from orbitkit.codegen.jitcdde import JiTCDDECompiledCode, JiTCDDETarget
+from orbitkit.codegen.jitcode import JiTCODETarget
 from orbitkit.models import (
     constant_past_initial_conditions,
     transform_distributed_delay_model,
@@ -18,7 +19,7 @@ from orbitkit.utils import module_logger, on_ci
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
-if not has_jitcdde() or not has_jitcode():
+if not JiTCDDETarget.has_jitcdde() or not JiTCODETarget.has_jitcode():
     log.error("This example requires 'jitcdde' and 'jitcode'.")
     raise SystemExit(0) from None
 
@@ -41,14 +42,10 @@ log.info("Equations:\n%s", ext_model)
 # NOTE: Figure 5.2 and Figure 5.4 use the weak Gamma kernel, which is transformed
 # into a system of 3 ODEs, so we use `jitcode` instead of `jitcdde` for that.
 if figname in {"Figure52", "Figure54"}:
-    from orbitkit.codegen.jitcode import JiTCODETarget
-
     target = JiTCODETarget()
     code = target.generate_model_code(ext_model, model.n)
     integrator = target.compile(code, debug=False)
 else:
-    from orbitkit.codegen.jitcdde import JiTCDDETarget
-
     target = JiTCDDETarget()
     code = target.generate_model_code(ext_model, model.n)
     integrator = target.compile(code, debug=False)
@@ -58,8 +55,6 @@ log.info("\n%s", integrator.f)
 # }}}
 
 # {{{ evolve
-
-from orbitkit.codegen.jitcdde import JiTCDDECompiledCode
 
 tspan = (0.0, 300.0)
 

@@ -7,18 +7,16 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable
+from orbitkit.codegen.jitcode import JiTCODETarget
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
 from orbitkit.utils import module_logger, on_ci, tictoc
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
-try:
-    import jitcode
-except ImportError:
+if not JiTCODETarget.has_jitcode():
     log.error("This example requires `jitcode`.")
-    raise SystemExit(0) from None
+    raise SystemExit(0)
 
 # FIXME: the order parameter does not seem to be as smooth as in Figure 2, not
 # quite sure what that's about, but the general trends seem to be the same.
@@ -38,7 +36,7 @@ log.info("Equations:\n%s", model)
 
 with tictoc("codegen"):
     target = JiTCODETarget()
-    source_func = target.lambdify_model(model, (n, n))
+    code = target.generate_model_code(model, (n, n))
 
 # }}}
 
@@ -59,20 +57,16 @@ y0 = np.hstack([
     rng.normal(0.0, 2.0, size=n),
 ])
 
-with tictoc("codegen"):
-    y = make_input_variable(2 * n)
-    source = source_func(jitcode.t, y)
-
 with tictoc("compile"):
-    ode = target.compile(source, y, method="RK45")
-    ode.set_initial_value(y0, tspan[0])
+    integrator = target.compile(code, method="RK45", debug=False)
+    integrator.set_initial_conditions(y0, tspan[0])
 
 with tictoc("evolve"):
     dt = 0.1
     t = np.arange(tspan[0], tspan[1], dt)
     y = np.empty((y0.size, t.size), dtype=y0.dtype)
     for i in range(t.size):
-        y[:, i] = ode.integrate(t[i])
+        y[:, i], _, _ = integrator.integrate(t[i])
 
 # }}}
 

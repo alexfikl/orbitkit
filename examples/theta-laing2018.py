@@ -7,18 +7,16 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable
+from orbitkit.codegen.jitcode import JiTCODETarget
 from orbitkit.models.theta import find_fixed_points, make_model_from_name
 from orbitkit.utils import module_logger, on_ci, tictoc
 
 log = module_logger(__name__)
 rng = np.random.default_rng(seed=42)
 
-try:
-    import jitcode
-except ImportError:
+if not JiTCODETarget.has_jitcode():
     log.error("This example requires `jitcode`.")
-    raise SystemExit(0) from None
+    raise SystemExit(0)
 
 rng = np.random.default_rng(seed=42)
 
@@ -31,38 +29,34 @@ log.info("Param: %s", figname)
 log.info("Model: %s", type(model))
 log.info("Equations:\n%s", model)
 
-with tictoc("codegen (python)"):
+with tictoc("codegen"):
     target = JiTCODETarget()
-    source_func = target.lambdify_model(model, (model.n, model.n))
+    code = target.generate_model_code(model, (model.n, model.n))
 
 # }}}
 
 # {{{ evolve
 
-nruns = 100 if figname == "Figure2a" else 50
+from orbitkit.utils import generate_random_points_in_disk
 
 dt = 0.025
 tspan = (0.0, 1000.0)
 
-with tictoc("codegen (jitcode)"):
-    y = make_input_variable(2 * model.n)
-    source = source_func(jitcode.t, y)
+nruns = 100 if figname == "Figure2a" else 50
+y0 = generate_random_points_in_disk(nruns, (0.1, 0.9), dtype=np.float64, rng=rng)
 
 with tictoc("compile"):
-    from orbitkit.utils import generate_random_points_in_disk
-
-    ode = target.compile(source, y, method="RK45")
-    y0 = generate_random_points_in_disk(nruns, (0.1, 0.9), dtype=np.float64, rng=rng)
+    integrator = target.compile(code, method="RK45", debug=False)
 
 with tictoc("evolve"):
     t = np.arange(tspan[0], tspan[1], dt)
     y = np.empty((nruns, t.size, 2), dtype=y0.dtype)
 
     for i in range(nruns):
-        ode.set_initial_value(y0[:, i], tspan[0])
+        integrator.set_initial_conditions(y0[:, i], tspan[0])
 
         for j in range(t.size):
-            y[i, j] = ode.integrate(t[j])
+            y[i, j], _, _ = integrator.integrate(t[j])
 
 # }}}
 
