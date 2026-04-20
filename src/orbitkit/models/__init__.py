@@ -223,7 +223,7 @@ def constant_past_initial_conditions(
     If the model is an :class:`ExtendedLinearChainTrickModel`, we need to add
     additional initial conditions based on *y0*. This function computes the new
     initial conditions based on the kernels used in
-    :class:`~orbitkit.symbolic.linear_chain_trick.AuxiliaryEquation`. In the
+    :class:`~orbitkit.models.linear_chain_tricks.AuxiliaryEquation`. In the
     constant case, the initial conditions are always:
 
     .. math::

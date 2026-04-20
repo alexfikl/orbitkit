@@ -40,6 +40,7 @@ log = module_logger(__name__)
 @dataclass(frozen=True)
 class JiTCODECompiledCode(JiTCXDECompiledCode):
     ode: jitcode.jitcode
+    """An instance of the underlying ``jitcode`` integrator."""
 
     def set_initial_conditions(
         self,

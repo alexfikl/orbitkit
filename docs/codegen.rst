@@ -13,12 +13,17 @@ JAX
 
 .. automodule:: orbitkit.codegen.jax
 
-JiTCODE
+JiTCXDE
 -------
+
+.. automodule:: orbitkit.codegen.jitcxde
+
+JiTCODE
+^^^^^^^
 
 .. automodule:: orbitkit.codegen.jitcode
 
 JiTCDDE
--------
+^^^^^^^
 
 .. automodule:: orbitkit.codegen.jitcdde

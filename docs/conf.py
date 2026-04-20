@@ -96,7 +96,10 @@ def process_autodoc_missing_reference(app, env, node, contnode):
     from docutils.nodes import Text
 
     inventory, reftarget, reftype = custom_type_links[target]
-    module, objname = reftarget.rsplit(".", maxsplit=1)
+    if "." in reftarget:
+        module, objname = reftarget.rsplit(".", maxsplit=1)
+    else:
+        module = objname = reftarget
 
     if isinstance(contnode, Text):
         if app.config.autodoc_typehints_format == "short":
@@ -228,6 +231,9 @@ nitpick_ignore_regex = [
 ]
 
 intersphinx_mapping = {
+    "jitcdde": ("https://jitcdde.readthedocs.io/en/latest", None),
+    "jitcode": ("https://jitcode.readthedocs.io/en/latest", None),
+    "jitcxde": ("https://jitcde-common.readthedocs.io/en/latest", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "pymbolic": ("https://documen.tician.de/pymbolic", None),
@@ -247,10 +253,16 @@ custom_type_links = {
     "np.integer": ("numpy", "numpy.integer", "obj"),
     "np.inexact": ("numpy", "numpy.inexact", "obj"),
     "np.random.Generator": ("numpy", "numpy.random.Generator", "class"),
+    # sympy
+    "sp.Symbol": ("sympy", "sympy.core.symbol.Symbol", "class"),
     # pytools
     "UniqueNameGenerator": ("pytools", "pytools.UniqueNameGenerator", "class"),
     # pymbolic
     "_Expression": ("pymbolic", "pymbolic.typing.Expression", "obj"),
+    # jitcxde
+    "jitcxde": ("jitcxde", "_jitcxde", "mod"),
+    "jitcode.jitcode": ("jitcode", "_jitcode.jitcode", "class"),
+    "jitcdde.jitcdde": ("jitcdde", "_jitcdde.jitcdde", "class"),
     # orbitkit
     "Array": (None, "orbitkit.typing.Array", "obj"),
     "Array0D": (None, "orbitkit.typing.Array0D", "obj"),

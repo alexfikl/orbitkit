@@ -195,6 +195,7 @@ class JiTCXDECompiledCode(ABC):
         """Set the initial conditions for the time evolution.
 
         The exact meaning of the initial conditions depends on the equation type:
+
         * For ODEs, this is just the initial conditions at time *t*.
         * For DDEs, this is a constant past up to and including time *t*.
         """
@@ -214,14 +215,16 @@ class JiTCXDECompiledCode(ABC):
         """Integrate the system to time *t*.
 
         This function has two return types:
-        * If :attr:`nlyapunov` is non-zero, then it will return ``(y, lyap, w)``,
-          where ``lyap`` is a local Lyapunov exponent and ``w`` is the corresponding
-          weight on the current interval.
+
+        * If :attr:`~orbitkit.codegen.jitcxde.JiTCXDECompiledCode.nlyapunov` is
+          non-zero, then it will return ``(y, lyap, w)``, where ``lyap`` is a
+          local Lyapunov exponent and ``w`` is the corresponding weight on the
+          current interval.
         * Otherwise, it just returns ``(y, None, None)``, so the last two values
           can be ignored.
 
         For more information on the exact return values, see the corresponding
-        :mod:`jitcode` or `jitcdde` documentation.
+        ``jitcode`` or ``jitcdde`` documentation.
         """
 
 
