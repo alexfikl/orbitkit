@@ -29,6 +29,24 @@ JiTCXDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 """Array of expressions used by JiTC*DE code generation."""
 
 
+def has_jitcode() -> bool:
+    try:
+        import jitcode  # noqa: F401
+    except ImportError:
+        return False
+    else:
+        return True
+
+
+def has_jitcdde() -> bool:
+    try:
+        import jitcdde  # noqa: F401
+    except ImportError:
+        return False
+    else:
+        return True
+
+
 # {{{ compilation flags
 
 if platform.system() == "Windows":
@@ -63,14 +81,14 @@ if platform.system() == "Windows":
 else:
     JITCXDE_COMMON_CFLAGS = (
         "-std=c11",
-        "-Wall",
-        "-Wextra",
         "-march=native",
         "-mtune=native",
         "-Wno-unknown-pragmas",
     )
 
-    JITCODE_DEBUG_CFLAGS = (
+    JITCXDE_SYSTEM_DEBUG_CFLAGS = (
+        "-Wall",
+        "-Wextra",
         "-O0",
         "-ggdb",
     )
@@ -148,7 +166,7 @@ class JiTCODECodeGenerator(NumpyCodeGenerator):
 
 
 @dataclass(frozen=True)
-class JiTCXDECompiledCode:
+class JiTCXDECompiledCode(ABC):
     """A cached compilation of JiTCXDE modules."""
 
     code: Code
@@ -165,6 +183,24 @@ class JiTCXDECompiledCode:
     """The number of Lyapunov exponents this module is computing. If zero, this
     is not a Lyapunov solver, so do not expect them as output.
     """
+
+    @abstractmethod
+    def set_initial_conditions(
+        self,
+        y: Array1D[np.floating[Any]],
+        t: float = 0.0,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def integrate(
+        self, t: float | np.floating[Any]
+    ) -> tuple[
+        Array1D[np.floating[Any]],
+        Array1D[np.floating[Any]] | None,
+        Array1D[np.floating[Any]] | None,
+    ]:
+        pass
 
 
 @dataclass(frozen=True)
@@ -224,7 +260,6 @@ class JiTCXDETarget(NumpyTarget, ABC):
         # NOTE: if we need extra parameters, just add them as symbols. These
         # will be added properly according to JiTCODE in the compile function.
         parameters = fill_symbolic_parameters(code, parameters)
-
         return super().lambdify(code, parameters=parameters)
 
     # }}}

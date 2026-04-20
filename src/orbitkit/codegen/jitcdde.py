@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import pathlib
 import shutil
-import time
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
@@ -125,6 +124,31 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
     dde: jitcdde.jitcdde
     delays: tuple[sym.Expression, ...]
 
+    def set_initial_conditions(
+        self,
+        y: Array1D[np.floating[Any]],
+        t: float = 0.0,
+    ) -> None:
+        self.dde.constant_past(y, time=t)
+
+    def integrate(
+        self, t: float | np.floating[Any]
+    ) -> tuple[
+        Array1D[np.floating[Any]],
+        Array1D[np.floating[Any]] | None,
+        Array1D[np.floating[Any]] | None,
+    ]:
+        if self.nlyapunov:
+            return self.dde.integrate(t)
+        else:
+            return self.dde.integrate(t), None, None
+
+    def adjust_diff(self) -> None:
+        self.dde.adjust_diff()
+
+    def step_on_discontinuities(self) -> None:
+        self.dde.step_on_discontinuities()
+
 
 def make_input_variable(
     n: int | tuple[int, ...],
@@ -173,15 +197,18 @@ def make_delay_variable(
     return result
 
 
+@dataclass(frozen=True)
 class JiTCDDETarget(JiTCXDETarget):
-    nlyapunov: int
+    nlyapunov: int = 0
     """Number of Lyapunov exponents to calculate."""
 
-    def __init__(self, nlyapunov: int = 0) -> None:
-        if nlyapunov <= 0:
-            raise ValueError(f"invalid number of Lyapunov exponents: {nlyapunov}")
+    if __debug__:
 
-        self.nlyapunov: int = nlyapunov
+        def __post_init__(self) -> None:
+            if self.nlyapunov < 0:
+                raise ValueError(
+                    f"invalid number of Lyapunov exponents: {self.nlyapunov}"
+                )
 
     def generate_code(
         self,
@@ -295,12 +322,15 @@ class JiTCDDETarget(JiTCXDETarget):
 
         assert isinstance(de, jitcdde.jitcdde)
 
+        import time
+
         t_start = time.time()
         de.compile_C(
             simplify=simplify,
             do_cse=False,
-            extra_compile_args=cflags(debug=debug),
-            extra_link_args=linker_flags(debug=debug),
+            # FIXME: jitcdde assumes lists
+            extra_compile_args=list(cflags(debug=debug)),
+            extra_link_args=list(linker_flags(debug=debug)),
             verbose=verbose,
             chunk_size=32,
             omp=openmp,

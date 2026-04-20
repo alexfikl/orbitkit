@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import pathlib
 import shutil
-import time
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
@@ -41,6 +40,25 @@ log = module_logger(__name__)
 class JiTCODECompiledCode(JiTCXDECompiledCode):
     ode: jitcode.jitcode
 
+    def set_initial_conditions(
+        self,
+        y: Array1D[np.floating[Any]],
+        t: float = 0.0,
+    ) -> None:
+        self.ode.set_initial_value(y, time=t)
+
+    def integrate(
+        self, t: float | np.floating[Any]
+    ) -> tuple[
+        Array1D[np.floating[Any]],
+        Array1D[np.floating[Any]] | None,
+        Array1D[np.floating[Any]] | None,
+    ]:
+        if self.nlyapunov:
+            return self.ode.integrate(t)
+        else:
+            return self.ode.integrate(t), None, None
+
 
 def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExpression:
     import jitcode
@@ -54,14 +72,16 @@ def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExp
 
 @dataclass(frozen=True)
 class JiTCODETarget(JiTCXDETarget):
-    nlyapunov: int
+    nlyapunov: int = 0
     """Number of Lyapunov exponents to calculate."""
 
-    def __init__(self, nlyapunov: int = 0) -> None:
-        if nlyapunov <= 0:
-            raise ValueError(f"invalid number of Lyapunov exponents: {nlyapunov}")
+    if __debug__:
 
-        self.nlyapunov: int = nlyapunov
+        def __post_init__(self) -> None:
+            if self.nlyapunov < 0:
+                raise ValueError(
+                    f"invalid number of Lyapunov exponents: {self.nlyapunov}"
+                )
 
     def initialize_module(
         self,
@@ -107,10 +127,13 @@ class JiTCODETarget(JiTCXDETarget):
 
         assert isinstance(de, jitcode.jitcode)
 
+        import time
+
         t_start = time.time()
         de.compile_C(
-            extra_compile_args=cflags(debug=debug),
-            extra_link_args=linker_flags(debug=debug),
+            # FIXME: jitcode assumes lists
+            extra_compile_args=list(cflags(debug=debug)),
+            extra_link_args=list(linker_flags(debug=debug)),
             verbose=verbose,
             omp=openmp,
             modulename=module_location.stem if module_location else None,
