@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pathlib
 import shutil
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -18,6 +18,7 @@ from orbitkit.codegen.jitcxde import (
     JiTCXDETarget,
     cflags,
     fill_symbolic_parameters,
+    has_jitcode,
     linker_flags,
 )
 from orbitkit.typing import Array1D
@@ -46,6 +47,13 @@ class JiTCODECompiledCode(JiTCXDECompiledCode):
         t: float = 0.0,
     ) -> None:
         self.ode.set_initial_value(y, time=t)
+
+    def set_parameters(self, *args: Any) -> None:
+        if len(args) == 0:
+            return
+
+        control_pars = tuple(args[0]) if len(args) == 1 else args
+        self.ode.set_parameters(control_pars)
 
     def integrate(
         self, t: float | np.floating[Any]
@@ -84,6 +92,10 @@ class JiTCODETarget(JiTCXDETarget):
                 raise ValueError(
                     f"invalid number of Lyapunov exponents: {self.nlyapunov}"
                 )
+
+    @staticmethod
+    def has_jitcode() -> bool:
+        return has_jitcode()
 
     def initialize_module(
         self,
@@ -203,8 +215,9 @@ class JiTCODETarget(JiTCXDETarget):
         assert isinstance(inputs, sym.MatrixSymbol)
 
         # generate Python code
+        # FIXME: this will recompute the symbolic parameters
         parameters = fill_symbolic_parameters(code, parameters)
-        func = self.lambdify(replace(code, parameters={}), parameters=parameters)
+        func = self.lambdify(code, parameters=parameters)
 
         # evaluate to obtain symengine expressions
         y = make_input_variable(inputs.size)

@@ -209,7 +209,7 @@ def stringify_adjacency(
 
         def braille(block: Array2D[np.uint8]) -> str:
             offset = sum(int(b) << i for i, b in enumerate(block.flat))
-            return "◌" if offset == 0 else chr(0x2800 + offset)
+            return " " if offset == 0 else chr(0x2800 + offset)
 
         result = []
         for i in range(0, height, 4):

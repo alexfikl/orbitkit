@@ -18,6 +18,7 @@ from orbitkit.codegen.jitcxde import (
     JiTCXDETarget,
     cflags,
     fill_symbolic_parameters,
+    has_jitcdde,
     linker_flags,
 )
 from orbitkit.symbolic.mappers import IdentityMapper, WalkMapper
@@ -131,6 +132,13 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
     ) -> None:
         self.dde.constant_past(y, time=t)
 
+    def set_parameters(self, *args: Any) -> None:
+        if len(args) == 0:
+            return
+
+        control_pars = tuple(args[0]) if len(args) == 1 else args
+        self.dde.set_parameters(control_pars)
+
     def integrate(
         self, t: float | np.floating[Any]
     ) -> tuple[
@@ -212,6 +220,10 @@ class JiTCDDETarget(JiTCXDETarget):
                     f"invalid number of Lyapunov exponents: {self.nlyapunov}"
                 )
 
+    @staticmethod
+    def has_jitcdde() -> bool:
+        return has_jitcdde()
+
     def generate_code(
         self,
         inputs: sym.Variable | tuple[sym.Variable, ...],
@@ -228,6 +240,7 @@ class JiTCDDETarget(JiTCXDETarget):
             inputs = (inputs,)
 
         # gather all delayed variables
+        delays = find_discrete_delays(exprs)
         mapper = DiracDelayReplacer((
             *inputs,
             *(assign.assignee for assign in assignments),
@@ -269,7 +282,7 @@ class JiTCDDETarget(JiTCXDETarget):
             code,
             context={
                 **code.context,
-                "delays": find_discrete_delays(exprs),
+                "delays": delays,
                 make_delay_func.name: make_delay_variable,
             },
         )
@@ -397,7 +410,7 @@ class JiTCDDETarget(JiTCXDETarget):
 
         # generate Python code
         parameters = fill_symbolic_parameters(code, parameters)
-        func = self.lambdify(replace(code, parameters={}), parameters=parameters)
+        func = self.lambdify(code, parameters=parameters)
 
         # evaluate to obtain symengine expressions
         y = make_input_variable(inputs.size)
@@ -463,7 +476,7 @@ class JiTCDDETarget(JiTCXDETarget):
             rtol=rtol,
             atol=atol,
             first_step=first_step,
-            max_step=max_step,
+            max_step=max(max_step, first_step),
         )
 
         return JiTCDDECompiledCode(
