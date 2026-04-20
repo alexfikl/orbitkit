@@ -187,6 +187,10 @@ class JiTCXDECompiledCode(ABC):
     """
 
     @abstractmethod
+    def reset(self) -> None:
+        """Reset the inner integrator to its default state."""
+
+    @abstractmethod
     def set_initial_conditions(
         self,
         y: Array1D[np.floating[Any]],
@@ -201,7 +205,7 @@ class JiTCXDECompiledCode(ABC):
         """
 
     @abstractmethod
-    def set_parameters(self, *args: Any) -> None:
+    def set_parameters(self, **kwargs: Any) -> None:
         """Set all symbolic parameters used by the solve."""
 
     @abstractmethod

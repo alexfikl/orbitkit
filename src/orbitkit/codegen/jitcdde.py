@@ -125,19 +125,40 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
     dde: jitcdde.jitcdde
     delays: tuple[sym.Expression, ...]
 
+    def reset(self, max_delay: float | None = None) -> None:
+        self.dde.purge_past()
+
+        if max_delay is not None:
+            self.dde.max_delay = max_delay
+
     def set_initial_conditions(
         self,
         y: Array1D[np.floating[Any]],
         t: float = 0.0,
     ) -> None:
+        # NOTE: initialize the Lyapunov exponent equations as well. Not sure
+        # this actually does anything useful.. might have just been a bug.
+        if self.nlyapunov > 0:
+            ylyap = np.eye(y.size, self.nlyapunov, dtype=y.dtype).T.reshape(-1)
+            y = np.concatenate([y, ylyap])
+
         self.dde.constant_past(y, time=t)
 
-    def set_parameters(self, *args: Any) -> None:
-        if len(args) == 0:
+    def set_parameters(self, **kwargs: Any) -> None:
+        if len(kwargs) == 0:
             return
 
-        control_pars = tuple(args[0]) if len(args) == 1 else args
-        self.dde.set_parameters(control_pars)
+        if not self.code.parameters:
+            return
+
+        # NOTE: these need to be in the same order as in JiTCODETarget.compile
+        control_pars = []
+        for param in self.code.parameters:
+            if param not in kwargs:
+                raise ValueError(f"parameter missing: {param}")
+            control_pars.append(kwargs[param])
+
+        self.dde.set_parameters(tuple(control_pars))
 
     def integrate(
         self, t: float | np.floating[Any]

@@ -64,7 +64,7 @@ llyap = np.empty(len(ks))
 
 for i, k in enumerate(ks):
     integrator.set_initial_conditions(y0, tspan[0])
-    integrator.set_parameters((k,))
+    integrator.set_parameters(k=k)
     integrator.step_on_discontinuities()
 
     assert integrator.dde.t <= ts[0]

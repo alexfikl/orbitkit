@@ -49,12 +49,18 @@ class JiTCODECompiledCode(JiTCXDECompiledCode):
     ) -> None:
         self.ode.set_initial_value(y, time=t)
 
-    def set_parameters(self, *args: Any) -> None:
-        if len(args) == 0:
+    def set_parameters(self, **kwargs: Any) -> None:
+        if len(kwargs) == 0:
             return
 
-        control_pars = tuple(args[0]) if len(args) == 1 else args
-        self.ode.set_parameters(control_pars)
+        # NOTE: these need to be in the same order as in JiTCODETarget.compile
+        control_pars = []
+        for param in self.code.parameters:
+            if param not in kwargs:
+                raise ValueError(f"parameter missing: {param}")
+            control_pars.append(kwargs[param])
+
+        self.ode.set_parameters(tuple(control_pars))
 
     def integrate(
         self, t: float | np.floating[Any]
