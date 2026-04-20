@@ -200,7 +200,9 @@ def make_delay_variable(
 @dataclass(frozen=True)
 class JiTCDDETarget(JiTCXDETarget):
     nlyapunov: int = 0
-    """Number of Lyapunov exponents to calculate."""
+    """Number of Lyapunov exponents to calculate. Setting this to the default 0
+    does not compute Lyapunov exponents at all.
+    """
 
     if __debug__:
 
@@ -418,6 +420,12 @@ class JiTCDDETarget(JiTCXDETarget):
             )
 
         # compile
+        # NOTE: reload logic:
+        # 1. If given a module_location that exists
+        #    => let jitcxde reload it
+        # 2. If given a module location that does not exist
+        #    => compile it
+        #    => load it
         if module_location and module_location.exists():
             dde = self.initialize_module(
                 f,
@@ -434,18 +442,17 @@ class JiTCDDETarget(JiTCXDETarget):
                 max_delay=max_delay,
                 control_pars=control_pars,
             )
+            self.compile_module(
+                dde,
+                module_location=module_location,
+                simplify=simplify,
+                debug=debug,
+                openmp=openmp,
+                verbose=verbose,
+            )
 
-            if module_location is not None and module_location.exists():
+            if module_location is not None:
                 self.reload_module(dde)
-            else:
-                self.compile_module(
-                    dde,
-                    module_location=module_location,
-                    simplify=simplify,
-                    debug=debug,
-                    openmp=openmp,
-                    verbose=verbose,
-                )
 
         # NOTE: first_step is 1 by default: if the delays are < 1.0, then it
         # will needlessly start from a too large step. We try to help it out..

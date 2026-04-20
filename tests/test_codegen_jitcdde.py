@@ -14,7 +14,7 @@ from orbitkit.utils import module_logger
 from orbitkit.visualization import set_plotting_defaults
 
 if TYPE_CHECKING:
-    import jitcdde
+    from orbitkit.codegen.jitcdde import JiTCDDECompiledCode
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
@@ -32,7 +32,7 @@ def _make_dde_from_name(
     max_delay: float,
     *,
     module_location: pathlib.Path | None = None,
-) -> jitcdde.jitcdde:
+) -> JiTCDDECompiledCode:
     from testlib import get_model_from_module
 
     n = 1 if module_name == "hiv" else 2
@@ -41,36 +41,30 @@ def _make_dde_from_name(
     from orbitkit.models import transform_distributed_delay_model
 
     ext_model = transform_distributed_delay_model(model, n)
+    d = len(ext_model.variables)
 
-    from orbitkit.codegen.jitcdde import JiTCDDETarget, make_input_variable
+    from orbitkit.codegen.jitcdde import JiTCDDETarget
 
     target = JiTCDDETarget()
-    source_func = target.lambdify_model(ext_model, n)
-    assert source_func is not None
-
-    import jitcdde
-
-    d = len(ext_model.variables)
-    ys = make_input_variable(n * d)
-    source = source_func(jitcdde.t, ys)
-
-    log.info("\n%s", source)
-    assert source.shape == (d * n,)
+    code = target.generate_model_code(ext_model, n)
 
     from orbitkit.utils import tictoc
 
     with tictoc(f"{module_name}[{model_name}]"):
-        dde = target.compile(
-            source,
-            ys,
+        integrator = target.compile(
+            code,
             max_delay=max_delay,
             module_location=module_location,
+            debug=True,
         )
 
-    dde.constant_past(np.ones(d * n), 0.0)
-    dde.adjust_diff()
+    log.info("\n%s", integrator.f)
+    assert integrator.f.shape == (d * n,)
 
-    return dde
+    integrator.set_initial_conditions(np.ones(d * n), 0.0)
+    integrator.adjust_diff()
+
+    return integrator
 
 
 @pytest.mark.parametrize(
@@ -125,13 +119,13 @@ def test_codegen_jitcdde_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert module_location.exists()
 
-    def dummy_compile_c(self: jitcdde.jitcdde) -> None:
+    def dummy_compile_c(self) -> None:
         raise AssertionError()
 
     # FIXME: not sure this is sufficient to check no more compilation is
     # happening?
-    monkeypatch.setattr(dde, "_compile_C", dummy_compile_c)
-    monkeypatch.setattr(dde, "compile_C", dummy_compile_c)
+    monkeypatch.setattr(dde.dde, "_compile_C", dummy_compile_c)
+    monkeypatch.setattr(dde.dde, "compile_C", dummy_compile_c)
 
     for t in [-max_delay, 0.0, 0.01, 0.02]:
         dde.integrate(max_delay + t)

@@ -87,8 +87,10 @@ else:
     )
 
     JITCXDE_SYSTEM_DEBUG_CFLAGS = (
-        "-Wall",
-        "-Wextra",
+        # FIXME: jitcdde has some warnings here that are very noise. Should fix
+        # there before enabling these in debug runs.
+        # "-Wall",
+        # "-Wextra",
         "-O0",
         "-ggdb",
     )

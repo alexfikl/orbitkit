@@ -73,7 +73,9 @@ def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExp
 @dataclass(frozen=True)
 class JiTCODETarget(JiTCXDETarget):
     nlyapunov: int = 0
-    """Number of Lyapunov exponents to calculate."""
+    """Number of Lyapunov exponents to calculate. Setting this to the default 0
+    does not compute Lyapunov exponents at all.
+    """
 
     if __debug__:
 
@@ -228,18 +230,17 @@ class JiTCODETarget(JiTCXDETarget):
                 control_pars=control_pars,
                 verbose=verbose,
             )
+            self.compile_module(
+                ode,
+                module_location=module_location,
+                simplify=simplify,
+                debug=debug,
+                openmp=openmp,
+                verbose=verbose,
+            )
 
             if module_location is not None and module_location.exists():
                 self.reload_module(ode)
-            else:
-                self.compile_module(
-                    ode,
-                    module_location=module_location,
-                    simplify=simplify,
-                    debug=debug,
-                    openmp=openmp,
-                    verbose=verbose,
-                )
 
         # NOTE: we cannot add parameters here because JiTCODE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.
