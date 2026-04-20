@@ -181,13 +181,13 @@ class Model(ABC):
 
 @dataclass(frozen=True)
 class ExtendedLinearChainTrickModel(Model):
-    orig: Model
+    inner: Model
     exprs: tuple[sym.Expression, ...]
     equations: Mapping[str, AuxiliaryEquation]
 
     @property
     def n(self) -> int:
-        n = getattr(self.orig, "n", None)
+        n = getattr(self.inner, "n", None)
         if n is None:
             raise AttributeError("n")
 
@@ -195,11 +195,11 @@ class ExtendedLinearChainTrickModel(Model):
 
     @property
     def variables(self) -> tuple[str, ...]:
-        return (*self.orig.variables, *self.equations)
+        return (*self.inner.variables, *self.equations)
 
     @property
     def rattrs(self) -> set[str]:
-        return {*self.orig.rattrs, "orig", "exprs", "equations"}
+        return {*self.inner.rattrs, "inner", "exprs", "equations"}
 
     def evaluate(
         self, t: sym.Expression, *args: sym.MatrixSymbol
@@ -267,7 +267,7 @@ def transform_distributed_delay_model(
     _, exprs = model.symbolify(n)
     exprs, equations = transform_delay_kernels(exprs)
 
-    return ExtendedLinearChainTrickModel(orig=model, exprs=exprs, equations=equations)
+    return ExtendedLinearChainTrickModel(inner=model, exprs=exprs, equations=equations)
 
 
 # }}}
