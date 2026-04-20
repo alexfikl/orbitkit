@@ -42,6 +42,9 @@ class JiTCODECompiledCode(JiTCXDECompiledCode):
     ode: jitcode.jitcode
     """An instance of the underlying ``jitcode`` integrator."""
 
+    def reset(self) -> None:
+        pass
+
     def set_initial_conditions(
         self,
         y: Array1D[np.floating[Any]],
