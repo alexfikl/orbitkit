@@ -392,19 +392,13 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
     # {{{ construct DDE
 
     # generate code
-    from orbitkit.codegen.jitcdde import JiTCDDETarget, make_input_variable
+    from orbitkit.codegen.jitcdde import JiTCDDETarget
 
     target = JiTCDDETarget()
-    source_func = target.lambdify_model(ext_model, 1)
+    code = target.generate_model_code(ext_model, 1)
+    integrator = target.compile(code, debug=False)
 
-    # compile code
-    import jitcdde
-
-    y = make_input_variable((2,))
-    source = source_func(jitcdde.t, y)
-    log.info("\n%s", source)
-
-    dde = target.compile(source, y, max_delay=(1 + epsilon) * tau)
+    log.info("\n%s", integrator.f)
 
     # set initial conditions
     lambda_star = _uniform_homogeneous_root(model)
@@ -419,27 +413,30 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
     )
     log.info("lambda %.8e Y0 %g Z0 %g", lambda_star, Y0, Z0)
 
-    dde.past_from_function(lambda t: (Y0 * np.exp(lambda_star * t), Z0))
-    dde.delays = ((1.0 - epsilon) * tau, (1 + epsilon) * tau)
+    integrator.dde.past_from_function(lambda t: (Y0 * np.exp(lambda_star * t), Z0))
 
     # }}}
 
     # handle discontinuities
-    dde.step_on_discontinuities()
-    # dde.integrate_blindly(max_delay, step=dt)
+    integrator.step_on_discontinuities()
 
     # TODO: perform an actual convergence study of some sort. What order does the
     # JiTCDDE method even convert at? It implements the MATLAB method, IIRC
     dt = 1.0e-2
     tspan = (0.0, 12.0)
 
-    steps = np.arange(tspan[0], tspan[1] - dde.t, dt) + dde.t
+    steps = np.arange(tspan[0], tspan[1], dt)
     ts = np.empty(steps.shape, dtype=Z0.dtype)
     ys = np.empty(steps.shape, dtype=Z0.dtype)
 
-    for i, t in enumerate(dde.t + steps):
+    for i, t in enumerate(steps):
         ts[i] = t
-        ys[i], _ = dde.integrate(t)
+        (
+            result,
+            _,
+            _,
+        ) = integrator.integrate(t)
+        ys[i], _ = result
 
     y_ref = Y0 * np.exp(lambda_star * ts)
     error = la.norm(ys - y_ref) / la.norm(y_ref)

@@ -14,7 +14,7 @@ from orbitkit.utils import module_logger
 from orbitkit.visualization import set_plotting_defaults
 
 if TYPE_CHECKING:
-    import jitcode
+    from orbitkit.codegen.jitcode import JiTCODECompiledCode
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
@@ -31,7 +31,7 @@ def _make_ode_from_name(
     model_name: str,
     *,
     module_location: pathlib.Path | None = None,
-) -> jitcode.jitcode:
+) -> JiTCODECompiledCode:
     from testlib import get_model_from_module
 
     n = 1 if module_name == "hiv" else 2
@@ -39,27 +39,21 @@ def _make_ode_from_name(
     model = get_model_from_module(module_name, model_name, n, delayed=False)
     d = len(model.variables)
 
-    from orbitkit.codegen.jitcode import JiTCODETarget, make_input_variable
+    from orbitkit.codegen.jitcode import JiTCODETarget
 
     target = JiTCODETarget()
-    source_func = target.lambdify_model(model, n)
-    assert source_func is not None
-
-    import jitcode
-
-    ys = make_input_variable(n * d)
-    source = source_func(jitcode.t, ys)
-
-    log.info("\n%s", source)
-    assert source.shape == (d * n,)
+    code = target.generate_model_code(model, n)
 
     from orbitkit.utils import tictoc
 
     with tictoc(f"{module_name}[{model_name}]"):
-        ode = target.compile(source, ys, method="RK45", module_location=module_location)
-        ode.set_initial_value(np.ones(d * n), 0.0)
+        integrator = target.compile(code, debug=False)
+        integrator.set_initial_conditions(np.ones(d * n), 0.0)
 
-    return ode
+    log.info("\n%s", integrator.f)
+    assert integrator.f.shape == (d * n,)
+
+    return integrator
 
 
 @pytest.mark.parametrize(
@@ -118,13 +112,13 @@ def test_codegen_jitcode_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert module_location.exists()
 
-    def dummy_compile_c(self: jitcode.jitcode) -> None:
+    def dummy_compile_c(self) -> None:
         raise AssertionError()
 
     # FIXME: not sure this is sufficient to check that no mode compilation is
     # happening?
-    monkeypatch.setattr(ode, "_compile_C", dummy_compile_c)
-    monkeypatch.setattr(ode, "compile_C", dummy_compile_c)
+    monkeypatch.setattr(ode.ode, "_compile_C", dummy_compile_c)
+    monkeypatch.setattr(ode.ode, "compile_C", dummy_compile_c)
 
     for t in [0.0, 0.01, 0.02]:
         ode.integrate(t)

@@ -98,7 +98,7 @@ def test_periodic_behavior_culshaw(figname: str) -> None:
     # {{{ simulate example
 
     pytest.importorskip("pymbolic")
-    jitcdde = pytest.importorskip("jitcdde")
+    pytest.importorskip("jitcdde")
 
     from orbitkit.models import transform_distributed_delay_model
     from orbitkit.models.hiv import CulshawRuanWebb, make_model_from_name
@@ -110,27 +110,24 @@ def test_periodic_behavior_culshaw(figname: str) -> None:
     log.info("Model: %s", type(ext_model))
     log.info("Equations:\n%s", ext_model)
 
-    from orbitkit.codegen.jitcdde import JiTCDDETarget, make_input_variable
+    from orbitkit.codegen.jitcdde import JiTCDDETarget
 
     target = JiTCDDETarget()
-    source_func = target.lambdify_model(ext_model, 1)
-
-    y = make_input_variable(2)
-    source = source_func(jitcdde.t, y)
+    code = target.generate_model_code(ext_model, 1)
+    integrator = target.compile(code, debug=False)
 
     tspan = (0.0, 600.0)
     y0 = np.array([5.0e5, 500])
 
-    dde = target.compile(source, y, max_delay=model.h.avg)  # ty: ignore[invalid-argument-type]
-    dde.constant_past(y0, tspan[0])
-    dde.adjust_diff()
+    integrator.set_initial_conditions(y0, tspan[0])
+    integrator.adjust_diff()
 
     dt = 0.01
     ts = np.arange(tspan[0], tspan[1], dt)
     ys = np.empty(y0.shape + ts.shape, dtype=y0.dtype)
 
     for i in range(ts.size):
-        ys[:, i] = dde.integrate(ts[i])
+        ys[:, i], _, _ = integrator.integrate(ts[i])
 
     # }}}
 
