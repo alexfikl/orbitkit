@@ -154,6 +154,12 @@ class MatrixSymbol(Variable):
     """The shape of the symbolic array."""
 
     @property
+    def size(self) -> int:
+        import math
+
+        return math.prod(self.shape)
+
+    @property
     def ndim(self) -> int:
         """Number of dimensions in the symbolic array."""
         return len(self.shape)

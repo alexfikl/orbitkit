@@ -6,26 +6,31 @@ from __future__ import annotations
 import pathlib
 import shutil
 import time
-from dataclasses import replace
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code
 from orbitkit.codegen.jitcxde import (
+    JiTCXDECompiledCode,
     JiTCXDEExpression,
     JiTCXDETarget,
     cflags,
+    fill_symbolic_parameters,
     linker_flags,
 )
-from orbitkit.symbolic.mappers import IdentityMapper
-from orbitkit.typing import Array
+from orbitkit.symbolic.mappers import IdentityMapper, WalkMapper
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     import jitcdde
     import symengine as sp
+    from jitcxde_common import jitcxde
     from pymbolic.typing import Expression as PymbolicExpression
 
 log = module_logger(__name__)
@@ -88,15 +93,42 @@ class DiracDelayReplacer(IdentityMapper):
             return result
 
 
+class DiracDelayGatherer(WalkMapper):
+    def __init__(self) -> None:
+        self.delays: set[sym.Expression] = set()
+
+    def visit(self, expr: object) -> bool:
+        if isinstance(expr, sym.DiracDelayKernel):
+            self.delays.add(expr.tau)
+            return False
+
+        return True
+
+
+def find_discrete_delays(
+    expr: sym.Expression | tuple[sym.Expression, ...],
+) -> tuple[sym.Expression, ...]:
+    gather = DiracDelayGatherer()
+    gather(expr)
+
+    return tuple(gather.delays)
+
+
 # }}}
 
 
 # {{{ target
 
 
+@dataclass(frozen=True)
+class JiTCDDECompiledCode(JiTCXDECompiledCode):
+    dde: jitcdde.jitcdde
+    delays: tuple[sym.Expression, ...]
+
+
 def make_input_variable(
     n: int | tuple[int, ...],
-    tau: int | float | sp.Symbol | Array = 0,
+    tau: int | float | sp.Symbol | Array1D[Any] = 0,
     offset: int = 0,
 ) -> JiTCXDEExpression:
     import jitcdde
@@ -114,7 +146,7 @@ def make_input_variable(
 
 def make_delay_variable(
     ys: JiTCXDEExpression,
-    tau: int | float | sp.Symbol | Array = 0,
+    tau: int | float | sp.Symbol | Array1D[Any] = 0,
 ) -> JiTCXDEExpression:
     import jitcdde
     import symengine as sp
@@ -142,6 +174,15 @@ def make_delay_variable(
 
 
 class JiTCDDETarget(JiTCXDETarget):
+    nlyapunov: int
+    """Number of Lyapunov exponents to calculate."""
+
+    def __init__(self, nlyapunov: int = 0) -> None:
+        if nlyapunov <= 0:
+            raise ValueError(f"invalid number of Lyapunov exponents: {nlyapunov}")
+
+        self.nlyapunov: int = nlyapunov
+
     def generate_code(
         self,
         inputs: sym.Variable | tuple[sym.Variable, ...],
@@ -187,9 +228,6 @@ class JiTCDDETarget(JiTCXDETarget):
             )
 
         # generate code
-        import symengine
-        from pytools.obj_array import vectorized
-
         code = super().generate_code(
             inputs,
             exprs,
@@ -197,159 +235,208 @@ class JiTCDDETarget(JiTCXDETarget):
             name=name,
             pretty=pretty,
         )
-        log.debug("Code:\n%s", code.source)
 
         return replace(
             code,
             context={
                 **code.context,
-                self.sym_module: symengine,
-                "vectorized": vectorized,
+                "delays": find_discrete_delays(exprs),
                 make_delay_func.name: make_delay_variable,
             },
         )
 
-    def _make_integrator(  # noqa: PLR6301
+    def initialize_module(
         self,
-        f: Array,
-        y: Array,
+        f: Array1D[Any],
+        y: Array1D[Any],
         *,
-        max_delay: float,
-        parameters: tuple[sp.Symbol, ...] = (),
-        module_location: str | None = None,
+        control_pars: Sequence[sp.Symbol],
+        module_location: pathlib.Path | None = None,
         verbose: bool = False,
+        **kwargs: Any,
     ) -> jitcdde.jitcdde:
         import jitcdde
 
-        return jitcdde.jitcdde(
-            f,
-            n=y.size,
+        if "max_delay" not in kwargs:
+            raise ValueError("'max_delay' not provided")
+        max_delay = float(kwargs["max_delay"])
+
+        if self.nlyapunov > 0:
+            return jitcdde.jitcdde_lyap(
+                f,
+                n=y.size,
+                n_lyap=self.nlyapunov,
+                verbose=verbose,
+                max_delay=max_delay,
+                control_pars=control_pars,
+                module_location=str(module_location) if module_location else None,
+            )
+        else:
+            return jitcdde.jitcdde(
+                f,
+                n=y.size,
+                verbose=verbose,
+                max_delay=max_delay,
+                control_pars=control_pars,
+                module_location=str(module_location) if module_location else None,
+            )
+
+    def compile_module(  # noqa: PLR6301
+        self,
+        de: jitcxde,
+        *,
+        module_location: pathlib.Path | None = None,
+        simplify: bool = False,
+        debug: bool = False,
+        openmp: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        import jitcdde
+
+        assert isinstance(de, jitcdde.jitcdde)
+
+        t_start = time.time()
+        de.compile_C(
+            simplify=simplify,
+            do_cse=False,
+            extra_compile_args=cflags(debug=debug),
+            extra_link_args=linker_flags(debug=debug),
             verbose=verbose,
-            max_delay=max_delay,
-            control_pars=parameters,
-            module_location=module_location,
+            chunk_size=32,
+            omp=openmp,
+            modulename=module_location.stem if module_location else None,
         )
 
-    def compile(  # ty: ignore[invalid-method-override]
+        if module_location is not None:
+            from jitcxde_common.modules import get_module_path
+
+            # FIXME: this is not exactly documented API
+            # FIXME: does this work with what reload_module is doing?
+            sourcefile = get_module_path(de._modulename, de._tmpfile())
+            shutil.copy(sourcefile, module_location)
+
+        if verbose:
+            log.info("Compilation time: %.3fs.", time.time() - t_start)
+
+    def reload_module(self, de: jitcxde) -> None:  # noqa: PLR6301
+        import jitcdde
+        from jitcxde_common.modules import find_and_load_module
+
+        # FIXME: this is not exactly documented API
+        assert isinstance(de, jitcdde.jitcdde)
+        try:
+            de.jitced = find_and_load_module(de._modulename, de._tmpfile())
+        except Exception as exc:
+            log.error("Failed to reload module: %s.", exc, exc_info=exc)
+
+        de.compile_attempt = True
+
+    def compile(
         self,
-        f: Array,
-        y: Array,
+        code: Code,
         *,
-        max_delay: float,
-        first_step: float | None = None,
-        atol: float = 1.0e-6,
-        rtol: float = 1.0e-8,
-        parameters: tuple[str, ...] = (),
-        debug: bool | None = None,
+        max_delay: float | None = None,
+        parameters: dict[str, Any] | None = None,
         # jitcdde arguments
+        atol: float = 1.0e-10,
+        rtol: float = 1.0e-5,
+        first_step: float | None = None,
+        max_step: float = 1.0,
         module_location: str | pathlib.Path | None = None,
         simplify: bool = False,
         openmp: bool = False,
+        debug: bool | None = None,
         verbose: bool = False,
-    ) -> jitcdde.jitcdde:
+    ) -> JiTCDDECompiledCode:
+        import jitcdde
         import symengine as sp
 
         if debug is None:
             debug = __debug__
 
-        if module_location is not None:
+        if isinstance(module_location, str):
             module_location = pathlib.Path(module_location)
 
-        control_pars = tuple(sp.Symbol(param) for param in parameters)
+        # FIXME: this assume that we have (t, y) as our inputs always. This
+        # should be made less implicit, so we don't have to guess.
+        assert len(code.inputs) == 2
+        _, inputs = code.inputs
+        assert isinstance(inputs, sym.MatrixSymbol)
+
+        # generate Python code
+        parameters = fill_symbolic_parameters(code, parameters)
+        func = self.lambdify(replace(code, parameters={}), parameters=parameters)
+
+        # evaluate to obtain symengine expressions
+        y = make_input_variable(inputs.size)
+        f = func(jitcdde.t, y)
+
+        # get control parameters, if any
+        control_pars = tuple(
+            param for param in parameters.values() if isinstance(param, sp.Symbol)
+        )
+
+        # determine max_delay
+        # NOTE: max_delay is not actually used in code generation, but is
+        # required by jitcdde for some internal machinery. We will reset it later
+        # when all the parameters are known, so it's fine if this isn't right
+        delays = code.context.get("delays", [])
+        if max_delay is None:
+            max_delay = max(
+                (tau for tau in delays if isinstance(tau, (int, float))),
+                default=1.0,
+            )
+
+        # compile
         if module_location and module_location.exists():
-            dde = self._make_integrator(
+            dde = self.initialize_module(
                 f,
                 y,
                 verbose=verbose,
                 max_delay=max_delay,
-                parameters=control_pars,
-                module_location=str(module_location),
+                control_pars=control_pars,
+                module_location=module_location,
             )
         else:
-            dde = self._make_integrator(
+            dde = self.initialize_module(
                 f,
                 y,
                 max_delay=max_delay,
-                parameters=control_pars,
+                control_pars=control_pars,
             )
 
             if module_location is not None and module_location.exists():
-                from jitcxde_common.modules import find_and_load_module
-
-                # FIXME: this is not exactly documented API
-                dde.jitced = find_and_load_module(dde._modulename, dde._tmpfile())
-                dde.compile_attempt = True
+                self.reload_module(dde)
             else:
-                t_start = time.time()
-                dde.compile_C(
+                self.compile_module(
+                    dde,
+                    module_location=module_location,
                     simplify=simplify,
-                    do_cse=False,
-                    extra_compile_args=cflags(debug=debug),
-                    extra_linker_args=linker_flags(debug=debug),
+                    debug=debug,
+                    openmp=openmp,
                     verbose=verbose,
-                    chunk_size=32,
-                    omp=openmp,
-                    modulename=module_location.stem if module_location else None,
                 )
-
-                if module_location is not None:
-                    from jitcxde_common.modules import get_module_path
-
-                    # FIXME: this is not exactly documented API
-                    sourcefile = get_module_path(dde._modulename, dde._tmpfile())
-                    shutil.copy(sourcefile, module_location)
-
-                if verbose:
-                    log.info("Compilation time: %.3fs.", time.time() - t_start)
 
         # NOTE: first_step is 1 by default: if the delays are < 1.0, then it
         # will needlessly start from a too large step. We try to help it out..
         if first_step is None:
-            first_step = max_delay / 2 if max_delay > 0 else 1.0
+            first_step = max_delay / 2 if max_delay > 0 else max_step
 
-        dde.set_integration_parameters(rtol=rtol, atol=atol, first_step=first_step)
+        dde.set_integration_parameters(
+            rtol=rtol,
+            atol=atol,
+            first_step=first_step,
+            max_step=max_step,
+        )
 
-        # NOTE: we cannot add parameters here because JiTCDDE will try to compile
-        # things and it won't fine the initial conditions.. it's up to the user.
-
-        return dde
-
-
-# }}}
-
-# {{{ Lyapunov
-
-
-class JiTCDDELyapunovTarget(JiTCDDETarget):
-    nlyapunov: int
-    """Number of Lyapunov exponents to calculate."""
-
-    def __init__(self, nlyapunov: int = 1) -> None:
-        if nlyapunov <= 0:
-            raise ValueError(f"invalid number of Lyapunov exponents: {nlyapunov}")
-
-        self.nlyapunov: int = nlyapunov
-
-    def _make_integrator(
-        self,
-        f: Array,
-        y: Array,
-        *,
-        max_delay: float,
-        parameters: tuple[sp.Symbol, ...] = (),
-        module_location: str | None = None,
-        verbose: bool = False,
-    ) -> jitcdde.jitcdde:
-        import jitcdde
-
-        return jitcdde.jitcdde_lyap(
-            f,
-            n=y.size,
-            n_lyap=self.nlyapunov,
-            verbose=verbose,
-            max_delay=max_delay,
-            control_pars=parameters,
+        return JiTCDDECompiledCode(
+            code=code,
+            f=f,
+            y=y,
             module_location=module_location,
+            nlyapunov=self.nlyapunov,
+            dde=dde,
+            delays=delays,
         )
 
 

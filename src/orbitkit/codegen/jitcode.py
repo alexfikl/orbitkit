@@ -12,25 +12,34 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
-from orbitkit.codegen import Assignment, Code
+from orbitkit.codegen import Code
 from orbitkit.codegen.jitcxde import (
+    JiTCXDECompiledCode,
     JiTCXDEExpression,
     JiTCXDETarget,
     cflags,
+    fill_symbolic_parameters,
     linker_flags,
 )
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Sequence
 
     import jitcode
+    import symengine as sp
+    from jitcxde_common import jitcxde
 
 log = module_logger(__name__)
 
 
 # {{{ target
+
+
+@dataclass(frozen=True)
+class JiTCODECompiledCode(JiTCXDECompiledCode):
+    ode: jitcode.jitcode
 
 
 def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExpression:
@@ -45,137 +54,182 @@ def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExp
 
 @dataclass(frozen=True)
 class JiTCODETarget(JiTCXDETarget):
-    def generate_code(
+    nlyapunov: int
+    """Number of Lyapunov exponents to calculate."""
+
+    def __init__(self, nlyapunov: int = 0) -> None:
+        if nlyapunov <= 0:
+            raise ValueError(f"invalid number of Lyapunov exponents: {nlyapunov}")
+
+        self.nlyapunov: int = nlyapunov
+
+    def initialize_module(
         self,
-        inputs: sym.Variable | tuple[sym.Variable, ...],
-        exprs: sym.Expression | tuple[sym.Expression, ...],
+        f: Array1D[Any],
+        y: Array1D[Any],
         *,
-        assignments: tuple[Assignment, ...] | None = None,
-        name: str = "expr",
-        pretty: bool = False,
-    ) -> Code:
-        if assignments is None:
-            raise NotImplementedError("JiTCODE cannot generate individual functions")
+        control_pars: Sequence[sp.Symbol],
+        module_location: pathlib.Path | None = None,
+        verbose: bool = False,
+        **kwargs: Any,
+    ) -> jitcode.jitcode:
+        import jitcode
 
-        import symengine
-        from pytools.obj_array import vectorized
+        if self.nlyapunov > 0:
+            return jitcode.jitcode_lyap(
+                f,
+                n=y.size,
+                n_lyap=self.nlyapunov,
+                verbose=verbose,
+                control_pars=control_pars,
+                module_location=str(module_location) if module_location else None,
+            )
+        else:
+            return jitcode.jitcode(
+                f,
+                n=y.size,
+                verbose=verbose,
+                control_pars=control_pars,
+                module_location=str(module_location) if module_location else None,
+            )
 
-        code = super().generate_code(
-            inputs,
-            exprs,
-            assignments=assignments,
-            name=name,
-            pretty=pretty,
+    def compile_module(  # noqa: PLR6301
+        self,
+        de: jitcxde,
+        *,
+        module_location: pathlib.Path | None = None,
+        simplify: bool = False,
+        debug: bool = False,
+        openmp: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        import jitcode
+
+        assert isinstance(de, jitcode.jitcode)
+
+        t_start = time.time()
+        de.compile_C(
+            extra_compile_args=cflags(debug=debug),
+            extra_link_args=linker_flags(debug=debug),
+            verbose=verbose,
+            omp=openmp,
+            modulename=module_location.stem if module_location else None,
         )
-        log.debug("Code:\n%s", code.source)
 
-        return replace(
-            code,
-            context={
-                **code.context,
-                self.sym_module: symengine,
-                "vectorized": vectorized,
-            },
-        )
+        if module_location is not None:
+            from jitcxde_common.modules import get_module_path
 
-    def lambdify(
+            # FIXME: this is not exactly documented API
+            sourcefile = get_module_path(de._modulename, de._tmpfile())
+            shutil.copy(sourcefile, module_location)
+
+        if verbose:
+            log.info("Compilation time: %.3fs.", time.time() - t_start)
+
+    def reload_module(self, de: jitcxde) -> None:  # noqa: PLR6301
+        import jitcode
+        from jitcxde_common.modules import find_and_load_module
+
+        # FIXME: this is not exactly documented API
+        assert isinstance(de, jitcode.jitcode)
+        try:
+            de.jitced = find_and_load_module(de._modulename, de._tmpfile())
+        except Exception as exc:
+            log.error("Failed to reload module: %s.", exc, exc_info=exc)
+        assert de.jitced is not None
+
+        de.f = de.jitced.f
+        if hasattr(de.jitced, "jac"):
+            de.jac = de.jitced.jac
+
+        de._initialise = de.jitced.initialise
+        de.compile_attempt = True
+
+    def compile(
         self,
         code: Code,
         *,
-        parameters: dict[str, Any] | None = None,
-    ) -> Callable[..., Array]:
-        # NOTE: if we need extra parameters, just add them as symbols. These
-        # will be added properly according to JiTCODE in the compile function.
-        if code.parameters:
-            import symengine as sp
-
-            if parameters is None:
-                parameters = {}
-
-            for param in code.parameters:
-                if param not in parameters:
-                    parameters[param] = sp.Symbol(param)
-
-        return super().lambdify(code, parameters=parameters)
-
-    def compile(  # noqa: PLR6301
-        self,
-        f: Array,
-        y: Array,
-        *,
         method: str = "RK45",
-        atol: float = 1.0e-6,
-        rtol: float = 1.0e-8,
-        parameters: tuple[str, ...] = (),
-        debug: bool | None = None,
-        # jitcode arguments
+        parameters: dict[str, Any] | None = None,
+        # jitcdde arguments
+        atol: float = 1.0e-10,
+        rtol: float = 1.0e-5,
+        first_step: float | None = None,
+        max_step: float = 1.0,
         module_location: str | pathlib.Path | None = None,
+        simplify: bool = False,
         openmp: bool = False,
+        debug: bool | None = None,
         verbose: bool = False,
-    ) -> jitcode.jitcode:
+    ) -> JiTCODECompiledCode:
         import jitcode
         import symengine as sp
 
         if debug is None:
             debug = __debug__
 
-        if module_location is not None:
+        if isinstance(module_location, str):
             module_location = pathlib.Path(module_location)
 
-        control_pars = tuple(sp.Symbol(param) for param in parameters)
+        # FIXME: this assume that we have (t, y) as our inputs always. This
+        # should be made less implicit, so we don't have to guess.
+        assert len(code.inputs) == 2
+        _, inputs = code.inputs
+        assert isinstance(inputs, sym.MatrixSymbol)
+
+        # generate Python code
+        parameters = fill_symbolic_parameters(code, parameters)
+        func = self.lambdify(replace(code, parameters={}), parameters=parameters)
+
+        # evaluate to obtain symengine expressions
+        y = make_input_variable(inputs.size)
+        f = func(jitcode.t, y)
+
+        # get control parameters, if any
+        control_pars = tuple(
+            param for param in parameters.values() if isinstance(param, sp.Symbol)
+        )
 
         if module_location and module_location.exists():
-            ode = jitcode.jitcode(
+            ode = self.initialize_module(
                 f,
-                n=y.size,
+                y,
                 control_pars=control_pars,
                 verbose=verbose,
-                module_location=str(module_location),
+                module_location=module_location,
             )
         else:
-            ode = jitcode.jitcode(
+            ode = self.initialize_module(
                 f,
-                n=y.size,
+                y,
                 control_pars=control_pars,
                 verbose=verbose,
             )
 
             if module_location is not None and module_location.exists():
-                from jitcxde_common.modules import find_and_load_module
-
-                # FIXME: this is not exactly documented API
-                ode.jitced = find_and_load_module(ode._modulename, ode._tmpfile())
-                ode.f = ode.jitced.f
-                if hasattr(ode.jitced, "jac"):
-                    ode.jac = ode.jitced.jac
-
-                ode._initialise = ode.jitced.initialise
-                ode.compile_attempt = True
+                self.reload_module(ode)
             else:
-                t_start = time.time()
-                ode.compile_C(
-                    extra_compile_args=cflags(debug=debug),
-                    extra_linker_args=linker_flags(debug=debug),
+                self.compile_module(
+                    ode,
+                    module_location=module_location,
+                    simplify=simplify,
+                    debug=debug,
+                    openmp=openmp,
                     verbose=verbose,
-                    omp=openmp,
-                    modulename=module_location.stem if module_location else None,
                 )
-
-                if module_location is not None:
-                    from jitcxde_common.modules import get_module_path
-
-                    # FIXME: this is not exactly documented API
-                    sourcefile = get_module_path(ode._modulename, ode._tmpfile())
-                    shutil.copy(sourcefile, module_location)
-
-                if verbose:
-                    log.info("Compilation time: %.3fs.", time.time() - t_start)
 
         # NOTE: we cannot add parameters here because JiTCODE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.
         ode.set_integrator(method, atol=atol, rtol=rtol)
 
-        return ode
+        return JiTCODECompiledCode(
+            code=code,
+            f=f,
+            y=y,
+            nlyapunov=self.nlyapunov,
+            module_location=module_location,
+            ode=ode,
+        )
 
 
 # }}}
