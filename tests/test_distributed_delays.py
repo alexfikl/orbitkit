@@ -417,8 +417,10 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
 
     # }}}
 
-    # handle discontinuities
-    integrator.step_on_discontinuities()
+    # NOTE: the solution Y0 * exp(lambda * t) is smooth (no discontinuities in
+    # derivatives at t = 0), so step_on_discontinuities is not appropriate here.
+    # Use adjust_diff instead to set up the initial derivative correctly.
+    integrator.adjust_diff()
 
     # TODO: perform an actual convergence study of some sort. What order does the
     # JiTCDDE method even convert at? It implements the MATLAB method, IIRC
@@ -431,11 +433,7 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
 
     for i, t in enumerate(steps):
         ts[i] = t
-        (
-            result,
-            _,
-            _,
-        ) = integrator.integrate(t)
+        result, _, _ = integrator.integrate(t)
         ys[i], _ = result
 
     y_ref = Y0 * np.exp(lambda_star * ts)

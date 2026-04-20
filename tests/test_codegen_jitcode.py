@@ -47,7 +47,7 @@ def _make_ode_from_name(
     from orbitkit.utils import tictoc
 
     with tictoc(f"{module_name}[{model_name}]"):
-        integrator = target.compile(code, debug=False)
+        integrator = target.compile(code, module_location=module_location, debug=False)
         integrator.set_initial_conditions(np.ones(d * n), 0.0)
 
     log.info("\n%s", integrator.f)
