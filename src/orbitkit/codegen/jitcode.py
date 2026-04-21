@@ -365,7 +365,7 @@ class JiTCODETarget(JiTCXDETarget):
 
         # NOTE: we cannot add parameters here because JiTCODE will try to compile
         # things and it won't fine the initial conditions.. it's up to the user.
-        ode.set_integrator(method, atol=atol, rtol=rtol)
+        ode.set_integrator(method, atol=atol, rtol=rtol, max_step=max_step)
 
         return JiTCODECompiledCode(
             f=f,
@@ -375,7 +375,11 @@ class JiTCODETarget(JiTCXDETarget):
             module_location=module_location,
             ode=ode,
             integrator_name=method,
-            integrator_params={"atol": atol, "rtol": rtol},
+            integrator_params={
+                "atol": atol,
+                "rtol": rtol,
+                "max_step": max_step,
+            },
         )
 
 
