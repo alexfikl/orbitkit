@@ -34,13 +34,46 @@ if TYPE_CHECKING:
 log = module_logger(__name__)
 
 
-# {{{ target
+# {{{ compiled code
 
 
 @dataclass(frozen=True)
 class JiTCODECompiledCode(JiTCXDECompiledCode):
     ode: jitcode.jitcode
     """An instance of the underlying ``jitcode`` integrator."""
+
+    integrator_name: str
+    """Underlying integrator used by ``jitcode``."""
+    integrator_params: Mapping[str, Any]
+    """Additional parameters use for the ``jitcode`` integrator."""
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = dict(self.__dict__)
+        del state["ode"]
+
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        import symengine as sp
+
+        module_location = state["module_location"]
+        control_pars = tuple(sp.Symbol(p, real=True) for p in state["parameters"])
+
+        ode = initialize_jitcode(
+            state["f"],
+            state["y"],
+            nlyapunov=state["nlyapunov"],
+            control_pars=control_pars,
+            module_location=module_location,
+        )
+        reload_jitcode(ode, module_location)
+        ode.set_integrator(
+            state["integrator_name"],
+            **state["integrator_params"],
+        )
+
+        state["ode"] = ode
+        object.__setattr__(self, "__dict__", state)
 
     def reset(self) -> None:
         pass
@@ -56,9 +89,8 @@ class JiTCODECompiledCode(JiTCXDECompiledCode):
         if len(kwargs) == 0:
             return
 
-        # NOTE: these need to be in the same order as in JiTCODETarget.compile
         control_pars = []
-        for param in self.code.parameters:
+        for param in self.parameters:
             if param not in kwargs:
                 raise ValueError(f"parameter missing: {param}")
             control_pars.append(kwargs[param])
@@ -78,6 +110,12 @@ class JiTCODECompiledCode(JiTCXDECompiledCode):
             return self.ode.integrate(t), None, None
 
 
+# }}}
+
+
+# {{{ target
+
+
 def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExpression:
     import jitcode
 
@@ -86,6 +124,98 @@ def make_input_variable(n: int | tuple[int, ...], offset: int = 0) -> JiTCXDEExp
         y[idx] = jitcode.y(offset + i)
 
     return y
+
+
+def initialize_jitcode(
+    f: Array1D[Any],
+    y: Array1D[Any],
+    *,
+    nlyapunov: int = 0,
+    control_pars: Sequence[sp.Symbol],
+    module_location: pathlib.Path | None = None,
+    verbose: bool = False,
+    **kwargs: Any,
+) -> jitcode.jitcode:
+    import jitcode
+
+    if nlyapunov > 0:
+        return jitcode.jitcode_lyap(
+            f,
+            n=y.size,
+            n_lyap=nlyapunov,
+            verbose=verbose,
+            control_pars=control_pars,
+            module_location=str(module_location) if module_location else None,
+        )
+    else:
+        return jitcode.jitcode(
+            f,
+            n=y.size,
+            verbose=verbose,
+            control_pars=control_pars,
+            module_location=str(module_location) if module_location else None,
+        )
+
+
+def compile_jitcode(
+    ode: jitcode.jitcode,
+    *,
+    module_location: pathlib.Path | None = None,
+    simplify: bool = False,
+    debug: bool = False,
+    openmp: bool = False,
+    verbose: bool = False,
+) -> None:
+    import time
+
+    t_start = time.time()
+    ode.compile_C(
+        # FIXME: jitcode assumes lists
+        extra_compile_args=list(cflags(debug=debug)),
+        extra_link_args=list(linker_flags(debug=debug)),
+        verbose=verbose,
+        omp=openmp,
+        modulename=module_location.stem if module_location else None,
+    )
+
+    if module_location is not None:
+        from jitcxde_common.modules import get_module_path
+
+        # FIXME: this is not exactly documented API
+        sourcefile = get_module_path(ode._modulename, ode._tmpfile())
+        shutil.copy(sourcefile, module_location)
+
+    if verbose:
+        log.info("Compilation time: %.3fs.", time.time() - t_start)
+
+
+def reload_jitcode(
+    ode: jitcode.jitcode,
+    module_location: pathlib.Path | None = None,
+) -> None:
+    if module_location is None:
+        return
+
+    if not module_location.exists():
+        raise FileNotFoundError(module_location)
+
+    from jitcxde_common.modules import find_and_load_module
+
+    # FIXME: this is not exactly documented API
+    try:
+        ode.jitced = find_and_load_module(
+            module_location.stem, str(module_location.parent)
+        )
+    except Exception as exc:
+        log.error("Failed to reload module: %s.", exc, exc_info=exc)
+    assert ode.jitced is not None
+
+    ode.f = ode.jitced.f
+    if hasattr(ode.jitced, "jac"):
+        ode.jac = ode.jitced.jac
+
+    ode._initialise = ode.jitced.initialise
+    ode.compile_attempt = True
 
 
 @dataclass(frozen=True)
@@ -117,25 +247,14 @@ class JiTCODETarget(JiTCXDETarget):
         verbose: bool = False,
         **kwargs: Any,
     ) -> jitcode.jitcode:
-        import jitcode
-
-        if self.nlyapunov > 0:
-            return jitcode.jitcode_lyap(
-                f,
-                n=y.size,
-                n_lyap=self.nlyapunov,
-                verbose=verbose,
-                control_pars=control_pars,
-                module_location=str(module_location) if module_location else None,
-            )
-        else:
-            return jitcode.jitcode(
-                f,
-                n=y.size,
-                verbose=verbose,
-                control_pars=control_pars,
-                module_location=str(module_location) if module_location else None,
-            )
+        return initialize_jitcode(
+            f,
+            y,
+            nlyapunov=self.nlyapunov,
+            control_pars=control_pars,
+            module_location=module_location,
+            verbose=verbose,
+        )
 
     def compile_module(  # noqa: PLR6301
         self,
@@ -151,46 +270,24 @@ class JiTCODETarget(JiTCXDETarget):
 
         assert isinstance(de, jitcode.jitcode)
 
-        import time
-
-        t_start = time.time()
-        de.compile_C(
-            # FIXME: jitcode assumes lists
-            extra_compile_args=list(cflags(debug=debug)),
-            extra_link_args=list(linker_flags(debug=debug)),
+        compile_jitcode(
+            de,
+            module_location=module_location,
+            simplify=simplify,
+            debug=debug,
+            openmp=openmp,
             verbose=verbose,
-            omp=openmp,
-            modulename=module_location.stem if module_location else None,
         )
 
-        if module_location is not None:
-            from jitcxde_common.modules import get_module_path
-
-            # FIXME: this is not exactly documented API
-            sourcefile = get_module_path(de._modulename, de._tmpfile())
-            shutil.copy(sourcefile, module_location)
-
-        if verbose:
-            log.info("Compilation time: %.3fs.", time.time() - t_start)
-
-    def reload_module(self, de: jitcxde) -> None:  # noqa: PLR6301
+    def reload_module(  # noqa: PLR6301
+        self,
+        de: jitcxde,
+        module_location: pathlib.Path | None = None,
+    ) -> None:
         import jitcode
-        from jitcxde_common.modules import find_and_load_module
 
-        # FIXME: this is not exactly documented API
         assert isinstance(de, jitcode.jitcode)
-        try:
-            de.jitced = find_and_load_module(de._modulename, de._tmpfile())
-        except Exception as exc:
-            log.error("Failed to reload module: %s.", exc, exc_info=exc)
-        assert de.jitced is not None
-
-        de.f = de.jitced.f
-        if hasattr(de.jitced, "jac"):
-            de.jac = de.jitced.jac
-
-        de._initialise = de.jitced.initialise
-        de.compile_attempt = True
+        reload_jitcode(de, module_location)
 
     def compile(
         self,
@@ -270,12 +367,14 @@ class JiTCODETarget(JiTCXDETarget):
         ode.set_integrator(method, atol=atol, rtol=rtol)
 
         return JiTCODECompiledCode(
-            code=code,
             f=f,
             y=y,
+            parameters=code.parameters,
             nlyapunov=self.nlyapunov,
             module_location=module_location,
             ode=ode,
+            integrator_name=method,
+            integrator_params={"atol": atol, "rtol": rtol},
         )
 
 
