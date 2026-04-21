@@ -29,14 +29,21 @@ set_plotting_defaults()
 def _make_dde_from_name(
     module_name: str,
     model_name: str,
-    max_delay: float,
     *,
+    max_delay: float | None = None,
+    symbolic: bool = False,
     module_location: pathlib.Path | None = None,
 ) -> JiTCDDECompiledCode:
     from testlib import get_model_from_module
 
     n = 1 if module_name == "hiv" else 2
-    model = get_model_from_module(module_name, model_name, n, delayed=True)
+    model = get_model_from_module(
+        module_name,
+        model_name,
+        n,
+        symbolic=symbolic,
+        delayed=True,
+    )
 
     from orbitkit.models import transform_distributed_delay_model
 
@@ -80,12 +87,13 @@ def test_codegen_jitcdde(module_name: str, model_name: str, max_delay: float) ->
     pytest.importorskip("pymbolic")
     pytest.importorskip("jitcdde")
 
-    dde = _make_dde_from_name(module_name, model_name, max_delay)
+    dde = _make_dde_from_name(module_name, model_name, max_delay=max_delay)
     for t in [-max_delay, 0.0, 0.01, 0.02]:
         dde.integrate(max_delay + t)
 
 
 # }}}
+
 
 # {{{ test_codegen_jitcdde_cache
 
@@ -101,20 +109,20 @@ def test_codegen_jitcdde_cache(monkeypatch: pytest.MonkeyPatch) -> None:
         pathlib.Path(tempfile.gettempdir()) / "jitcdde_orbitkit_codegen.so"
     )
 
-    dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", max_delay)
-    dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", max_delay)
+    dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", max_delay=max_delay)
+    dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", max_delay=max_delay)
     assert not module_location.exists()
     dde = _make_dde_from_name(
         "hiv",
         "CulshawRuanWebb2003Figure44",
-        max_delay,
+        max_delay=max_delay,
         module_location=module_location,
     )
     assert module_location.exists()
     dde = _make_dde_from_name(
         "hiv",
         "CulshawRuanWebb2003Figure44",
-        max_delay,
+        max_delay=max_delay,
         module_location=module_location,
     )
     assert module_location.exists()
@@ -129,6 +137,100 @@ def test_codegen_jitcdde_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
     for t in [-max_delay, 0.0, 0.01, 0.02]:
         dde.integrate(max_delay + t)
+
+    if module_location.exists():
+        module_location.unlink()
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcdde_symbolic_delay
+
+
+def test_codegen_jitcdde_symbolic_delay() -> None:
+    """Test JiTCDDE code generation with a symbolic delay parameter *tau*."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcdde")
+
+    import orbitkit.symbolic.primitives as sym
+
+    dde = _make_dde_from_name("hiv", "CulshawRuanWebb2003Figure44", symbolic=True)
+    d = dde.f.size
+
+    assert dde.delays == (sym.Variable("tau"),)
+    assert "tau" in dde.code.parameters
+
+    # 1. Integrate with tau = 0.5
+    tau1 = 0.5
+    dde.set_initial_conditions(np.ones(d), 0.0)
+    dde.set_parameters(tau=tau1)
+    dde.adjust_diff()
+
+    assert tuple(dde.dde.delays) == (0.0, tau1)
+    assert abs(dde.dde.max_delay - tau1) < 1.0e-14
+
+    for t in [-tau1, 0.0, 0.01, 0.02]:
+        dde.integrate(tau1 + t)
+
+    # 2. Reset with a different tau and larger max_delay
+    tau2 = 1.5
+    dde.reset()
+    dde.set_initial_conditions(np.ones(d), 0.0)
+    dde.set_parameters(tau=tau2)
+    dde.adjust_diff()
+
+    assert tuple(dde.dde.delays) == (0.0, tau2)
+    assert abs(dde.dde.max_delay - tau2) < 1.0e-14
+
+    for t in [-tau2, 0.0, 0.01, 0.02]:
+        dde.integrate(tau2 + t)
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcdde_symbolic_delay_cache
+
+
+def test_codegen_jitcdde_symbolic_delay_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that module_location caching works with a symbolic delay."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcdde")
+
+    module_location = (
+        pathlib.Path(tempfile.gettempdir()) / "jitcdde_orbitkit_symbolic_delay.so"
+    )
+
+    # First compile: writes the .so
+    dde = _make_dde_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        module_location=module_location,
+        symbolic=True,
+    )
+    assert module_location.exists()
+
+    # Reload from cache (no recompilation)
+    dde = _make_dde_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        module_location=module_location,
+        symbolic=True,
+    )
+    assert module_location.exists()
+
+    d = dde.f.size
+    dde.set_initial_conditions(np.ones(d), 0.0)
+    dde.set_parameters(tau=0.5)
+    dde.adjust_diff()
+
+    for t in [-0.5, 0.0, 0.01, 0.02]:
+        dde.integrate(0.5 + t)
 
     if module_location.exists():
         module_location.unlink()

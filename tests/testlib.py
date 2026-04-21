@@ -16,6 +16,7 @@ def get_model_from_module(
     model_name: str,
     n: int,
     *,
+    symbolic: bool = False,
     delayed: bool = True,
 ) -> Model:
     # construct a dummy all-to-all connectivity matrix for the models that need it
@@ -32,6 +33,8 @@ def get_model_from_module(
         model = hiv.make_model_from_name(model_name)
         if not delayed:
             model = replace(model, h=sym.ZeroDelayKernel())
+        elif symbolic:
+            model = replace(model, h=sym.DiracDelayKernel(sym.Variable("tau")))
     elif module_name == "kuramoto":
         from orbitkit.models import kuramoto
 
