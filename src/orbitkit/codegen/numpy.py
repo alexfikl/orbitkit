@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -261,7 +261,7 @@ class NumpyTarget(Target):
         self,
         code: Code,
         *,
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> Callable[..., Array]:
         func = execute_code(code)
         cargs = code.args

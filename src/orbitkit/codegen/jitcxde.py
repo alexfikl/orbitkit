@@ -18,7 +18,7 @@ from orbitkit.typing import Array1D, ArrayND
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     import symengine as sp
     from jitcxde_common import jitcxde
@@ -143,7 +143,7 @@ def linker_flags(*, debug: bool = False) -> tuple[str, ...]:
 
 def fill_symbolic_parameters(
     code: Code,
-    parameters: dict[str, Any] | None = None,
+    parameters: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     if parameters is None:
         parameters = {}
@@ -271,20 +271,22 @@ class JiTCXDETarget(NumpyTarget, ABC):
         )
         log.debug("Code:\n%s", code.source)
 
+        from constantdict import constantdict
+
         return replace(
             code,
-            context={
+            context=constantdict({
                 **code.context,
                 self.sym_module: symengine,
                 "vectorized": vectorized,
-            },
+            }),
         )
 
     def lambdify(
         self,
         code: Code,
         *,
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> Callable[..., ArrayND[np.floating[Any]]]:
         # NOTE: if we need extra parameters, just add them as symbols. These
         # will be added properly according to JiTCODE in the compile function.

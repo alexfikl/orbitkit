@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -32,7 +32,7 @@ def make_vector(name: str, n: int) -> sym.MatrixSymbol:
     return sym.MatrixSymbol(f"{ORBTIKIT_PREFIX}{name}", (n,))
 
 
-@dataclass
+@dataclass(frozen=True)
 class Code:
     name: str
     """An identifier for this chunk of code."""
@@ -51,7 +51,7 @@ class Code:
     args: tuple[Array, ...]
     """Additional arguments required for the *source* expression."""
 
-    context: dict[str, Any]
+    context: Mapping[str, Any]
     """Additional context for executing the code."""
 
     def __str__(self) -> str:
@@ -166,7 +166,7 @@ class Target(ABC):
         model: Model,
         n: int | tuple[int, ...] | None = None,
         *,
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> Callable[[float, Array], Array]:
         code = self.generate_model_code(model, n)
         return self.lambdify(code, parameters=parameters)
@@ -176,7 +176,7 @@ class Target(ABC):
         self,
         code: Code,
         *,
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> Callable[..., Array]:
         """Create a callable function for some arbitrary code.
 

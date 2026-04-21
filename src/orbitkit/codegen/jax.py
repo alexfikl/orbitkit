@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -32,7 +32,7 @@ class JaxTarget(NumpyTarget):
         self,
         code: Code,
         *,
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> Callable[..., Array]:
         import jax
 

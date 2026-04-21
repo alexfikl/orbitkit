@@ -26,7 +26,7 @@ from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     import jitcdde
     import symengine as sp
@@ -129,6 +129,7 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
         self.dde.purge_past()
         self.dde.delays = None
         self.dde.max_delay = None
+        self.dde.integration_parameters_set = False
 
     def set_initial_conditions(
         self,
@@ -304,13 +305,15 @@ class JiTCDDETarget(JiTCXDETarget):
             pretty=pretty,
         )
 
+        from constantdict import constantdict
+
         return replace(
             code,
-            context={
+            context=constantdict({
                 **code.context,
                 "delays": delays,
                 make_delay_func.name: make_delay_variable,
-            },
+            }),
         )
 
     def initialize_module(
@@ -407,7 +410,7 @@ class JiTCDDETarget(JiTCXDETarget):
         code: Code,
         *,
         max_delay: float | None = None,
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
         # jitcdde arguments
         atol: float = 1.0e-10,
         rtol: float = 1.0e-5,

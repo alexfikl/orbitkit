@@ -25,7 +25,7 @@ from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     import jitcode
     import symengine as sp
@@ -197,7 +197,7 @@ class JiTCODETarget(JiTCXDETarget):
         code: Code,
         *,
         method: str = "RK45",
-        parameters: dict[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
         # jitcdde arguments
         atol: float = 1.0e-10,
         rtol: float = 1.0e-5,
