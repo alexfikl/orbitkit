@@ -112,6 +112,7 @@ def is_periodic(
     *,
     rtol: float = 5.0e-1,
     method: Literal["acf", "harm"] = "harm",
+    fs: float = 1.0,
 ) -> bool:
     """Check if the given time series is periodic (has reached a limit cycle)."""
     from orbitkit.cycles import (
@@ -122,7 +123,7 @@ def is_periodic(
     if method == "acf":
         return is_limit_cycle_auto_correlation(x, eps=rtol)
     elif method == "harm":
-        return is_limit_cycle_harmonic(x, eps=rtol)
+        return is_limit_cycle_harmonic(x, eps=rtol, fs=fs)
     else:
         raise ValueError(f"unknown periodicity checking method: {method!r}")
 
@@ -134,6 +135,7 @@ def determine_behavior(
     fptol: float = 1.0e-3,
     lctol: float | None = None,
     lcmethod: Literal["acf", "harm"] = "harm",
+    fs: float = 1.0,
 ) -> Behavior:
     """Determine the coarse behavior of the time series *x*.
 
@@ -154,6 +156,9 @@ def determine_behavior(
     :arg lctol: (relative) tolerance used to determine if the time series has
         reached a limit cycle.
     :arg lcmethod: method used to check the periodicity of each component.
+    :arg fs: sampling frequency of the time series. Used by the harmonic method
+        to correctly fold harmonics that exceed the Nyquist frequency back into
+        the one-sided spectrum. Must match ``1 / dt`` of the solver output.
     """
 
     if x.ndim == 1:
@@ -180,7 +185,7 @@ def determine_behavior(
 
         if is_fixed_point(x_i, xtol=fptol, gtol=fptol):
             bs.add(Behavior.FixedPoint)
-        elif is_periodic(x_i, rtol=lctol, method=lcmethod):
+        elif is_periodic(x_i, rtol=lctol, method=lcmethod, fs=fs):
             bs.add(Behavior.Periodic)
         else:
             bs.add(Behavior.Unknown)
