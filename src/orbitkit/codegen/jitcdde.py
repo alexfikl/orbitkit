@@ -125,11 +125,10 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
     dde: jitcdde.jitcdde
     delays: tuple[sym.Expression, ...]
 
-    def reset(self, max_delay: float | None = None) -> None:
+    def reset(self) -> None:
         self.dde.purge_past()
-
-        if max_delay is not None:
-            self.dde.max_delay = max_delay
+        self.dde.delays = None
+        self.dde.max_delay = None
 
     def set_initial_conditions(
         self,
@@ -145,9 +144,6 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
         self.dde.constant_past(y, time=t)
 
     def set_parameters(self, **kwargs: Any) -> None:
-        if len(kwargs) == 0:
-            return
-
         if not self.code.parameters:
             return
 
@@ -157,6 +153,15 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
             if param not in kwargs:
                 raise ValueError(f"parameter missing: {param}")
             control_pars.append(kwargs[param])
+
+        from pymbolic.mapper.evaluator import evaluate
+
+        delays = tuple(evaluate(delay, context=kwargs) for delay in self.delays)
+        if 0.0 not in delays:
+            delays = (0.0, *delays)
+
+        self.dde.delays = delays
+        self.dde.max_delay = max(delays)
 
         self.dde.set_parameters(tuple(control_pars))
 
