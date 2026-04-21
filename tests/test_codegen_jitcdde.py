@@ -160,7 +160,7 @@ def test_codegen_jitcdde_symbolic_delay() -> None:
     d = dde.f.size
 
     assert dde.delays == (sym.Variable("tau"),)
-    assert "tau" in dde.code.parameters
+    assert "tau" in dde.parameters
 
     # 1. Integrate with tau = 0.5
     tau1 = 0.5
@@ -234,6 +234,121 @@ def test_codegen_jitcdde_symbolic_delay_cache(
 
     if module_location.exists():
         module_location.unlink()
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcdde_pickle_roundtrip
+
+
+def test_codegen_jitcdde_pickle_roundtrip() -> None:
+    """JiTCDDECompiledCode can be pickled and unpickled (requires module_location)."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcdde")
+
+    import pickle  # noqa: S403
+
+    module_location = pathlib.Path(tempfile.gettempdir()) / "jitcdde_orbitkit_pickle.so"
+
+    dde = _make_dde_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        symbolic=True,
+        module_location=module_location,
+    )
+    d = dde.f.size
+
+    # Integrate before pickling
+    tau = 0.5
+    dde.set_initial_conditions(np.ones(d), 0.0)
+    dde.set_parameters(tau=tau)
+    dde.adjust_diff()
+
+    y_before, _, _ = dde.integrate(tau)
+    y_before, _, _ = dde.integrate(tau + 0.1)
+
+    # Round-trip
+    data = pickle.dumps(dde)
+    dde2 = pickle.loads(data)  # noqa: S301
+
+    # Same metadata
+    assert dde2.parameters == dde.parameters
+    assert dde2.module_location == dde.module_location
+    assert dde2.nlyapunov == dde.nlyapunov
+    assert abs(dde2.dde.max_delay - dde.dde.max_delay) < 1.0e-14
+
+    # Unpickled object is functional: reset, set ICs, integrate
+    dde2.reset()
+    dde2.set_initial_conditions(np.ones(d), 0.0)
+    dde2.set_parameters(tau=tau)
+    dde2.adjust_diff()
+
+    y_after, _, _ = dde2.integrate(tau)
+    y_after, _, _ = dde2.integrate(tau + 0.1)
+
+    np.testing.assert_allclose(y_after, y_before, atol=1.0e-6)
+
+    if module_location.exists():
+        module_location.unlink()
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcdde_pickle_no_module_location
+
+
+def test_codegen_jitcdde_pickle_no_module_location() -> None:
+    """Without module_location, pickling still works (Python backend fallback)."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcdde")
+
+    import pickle  # noqa: S403
+
+    dde = _make_dde_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        symbolic=True,
+    )
+    d = dde.f.size
+
+    # Round-trip without module_location
+    data = pickle.dumps(dde)
+    dde2 = pickle.loads(data)  # noqa: S301
+
+    # Still functional (Python backend)
+    tau = 0.5
+    dde2.set_initial_conditions(np.ones(d), 0.0)
+    dde2.set_parameters(tau=tau)
+    dde2.adjust_diff()
+
+    y, _, _ = dde2.integrate(tau)
+    assert y.shape == (d,)
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcdde_not_hashable
+
+
+def test_codegen_jitcdde_not_hashable() -> None:
+    """JiTCDDECompiledCode is not hashable (numpy arrays, jitcdde object)."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcdde")
+
+    dde = _make_dde_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        symbolic=True,
+    )
+
+    with pytest.raises(TypeError, match="unhashable"):
+        hash(dde)
 
 
 # }}}
