@@ -117,13 +117,40 @@ def find_discrete_delays(
 # }}}
 
 
-# {{{ target
+# {{{ CompiledCode
 
 
 @dataclass(frozen=True)
 class JiTCDDECompiledCode(JiTCXDECompiledCode):
     dde: jitcdde.jitcdde
     delays: tuple[sym.Expression, ...]
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = dict(self.__dict__)
+        state["_max_delay"] = float(self.dde.max_delay)
+        del state["dde"]
+
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        import symengine as sp
+
+        max_delay = state.pop("_max_delay")
+        module_location = state["module_location"]
+        control_pars = tuple(sp.Symbol(p, real=True) for p in state["parameters"])
+
+        dde = initialize_jitcdde(
+            state["f"],
+            state["y"],
+            nlyapunov=state["nlyapunov"],
+            control_pars=control_pars,
+            module_location=module_location,
+            max_delay=max_delay,
+        )
+        reload_jitcdde(dde, module_location)
+
+        state["dde"] = dde
+        object.__setattr__(self, "__dict__", state)
 
     def reset(self) -> None:
         self.dde.purge_past()
@@ -145,12 +172,12 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
         self.dde.constant_past(y, time=t)
 
     def set_parameters(self, **kwargs: Any) -> None:
-        if not self.code.parameters:
+        if not self.parameters:
             return
 
         # NOTE: these need to be in the same order as in JiTCODETarget.compile
         control_pars = []
-        for param in self.code.parameters:
+        for param in self.parameters:
             if param not in kwargs:
                 raise ValueError(f"parameter missing: {param}")
             control_pars.append(kwargs[param])
@@ -183,6 +210,12 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
 
     def step_on_discontinuities(self) -> None:
         self.dde.step_on_discontinuities()
+
+
+# }}}
+
+
+# {{{ target
 
 
 def make_input_variable(
@@ -230,6 +263,97 @@ def make_delay_variable(
         result[idx] = jitcdde.y(i, jitcdde.t - tau[idx])
 
     return result
+
+
+def initialize_jitcdde(
+    f: Array1D[Any],
+    y: Array1D[Any],
+    *,
+    nlyapunov: int = 0,
+    control_pars: Sequence[sp.Symbol],
+    module_location: pathlib.Path | None = None,
+    verbose: bool = False,
+    **kwargs: Any,
+) -> jitcdde.jitcdde:
+    import jitcdde
+
+    if "max_delay" not in kwargs:
+        raise ValueError("'max_delay' not provided")
+    max_delay = float(kwargs["max_delay"])
+
+    if nlyapunov > 0:
+        return jitcdde.jitcdde_lyap(
+            f,
+            n=y.size,
+            n_lyap=nlyapunov,
+            verbose=verbose,
+            max_delay=max_delay,
+            control_pars=control_pars,
+            module_location=str(module_location) if module_location else None,
+        )
+    else:
+        return jitcdde.jitcdde(
+            f,
+            n=y.size,
+            verbose=verbose,
+            max_delay=max_delay,
+            control_pars=control_pars,
+            module_location=str(module_location) if module_location else None,
+        )
+
+
+def compile_jitcdde(
+    dde: jitcdde.jitcdde,
+    *,
+    module_location: pathlib.Path | None = None,
+    simplify: bool = False,
+    debug: bool = False,
+    openmp: bool = False,
+    verbose: bool = False,
+) -> None:
+    dde.compile_C(
+        simplify=simplify,
+        do_cse=False,
+        # FIXME: jitcdde assumes lists
+        extra_compile_args=list(cflags(debug=debug)),
+        extra_link_args=list(linker_flags(debug=debug)),
+        verbose=verbose,
+        chunk_size=32,
+        omp=openmp,
+        modulename=module_location.stem if module_location else None,
+    )
+
+    if module_location is not None:
+        from jitcxde_common.modules import get_module_path
+
+        # FIXME: this is not exactly documented API
+        # FIXME: does this work with what reload_module is doing?
+        sourcefile = get_module_path(dde._modulename, dde._tmpfile())
+        shutil.copy(sourcefile, module_location)
+
+
+def reload_jitcdde(
+    dde: jitcdde.jitcdde,
+    module_location: pathlib.Path | None = None,
+) -> None:
+    if module_location is None:
+        return
+
+    if not module_location.exists():
+        raise FileNotFoundError(module_location)
+
+    from jitcxde_common.modules import find_and_load_module
+
+    # FIXME: this is not exactly documented API
+    try:
+        dde.jitced = find_and_load_module(
+            module_location.stem, str(module_location.parent)
+        )
+    except Exception as exc:
+        log.error("Failed to reload module: %s.", exc, exc_info=exc)
+
+    dde._modulename = module_location.stem
+    dde.compile_attempt = True
 
 
 @dataclass(frozen=True)
@@ -326,31 +450,15 @@ class JiTCDDETarget(JiTCXDETarget):
         verbose: bool = False,
         **kwargs: Any,
     ) -> jitcdde.jitcdde:
-        import jitcdde
-
-        if "max_delay" not in kwargs:
-            raise ValueError("'max_delay' not provided")
-        max_delay = float(kwargs["max_delay"])
-
-        if self.nlyapunov > 0:
-            return jitcdde.jitcdde_lyap(
-                f,
-                n=y.size,
-                n_lyap=self.nlyapunov,
-                verbose=verbose,
-                max_delay=max_delay,
-                control_pars=control_pars,
-                module_location=str(module_location) if module_location else None,
-            )
-        else:
-            return jitcdde.jitcdde(
-                f,
-                n=y.size,
-                verbose=verbose,
-                max_delay=max_delay,
-                control_pars=control_pars,
-                module_location=str(module_location) if module_location else None,
-            )
+        return initialize_jitcdde(
+            f,
+            y,
+            nlyapunov=self.nlyapunov,
+            control_pars=control_pars,
+            module_location=module_location,
+            verbose=verbose,
+            **kwargs,
+        )
 
     def compile_module(  # noqa: PLR6301
         self,
@@ -362,48 +470,34 @@ class JiTCDDETarget(JiTCXDETarget):
         openmp: bool = False,
         verbose: bool = False,
     ) -> None:
-        import jitcdde
-
-        assert isinstance(de, jitcdde.jitcdde)
-
         import time
 
+        import jitcdde
+
         t_start = time.time()
-        de.compile_C(
+
+        assert isinstance(de, jitcdde.jitcdde)
+        compile_jitcdde(
+            de,
+            module_location=module_location,
             simplify=simplify,
-            do_cse=False,
-            # FIXME: jitcdde assumes lists
-            extra_compile_args=list(cflags(debug=debug)),
-            extra_link_args=list(linker_flags(debug=debug)),
+            debug=debug,
+            openmp=openmp,
             verbose=verbose,
-            chunk_size=32,
-            omp=openmp,
-            modulename=module_location.stem if module_location else None,
         )
-
-        if module_location is not None:
-            from jitcxde_common.modules import get_module_path
-
-            # FIXME: this is not exactly documented API
-            # FIXME: does this work with what reload_module is doing?
-            sourcefile = get_module_path(de._modulename, de._tmpfile())
-            shutil.copy(sourcefile, module_location)
 
         if verbose:
             log.info("Compilation time: %.3fs.", time.time() - t_start)
 
-    def reload_module(self, de: jitcxde) -> None:  # noqa: PLR6301
+    def reload_module(  # noqa: PLR6301
+        self,
+        de: jitcxde,
+        module_location: pathlib.Path | None = None,
+    ) -> None:
         import jitcdde
-        from jitcxde_common.modules import find_and_load_module
 
-        # FIXME: this is not exactly documented API
         assert isinstance(de, jitcdde.jitcdde)
-        try:
-            de.jitced = find_and_load_module(de._modulename, de._tmpfile())
-        except Exception as exc:
-            log.error("Failed to reload module: %s.", exc, exc_info=exc)
-
-        de.compile_attempt = True
+        return reload_jitcdde(de, module_location)
 
     def compile(
         self,
@@ -493,8 +587,7 @@ class JiTCDDETarget(JiTCXDETarget):
                 verbose=verbose,
             )
 
-            if module_location is not None:
-                self.reload_module(dde)
+            self.reload_module(dde, module_location)
 
         # NOTE: first_step is 1 by default: if the delays are < 1.0, then it
         # will needlessly start from a too large step. We try to help it out..
@@ -509,9 +602,9 @@ class JiTCDDETarget(JiTCXDETarget):
         )
 
         return JiTCDDECompiledCode(
-            code=code,
             f=f,
             y=y,
+            parameters=code.parameters,
             module_location=module_location,
             nlyapunov=self.nlyapunov,
             dde=dde,
