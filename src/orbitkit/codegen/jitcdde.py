@@ -123,11 +123,25 @@ def find_discrete_delays(
 @dataclass(frozen=True)
 class JiTCDDECompiledCode(JiTCXDECompiledCode):
     dde: jitcdde.jitcdde
+    """The ``jitcdde`` integrator set up for this module."""
+
     delays: tuple[sym.Expression, ...]
+    """A list of (possibly symbolic) delays that have been found in this module.
+    The delays are evaluated and update in
+    :meth:`~orbitkit.codegen.jitcxde.JiTCXDECompiledCode.set_parameters` once all
+    the parameters are known.
+    """
 
     def __getstate__(self) -> dict[str, Any]:
         state = dict(self.__dict__)
-        state["_max_delay"] = float(self.dde.max_delay)
+        state["max_delay"] = float(self.dde.max_delay)
+
+        # FIXME: these are the parameters that we set in compile, but jitcdde
+        # has a lot more that the user can just set themselves.. oh well.
+        state["atol"] = float(self.dde.atol)
+        state["rtol"] = float(self.dde.rtol)
+        state["first_step"] = float(self.dde.dt)
+        state["max_step"] = float(self.dde.max_step)
         del state["dde"]
 
         return state
@@ -135,7 +149,6 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
     def __setstate__(self, state: dict[str, Any]) -> None:
         import symengine as sp
 
-        max_delay = state.pop("_max_delay")
         module_location = state["module_location"]
         control_pars = tuple(sp.Symbol(p, real=True) for p in state["parameters"])
 
@@ -145,9 +158,15 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
             nlyapunov=state["nlyapunov"],
             control_pars=control_pars,
             module_location=module_location,
-            max_delay=max_delay,
+            max_delay=state.pop("max_delay"),
         )
         reload_jitcdde(dde, module_location)
+        dde.set_integration_parameters(
+            atol=state.pop("atol"),
+            rtol=state.pop("rtol"),
+            first_step=state.pop("first_step"),
+            max_step=state.pop("max_step"),
+        )
 
         state["dde"] = dde
         object.__setattr__(self, "__dict__", state)
