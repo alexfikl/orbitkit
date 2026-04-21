@@ -134,14 +134,14 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
 
     def __getstate__(self) -> dict[str, Any]:
         state = dict(self.__dict__)
-        state["max_delay"] = float(self.dde.max_delay)
+        state["max_delay"] = float(self.dde.max_delay or 1.0)
 
         # FIXME: these are the parameters that we set in compile, but jitcdde
         # has a lot more that the user can just set themselves.. oh well.
-        state["atol"] = float(self.dde.atol)
-        state["rtol"] = float(self.dde.rtol)
-        state["first_step"] = float(self.dde.dt)
-        state["max_step"] = float(self.dde.max_step)
+        state["atol"] = float(getattr(self.dde, "atol", 1.0e-10))
+        state["rtol"] = float(getattr(self.dde, "rtol", 1.0e-5))
+        state["first_step"] = float(getattr(self.dde, "dt", 1.0))
+        state["max_step"] = float(getattr(self.dde, "max_step", 1.0))
         del state["dde"]
 
         return state
@@ -359,7 +359,8 @@ def reload_jitcdde(
         return
 
     if not module_location.exists():
-        raise FileNotFoundError(module_location)
+        log.warning("Module location does not exist: %s.", module_location)
+        return
 
     from jitcxde_common.modules import find_and_load_module
 

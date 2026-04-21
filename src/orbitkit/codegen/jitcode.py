@@ -197,7 +197,8 @@ def reload_jitcode(
         return
 
     if not module_location.exists():
-        raise FileNotFoundError(module_location)
+        log.warning("Module location does not exist: %s.", module_location)
+        return
 
     from jitcxde_common.modules import find_and_load_module
 
