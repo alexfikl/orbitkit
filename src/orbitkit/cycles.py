@@ -83,16 +83,10 @@ def make_harmonic_mask(
     so the mask stays within the valid frequency range ``[0, fs / 2]``.
     """
     df = f[1] - f[0]
-    nyquist = fs / 2
 
     mask = np.zeros(f.shape, dtype=np.bool_)
     for k in range(1, nharmonics + 1):
-        # Fold into [0, nyquist] using standard one-sided DFT aliasing.
-        fk = k * f0
-        fk_mod = fk % fs
-        fk_alias = fs - fk_mod if fk_mod > nyquist else fk_mod
-
-        mask |= np.abs(f - fk_alias) <= binwidth * df
+        mask |= np.abs(f - k * f0) <= binwidth * df
 
     return mask
 
@@ -104,8 +98,8 @@ def detect_cycle_harmonic(
     window_length: int | None = None,
     overlap: float = 0.5,
     nfft: int | None = None,
-    binwidth: int = 4,
-    nharmonics: int = 12,
+    binwidth: int = 6,
+    nharmonics: int = 16,
     fs: float = 1.0,
 ) -> HarmonicResult:
     """Evaluate *nwindows* power spectrum densities and check the energy of the
