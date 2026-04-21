@@ -171,8 +171,6 @@ class JiTCODECodeGenerator(NumpyCodeGenerator):
 class JiTCXDECompiledCode(ABC):
     """A cached compilation of JiTCXDE modules."""
 
-    code: Code
-    """The code and parameters that was compiled for this module."""
     module_location: pathlib.Path | None
     """The location of the compiled module."""
 
@@ -180,6 +178,8 @@ class JiTCXDECompiledCode(ABC):
     """The symbolic SymEngine expression for the right-hand side."""
     y: Array1D[Any]
     """The symbolic SymEngine input variables."""
+    parameters: tuple[str, ...]
+    """The parameters that were used for this module."""
 
     nlyapunov: int
     """The number of Lyapunov exponents this module is computing. If zero, this
@@ -342,7 +342,9 @@ class JiTCXDETarget(NumpyTarget, ABC):
         """
 
     @abstractmethod
-    def reload_module(self, de: jitcxde) -> None:
+    def reload_module(
+        self, de: jitcxde, module_location: pathlib.Path | None = None
+    ) -> None:
         """Reload a JiTCXDE module from disk."""
 
     # }}}
