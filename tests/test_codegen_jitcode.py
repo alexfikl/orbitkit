@@ -129,6 +129,101 @@ def test_codegen_jitcode_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # }}}
 
+
+# {{{ test_codegen_jitcode_pickle_roundtrip
+
+
+def test_codegen_jitcode_pickle_roundtrip() -> None:
+    """JiTCODECompiledCode can be pickled and unpickled (requires module_location)."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcode")
+
+    import pickle  # noqa: S403
+
+    module_location = pathlib.Path(tempfile.gettempdir()) / "jitcode_orbitkit_pickle.so"
+
+    ode = _make_ode_from_name(
+        "hiv",
+        "CulshawRuanWebb2003Figure44",
+        module_location=module_location,
+    )
+    d = ode.f.size
+
+    # Integrate before pickling
+    y_before, _, _ = ode.integrate(0.01)
+    y_before, _, _ = ode.integrate(0.02)
+
+    # Round-trip
+    data = pickle.dumps(ode)
+    ode2 = pickle.loads(data)  # noqa: S301
+
+    # Same metadata
+    assert ode2.parameters == ode.parameters
+    assert ode2.module_location == ode.module_location
+    assert ode2.nlyapunov == ode.nlyapunov
+
+    # Unpickled object is functional: set ICs, integrate
+    ode2.set_initial_conditions(np.ones(d), 0.0)
+
+    y_after, _, _ = ode2.integrate(0.01)
+    y_after, _, _ = ode2.integrate(0.02)
+
+    np.testing.assert_allclose(y_after, y_before, atol=1.0e-6)
+
+    if module_location.exists():
+        module_location.unlink()
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcode_pickle_no_module_location
+
+
+def test_codegen_jitcode_pickle_no_module_location() -> None:
+    """Without module_location, pickling still works (Python backend fallback)."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcode")
+
+    import pickle  # noqa: S403
+
+    ode = _make_ode_from_name("hiv", "CulshawRuanWebb2003Figure44")
+    d = ode.f.size
+
+    # Round-trip without module_location
+    data = pickle.dumps(ode)
+    ode2 = pickle.loads(data)  # noqa: S301
+
+    # Still functional (Python backend)
+    ode2.set_initial_conditions(np.ones(d), 0.0)
+
+    y, _, _ = ode2.integrate(0.01)
+    assert y.shape == (d,)
+
+
+# }}}
+
+
+# {{{ test_codegen_jitcode_not_hashable
+
+
+def test_codegen_jitcode_not_hashable() -> None:
+    """JiTCODECompiledCode is not hashable (numpy arrays, jitcode object)."""
+
+    pytest.importorskip("pymbolic")
+    pytest.importorskip("jitcode")
+
+    ode = _make_ode_from_name("hiv", "CulshawRuanWebb2003Figure44")
+
+    with pytest.raises(TypeError, match="unhashable"):
+        hash(ode)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
