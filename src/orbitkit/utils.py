@@ -542,6 +542,7 @@ def solve_scaling_line(
 
 # }}}
 
+
 # {{{ TicTocTimer
 
 
@@ -687,6 +688,7 @@ class BlockTimer:
 
 # }}}
 
+
 # {{{ timeit
 
 
@@ -764,6 +766,68 @@ def slugify(stem: str, separator: str = "_") -> str:
 
 # }}}
 
+
+# {{{ find_common_path
+
+
+def find_common_path(*args: pathlib.Path, sep: str = "_") -> pathlib.Path | None:
+    """Find a common substring from the given paths.
+
+    This algorithm finds a common path from the given list. For example
+
+    .. code:: python
+
+        paths = [
+            pathlib.Path("foo_x_bar_123_baz"),
+            pathlib.Path("foo_y_bar_456_baz"),
+            pathlib.Path("foo_z_bar_789_baz"),
+        ]
+
+    will find the common path ``foo_bar_baz``. In general, all substrings that
+    do not appear in all paths will be discarded and a new path will be constructed
+    from what's left.
+
+    The paths are assumed to have the same parent and the same extensions. If these
+    are not the same, then no common path can be found.
+    """
+    if len(args) == 0:
+        return None
+
+    if len(args) == 1:
+        return args[0]
+
+    parent = args[0].parent
+    if not all(arg.parent == parent for arg in args[1:]):
+        return None
+
+    ext = args[0].suffix
+    if not all(arg.suffix == ext for arg in args[1:]):
+        return None
+
+    stems: list[str] = sorted([arg.stem for arg in args], key=len)  # ty: ignore[invalid-assignment]
+    shortest = stems[0]
+    candidates = set()
+
+    # find substrings
+    for i in range(len(shortest)):
+        for j in range(i + 1, len(shortest) + 1):
+            sub = shortest[i:j]
+            if all(sub in s for s in stems):
+                candidates.add(sub)
+
+    # keep only maximal common substrings
+    maximal = sorted(
+        [s for s in candidates if not any(s != t and s in t for t in candidates)],
+        key=stems[0].index,
+    )
+
+    parts = [s.strip(sep) for s in maximal]
+    return (parent / sep.join(p for p in parts if p)).with_suffix(ext)
+
+
+# }}}
+
+
 # {{{ download_from_data_dryad
 
 
@@ -803,6 +867,7 @@ def download_from_data_dryad(
 
 
 # }}}
+
 
 # {{{ load_from_mat
 

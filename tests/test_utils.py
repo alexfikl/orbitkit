@@ -118,6 +118,77 @@ def test_block_timer() -> None:
 # }}}
 
 
+# {{{ find_common_path
+
+
+def test_find_common_path() -> None:
+    from orbitkit.utils import find_common_path
+
+    # no arguments
+    assert find_common_path() is None
+
+    # single path returned as-is
+    p = pathlib.Path("path/to/foo_bar_baz.npy")
+    assert find_common_path(p) == p
+
+    # basic common prefix
+    assert find_common_path(
+        pathlib.Path("alphaX1"),
+        pathlib.Path("alphaY2"),
+        pathlib.Path("alphaZ3"),
+    ) == pathlib.Path("alpha")
+
+    # common substrings joined with the default separator
+    assert find_common_path(
+        pathlib.Path("foo_x_bar_123_baz"),
+        pathlib.Path("foo_y_bar_456_baz"),
+        pathlib.Path("foo_z_bar_789_baz"),
+    ) == pathlib.Path("foo_bar_baz")
+
+    # custom separator
+    assert find_common_path(
+        pathlib.Path("pre_x_mid_y_post.out"),
+        pathlib.Path("pre_a_mid_b_post.out"),
+        sep="-",
+    ) == pathlib.Path("pre_-_mid_-_post.out")
+
+    # parent and suffix are preserved
+    assert find_common_path(
+        pathlib.Path("/data/run01_alpha.csv"),
+        pathlib.Path("/data/run02_beta.csv"),
+        pathlib.Path("/data/run03_gamma.csv"),
+    ) == pathlib.Path("/data/run0_a.csv")
+
+    # different parents -> None
+    assert (
+        find_common_path(
+            pathlib.Path("/a/foo_bar.txt"),
+            pathlib.Path("/b/foo_baz.txt"),
+        )
+        is None
+    )
+
+    # different extensions -> None
+    assert (
+        find_common_path(
+            pathlib.Path("foo_bar.txt"),
+            pathlib.Path("foo_baz.csv"),
+        )
+        is None
+    )
+
+    # identical paths
+    p = pathlib.Path("result_001.npy")
+    assert find_common_path(p, p, p) == p
+
+    # no common substring raises ValueError
+    with pytest.raises(ValueError, match="empty name"):
+        find_common_path(pathlib.Path("aaa.dat"), pathlib.Path("bbb.dat"))
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
