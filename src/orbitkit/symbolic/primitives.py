@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from dataclasses import field
 from typing import Any, TypeAlias
 
 import numpy as np
@@ -284,15 +285,21 @@ class GammaDelayKernel(DelayKernel):
         return 1
 
 
+@prim.expr_dataclass()
 class WeakGammaDelayKernel(GammaDelayKernel):
     """The :class:`GammaDelayKernel` with :math:`p = 1`."""
+
+    p: float = field(init=False)
 
     def __init__(self, alpha: Expression) -> None:
         super().__init__(1, alpha)
 
 
+@prim.expr_dataclass()
 class StrongGammaDelayKernel(GammaDelayKernel):
     """The :class:`GammaDelayKernel` with :math:`p = 2`."""
+
+    p: float = field(init=False)
 
     def __init__(self, alpha: Expression) -> None:
         super().__init__(2, alpha)

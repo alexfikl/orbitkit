@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import fields, replace
 from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
@@ -121,7 +121,8 @@ class IdentityMapper(IdentityMapperBase[[]]):
         if alpha is expr.alpha:
             return expr
 
-        return type(expr)(p=expr.p, alpha=alpha)
+        kwargs = {f.name: getattr(expr, f.name) for f in fields(expr) if f.init}
+        return type(expr)(**{**kwargs, "alpha": alpha})  # ty: ignore[invalid-argument-type]
 
 
 # }}}
