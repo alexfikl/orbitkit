@@ -54,9 +54,11 @@ set_plotting_defaults()
 
 
 def plot_fixed_points(ax, x, y, z, *, title: str) -> None:
-    nlevels = int(z.max()) + 1
+    nlevels = int(np.max(z)) + 1
     im = discrete_heatmap(ax, x, y, z.T, vmin=0, vmax=nlevels - 1)
-    discrete_colorbar(im, ax=ax, nlevels=nlevels)
+
+    ticks = np.unique(z)
+    discrete_colorbar(im, ax=ax, nlevels=ticks)
 
     ax.axhline(0.0, color="k", lw=1)
     ax.axvline(0.0, color="k", lw=1)
@@ -69,7 +71,7 @@ def plot_fixed_points(ax, x, y, z, *, title: str) -> None:
 with figure(dirname / "theta_fixed_points", nrows=1, ncols=2, overwrite=True) as fig:
     ax1, ax2 = fig.axes
 
-    plot_fixed_points(ax1, kappa, eta, fp_type1, title="On-Circle Fixed Points")
-    plot_fixed_points(ax2, kappa, eta, fp_type2, title="In-Disk Fixed Points")
+    plot_fixed_points(ax1, kappa, eta, fp_type1, title="Type 1 Fixed Points")
+    plot_fixed_points(ax2, kappa, eta, fp_type2, title="Type 2 Fixed Points")
 
 # }}}

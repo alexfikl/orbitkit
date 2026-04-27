@@ -632,7 +632,7 @@ def discrete_heatmap(
 def discrete_colorbar(
     im: ScalarMappable,
     *,
-    nlevels: int,
+    nlevels: int | Array1D[np.floating[Any]],
     ax: mp.Axes | None = None,
     shrink: float = 0.7,
 ) -> Colorbar:
@@ -642,8 +642,11 @@ def discrete_colorbar(
     if ax is None:
         raise ValueError(f"must pass axes for {type(im)} type")
 
-    cbar = ax.figure.colorbar(im, ax=ax, shrink=shrink, ticks=np.arange(nlevels))
-    cbar.ax.set_yticklabels([str(i) for i in range(nlevels)])
+    if isinstance(nlevels, int):
+        nlevels = np.arange(nlevels)
+
+    cbar = ax.figure.colorbar(im, ax=ax, shrink=shrink, ticks=nlevels)
+    cbar.ax.set_yticklabels([str(i) for i in nlevels])
 
     return cbar
 
