@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     import matplotlib.pyplot as mp
     from matplotlib.cm import ScalarMappable
     from matplotlib.collections import EventCollection
+    from matplotlib.colorbar import Colorbar
+    from matplotlib.image import AxesImage
 
 log = module_logger(__name__)
 
@@ -515,13 +517,12 @@ def heatmap(
     alpha: float | Array2D[np.floating[Any]] | None = None,
     vmin: float | None = None,
     vmax: float | None = None,
-    shrink: float = 0.7,
     linecolor: str = "w",
     xlinewidth: float | None = 1.0,
     ylinewidth: float | None = 1.0,
     xrotation: float = 45.0,
     tickdensity: float = 0.1,
-) -> ScalarMappable:
+) -> AxesImage:
     """Plot a heatmap for a given array.
 
     This is just a :func:`~matplotlib.pyplot.imshow` plot with some specific
@@ -587,7 +588,70 @@ def heatmap(
 # }}}
 
 
-# {{{
+# {{{ discrete_heatmap
+
+
+def discrete_heatmap(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    z: Array2D[np.integer[Any]],
+    *,
+    cmap: str = "tab20",
+    vmin: int | None = None,
+    vmax: int | None = None,
+) -> AxesImage:
+    if vmin is None:
+        vmin = np.min(z)
+
+    if vmax is None:
+        vmax = np.max(z)
+
+    from matplotlib.colors import BoundaryNorm
+
+    nlevels = vmax - vmin + 1
+    bounds = np.arange(vmin - 0.5, vmax + 1.5, 1.0)
+    norm = BoundaryNorm(bounds, ncolors=nlevels, clip=True)
+
+    im = heatmap(
+        ax,
+        x,
+        y,
+        z,
+        cmap=cmap,
+        xlinewidth=0,
+        ylinewidth=0,
+        vmin=vmin,
+        vmax=vmax,
+    )
+    im.set_norm(norm)
+
+    return im
+
+
+def discrete_colorbar(
+    im: ScalarMappable,
+    *,
+    nlevels: int,
+    ax: mp.Axes | None = None,
+    shrink: float = 0.7,
+) -> Colorbar:
+    if ax is None:
+        ax = getattr(im, "axes", None)
+
+    if ax is None:
+        raise ValueError(f"must pass axes for {type(im)} type")
+
+    cbar = ax.figure.colorbar(im, ax=ax, shrink=shrink, ticks=np.arange(nlevels))
+    cbar.ax.set_yticklabels([str(i) for i in range(nlevels)])
+
+    return cbar
+
+
+# }}}
+
+
+# {{{ kymograph
 
 
 def kymograph(
@@ -634,6 +698,7 @@ def kymograph(
 
 
 # }}}
+
 
 # {{{ rastergram
 

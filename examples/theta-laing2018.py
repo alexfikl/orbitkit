@@ -18,8 +18,6 @@ if not JiTCODETarget.has_jitcode():
     log.error("This example requires `jitcode`.")
     raise SystemExit(0)
 
-rng = np.random.default_rng(seed=42)
-
 # {{{ create right-hand side
 
 figname = "Figure2b"
