@@ -1312,13 +1312,13 @@ def generate_random_degree_proportional_weights(
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
 ) -> Array2D[np.floating[Any]]:
-    r"""Generate random weights for the adjacency matrix *mat* with weights proportional
+    r"""Generate random weights for the adjacency matrix *mat* proportional
     to each node's degree.
 
     For this, we generate a random matrix with equal row sum (see
     :func:`generate_random_equal_row_sum`) and then scale each row based on its
-    degree. Therefore, nodes with a higher degree will "receive" proportionally
-    more inputs for their neighbors. The scaling is performed as
+    degree. Therefore, nodes with a higher degree will "receive" proportional
+    inputs from their neighbors. The scaling is taken as
 
     .. math::
 
@@ -1327,7 +1327,7 @@ def generate_random_degree_proportional_weights(
     where :math:`d_i` is the degree of node :math:`i`. Using this scaling, we can
     obtain
 
-    * :math:`\alpha = 0`: the standard row sum.
+    * :math:`\alpha = 0`: the standard equal row sum weights.
     * :math:`\alpha = 1`: row sums proportional to degree.
     * :math:`0 < \alpha < 1`: a sublinear scaling with respect to degree.
     * :math:`\alpha < 0`: high-degree nodes receive less input.
