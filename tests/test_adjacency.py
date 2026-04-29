@@ -778,6 +778,59 @@ def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # n
 # }}}
 
 
+# {{{ test_generate_random_degree_proportional_weights
+
+
+def test_generate_random_degree_proportional_weights_shape_and_zeros() -> None:
+    from orbitkit.adjacency import (
+        generate_adjacency_ring,
+        generate_random_degree_proportional_weights,
+    )
+
+    n = 32
+    rng = np.random.default_rng(seed=42)
+    mat = generate_adjacency_ring(n, k=2)
+    W = generate_random_degree_proportional_weights(mat, rng=rng)
+
+    assert W.shape == (n, n)
+    assert np.all(W >= 0)
+
+    # weights are zero where there is no edge
+    assert np.all(W[mat == 0] == 0)
+
+
+def test_generate_random_degree_proportional_weights() -> None:
+    """Row sums should be proportional to node degree for alpha=1."""
+    from orbitkit.adjacency import (
+        generate_adjacency_erdos_renyi,
+        generate_random_degree_proportional_weights,
+    )
+
+    n = 64
+    rng = np.random.default_rng(seed=42)
+    mat = generate_adjacency_erdos_renyi(n, p=0.3, rng=rng)
+
+    W = generate_random_degree_proportional_weights(mat, alpha=1.0, rng=rng)
+
+    degree = np.sum(mat, axis=1).astype(float)
+    row_sums = np.sum(W, axis=1)
+
+    # nodes with higher degree should have proportionally higher row sums
+    connected = degree > 0
+    ratios = row_sums[connected] / degree[connected]
+    assert np.std(ratios) / np.mean(ratios) < 0.01
+
+    # since max_scaling == 1 for a regular graph, max row sum should be 1
+    assert np.max(np.sum(W, axis=1)) <= 1.0 + 1.0e-14
+
+    # all row sums should be equal for alpha = 0
+    W = generate_random_degree_proportional_weights(mat, alpha=0.0, rng=rng)
+    assert np.allclose(np.sum(W, axis=1), 1.0, atol=1.0e-14)
+
+
+# }}}
+
+
 # {{{ test_generate_graph_laplacian_weights
 
 
