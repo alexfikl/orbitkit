@@ -332,6 +332,7 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
 
 # }}}
 
+
 # {{{ adjacency matrices
 
 
@@ -1075,6 +1076,7 @@ def generate_adjacency_configuration(
 
 # }}}
 
+
 # {{{ weights
 
 
@@ -1300,6 +1302,54 @@ def normalize_equal_row_sum(
     else:
         result = mat / fac.reshape(-1, 1)
 
+    return result
+
+
+def generate_random_degree_proportional_weights(
+    mat: Array2D[np.floating[Any]],
+    *,
+    alpha: float = 1.0,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    r"""Generate random weights for the adjacency matrix *mat* with weights proportional
+    to each node's degree.
+
+    For this, we generate a random matrix with equal row sum (see
+    :func:`generate_random_equal_row_sum`) and then scale each row based on its
+    degree. Therefore, nodes with a higher degree will "receive" proportionally
+    more inputs for their neighbors. The scaling is performed as
+
+    .. math::
+
+        W_{ij} = \frac{d_i^\alpha}{\max d_i^\alpha} W_{ij}
+
+    where :math:`d_i` is the degree of node :math:`i`. Using this scaling, we can
+    obtain
+
+    * :math:`\alpha = 0`: the standard row sum.
+    * :math:`\alpha = 1`: row sums proportional to degree.
+    * :math:`0 < \alpha < 1`: a sublinear scaling with respect to degree.
+    * :math:`\alpha < 0`: high-degree nodes receive less input.
+    * :math:`\alpha > 1`: high-degree nodes are amplified.
+
+    """
+
+    result = generate_random_equal_row_sum(mat, dtype=dtype, rng=rng)
+    degree = np.sum(mat, axis=1).astype(dtype)
+
+    # handle isolated nodes
+    isolated = degree == 0
+    degree[isolated] = 1
+
+    scaling = degree**alpha
+    scaling[isolated] = 0
+    max_scaling = np.max(scaling)
+
+    if max_scaling > 0:
+        scaling /= max_scaling
+
+    result *= scaling.reshape(-1, 1)
     return result
 
 
