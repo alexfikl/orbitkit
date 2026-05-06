@@ -240,9 +240,10 @@ def compute_weighted_clustering_coefficient(
     if eps <= 0.0:
         raise ValueError(f"'eps' must be positive: {eps}")
 
-    A = (np.abs(mat) < eps).astype(dtype)
+    A = (np.abs(mat) > eps).astype(dtype)
     strength = compute_weighted_degree(mat)
     degree = np.sum(A, axis=1)
+    breakpoint()
 
     wcc = np.zeros(n, dtype=dtype)
     for i in range(n):
