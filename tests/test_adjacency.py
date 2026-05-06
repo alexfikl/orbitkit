@@ -909,6 +909,12 @@ def test_compute_weighted_clustering_coefficient() -> None:
     wcc = compute_weighted_clustering_coefficient(W)
     assert np.allclose(wcc, 0.0)
 
+    # 3-node complete graph with uniform weights w.
+    w = 3.0
+    W = w * (np.ones((3, 3)) - np.eye(3))
+    wcc = compute_weighted_clustering_coefficient(W)
+    assert np.allclose(wcc, 1.0, atol=1.0e-12)
+
 
 # }}}
 

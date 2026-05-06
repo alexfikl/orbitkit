@@ -243,7 +243,6 @@ def compute_weighted_clustering_coefficient(
     A = (np.abs(mat) > eps).astype(dtype)
     strength = compute_weighted_degree(mat)
     degree = np.sum(A, axis=1)
-    breakpoint()
 
     wcc = np.zeros(n, dtype=dtype)
     for i in range(n):
