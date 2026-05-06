@@ -890,29 +890,29 @@ def test_compute_weighted_degree() -> None:
 
 
 def test_compute_weighted_clustering_coefficient() -> None:
-    from orbitkit.adjacency import compute_weighted_clustering_coefficient
+    from orbitkit.adjacency import compute_weighted_clustering_coefficient_barrat
 
     with pytest.raises(ValueError, match="not square"):
-        compute_weighted_clustering_coefficient(np.ones((3, 4)))
+        compute_weighted_clustering_coefficient_barrat(np.ones((3, 4)))
 
     with pytest.raises(ValueError, match="'eps' must be positive"):
-        compute_weighted_clustering_coefficient(np.eye(3), eps=-1.0)
+        compute_weighted_clustering_coefficient_barrat(np.eye(3), eps=-1.0)
 
     # isolated nodes (no edges) → coefficient is 0 for all nodes
     n = 5
     W = np.zeros((n, n))
-    wcc = compute_weighted_clustering_coefficient(W)
+    wcc = compute_weighted_clustering_coefficient_barrat(W)
     assert wcc.shape == (n,)
     assert np.allclose(wcc, 0.0)
 
     W = np.array([[0.0, 2.0, 0.0], [2.0, 0.0, 3.0], [0.0, 3.0, 0.0]])
-    wcc = compute_weighted_clustering_coefficient(W)
+    wcc = compute_weighted_clustering_coefficient_barrat(W)
     assert np.allclose(wcc, 0.0)
 
     # 3-node complete graph with uniform weights w.
     w = 3.0
     W = w * (np.ones((3, 3)) - np.eye(3))
-    wcc = compute_weighted_clustering_coefficient(W)
+    wcc = compute_weighted_clustering_coefficient_barrat(W)
     assert np.allclose(wcc, 1.0, atol=1.0e-12)
 
 
@@ -923,30 +923,30 @@ def test_compute_weighted_clustering_coefficient() -> None:
 
 
 def test_compute_graph_disparity() -> None:
-    from orbitkit.adjacency import compute_graph_disparity
+    from orbitkit.adjacency import compute_disparity_serrano
 
     with pytest.raises(ValueError, match="not square"):
-        compute_graph_disparity(np.ones((3, 4)))
+        compute_disparity_serrano(np.ones((3, 4)))
 
     with pytest.raises(ValueError, match="'eps' must be positive"):
-        compute_graph_disparity(np.eye(3), eps=-1.0)
+        compute_disparity_serrano(np.eye(3), eps=-1.0)
 
     # isolated nodes
     n = 4
     W = np.zeros((n, n))
-    Y = compute_graph_disparity(W)
+    Y = compute_disparity_serrano(W)
     assert Y.shape == (n,)
     assert np.allclose(Y, 0.0)
 
     # single-edge node: all weight on one neighbour
     W = np.array([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
-    Y = compute_graph_disparity(W)
+    Y = compute_disparity_serrano(W)
     assert np.allclose(Y[0], 1.0, atol=1.0e-10)
 
     # uniform weights: disparity = 1/k for a node with k equal-weight edges
     n = 5
     W = np.ones((n, n)) - np.eye(n)  # k = n-1 = 4 equal neighbours
-    Y = compute_graph_disparity(W)
+    Y = compute_disparity_serrano(W)
     assert np.allclose(Y, 1.0 / (n - 1), atol=1.0e-10)
 
 

@@ -209,7 +209,7 @@ def compute_weighted_degree(
     return np.sum(mat, axis=1)
 
 
-def compute_weighted_clustering_coefficient(
+def compute_weighted_clustering_coefficient_barrat(
     mat: Array2D[np.floating[Any]],
     *,
     eps: float | None = None,
@@ -221,6 +221,9 @@ def compute_weighted_clustering_coefficient(
 
         c_i = \frac{1}{s_i (d_i - 1)} \sum_{j, k}^n
             \frac{1}{2} (W_{ij} + W_{ik}) A_{ij} A_{ik} A_{jk}
+
+    Note that this clustering coefficient is officially defined for matrices with
+    positive weights.
 
     .. [Barrat2004] A. Barrat, M. Barthélemy, R. Pastor-Satorras, A. Vespignani,
         *The Architecture of Complex Weighted Networks*,
@@ -240,31 +243,23 @@ def compute_weighted_clustering_coefficient(
     if eps <= 0.0:
         raise ValueError(f"'eps' must be positive: {eps}")
 
+    if __debug__ and np.any(mat < 0):
+        raise ValueError("weight matrix 'mat' has non-positive entries")
+
     A = (np.abs(mat) > eps).astype(dtype)
     strength = compute_weighted_degree(mat)
     degree = np.sum(A, axis=1)
 
+    result = np.sum((mat * A) * (A @ A), axis=1)
+
+    mask = (degree >= 2) & (np.abs(strength) >= eps)
     wcc = np.zeros(n, dtype=dtype)
-    for i in range(n):
-        s_i = strength[i]
-        k_i = degree[i]
-        if k_i < 2 or abs(s_i) < eps:
-            continue
-
-        result = 0.0
-        for j in range(n):
-            for h in range(n):
-                if i == j or i == h or j == h:  # noqa: SIM109,PLR1714
-                    continue
-
-                result += 0.5 * (mat[i, j] + mat[i, h]) * A[i, j] * A[i, h] * A[j, h]
-
-        wcc[i] = result / (s_i * (k_i - 1))
+    wcc[mask] = result[mask] / (strength[mask] * (degree[mask] - 1))
 
     return wcc
 
 
-def compute_graph_disparity(
+def compute_disparity_serrano(
     mat: Array2D[np.floating[Any]],
     *,
     eps: float | None = None,
@@ -278,6 +273,9 @@ def compute_graph_disparity(
 
     where :math:`s_i` is the weighted degree (see :func:`compute_weighted_degree`).
     This measure is similar to the Inverse Participation Ratio.
+
+    Note that this method is officially defined on positive weight matrices. If
+    used for more general weight matrices, the user can take the absolute value.
 
     .. [Serrano2009] M. Á. Serrano, M. Boguñá, A. Vespignani,
         *Extracting the Multiscale Backbone of Complex Weighted Networks*,
@@ -297,8 +295,11 @@ def compute_graph_disparity(
     if eps <= 0.0:
         raise ValueError(f"'eps' must be positive: {eps}")
 
+    if __debug__ and np.any(mat < 0):
+        raise ValueError("weight matrix 'mat' has non-positive entries")
+
     strength = compute_weighted_degree(mat)
-    mask = np.abs(strength) < eps
+    mask = strength < eps
     strength[mask] = 1.0
 
     disparity = np.sum(mat**2, axis=1, dtype=dtype) / strength**2
