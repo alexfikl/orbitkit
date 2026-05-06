@@ -22,144 +22,6 @@ log = module_logger(__name__)
 # {{{ utils
 
 
-def compute_graph_density(mat: Array2D[np.floating[Any]]) -> float:
-    """Compute the density of the adjacency matrix *mat*.
-
-    The density is defined as the number of edges in the graph divided by the
-    maximum possible number of edges for the given node count. It is always a
-    number in :math:`[0, 1]`.
-
-    :arg mat: a binary adjacency matrix.
-    """
-    if mat.ndim != 2:
-        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
-
-    if mat.shape[0] != mat.shape[1]:
-        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
-
-    n, _ = mat.shape
-    if n == 1:
-        return 0.0
-
-    # NOTE: this subtracts the diagonal so that we can handle graphs with self-loops
-    edges = np.sum(mat) - np.sum(np.diag(mat))
-    max_edges = n * (n - 1)
-
-    return float(edges / max_edges)
-
-
-def compute_graph_triangles(mat: Array2D[np.floating[Any]]) -> int:
-    r"""Compute number of triangles in the graph with adjacency matrix *mat*.
-
-    The number of triangles in a graph is given by the simple formula
-
-    .. math::
-
-        \frac{\text{trace}(A^3)}{6}
-
-    :arg mat: a binary adjacency matrix.
-    """
-    if mat.ndim != 2:
-        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
-
-    if mat.shape[0] != mat.shape[1]:
-        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
-
-    n, _ = mat.shape
-    if n <= 2:
-        return 0
-
-    # NOTE: this computes something like
-    #   tr(O^3) = tr(A^3) - 3 * sum A_{ii} * (A^2)_{ii} + 2 sum A_{ii}^3
-    #   O = A - D
-    # so that we can handle matrices with self-loops as well.
-    d = np.diag(mat)
-    mat2 = mat @ mat
-    trmat3 = np.trace(mat2 @ mat)
-    trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
-
-    return int(trmat3) // 6
-
-
-def make_graph_laplacian_undirected(
-    A: Array2D[np.floating[Any]], *, normalize: bool = False
-) -> Array2D[np.floating[Any]]:
-    r"""Compute the graph Laplacian for the adjacency matrix *A*.
-
-    .. math::
-
-        L = D - A \implies L_{ij} =
-        \begin{cases}
-        \text{deg}(v_i), & \quad \text{if } i = j, \\
-        -1, & \quad \text{if } i \ne j \text{ and } A_{ij} = 1, \\
-        0, & \quad \text{otherwise},
-        \end{cases}
-
-    where the degree is the number of vertices connected to :math:`v_i`, including
-    self-loops. Note that *A* is assumed to be symmetric for an undirected graph.
-    For the normalization, we use
-
-    .. math::
-
-        L_{\text{norm}} = D^{-\frac{1}{2}} L D^{-\frac{1}{2}}.
-    """
-
-    assert np.allclose(A, A.T)
-
-    D = np.sum(A, axis=1)
-    L = -A
-    np.fill_diagonal(L, D)
-    if normalize:
-        Dinv = np.where(D > 0, 1.0 / np.sqrt(D), 0.0)
-        L = Dinv[:, None] * L * Dinv[None, :]
-
-    assert L.shape == A.shape
-    return L
-
-
-def make_graph_laplacian_directed(
-    A: Array2D[np.floating[Any]],
-    *,
-    out: bool = True,
-    normalize: bool = False,
-) -> Array2D[np.floating[Any]]:
-    r"""Compute the graph Laplacian for the adjacency matrix *A*.
-
-    For the normalization, we use left or right normalization, depending on the
-    value of *out*. We take
-
-    .. math ::
-
-        L_{\text{norm}} =
-            \begin{cases}
-            D_{\text{out}}^{-1} L_{\text{out}}, \\
-            L_{\text{in}} D_{\text{in}}^{-1}.
-            \end{cases}
-
-    :arg out: if *True*, we compute the out-degree Laplacian. Otherwise, we
-        compute the in-degree Laplacian.
-    """
-
-    L = -A
-    if out:
-        D = np.sum(A, axis=1)
-        np.fill_diagonal(L, D)
-
-        if normalize:
-            Dinv = np.where(D > 0, 1.0 / D, 0.0)
-            L = Dinv[:, None] * L
-    else:
-        D = np.sum(A, axis=0)
-        np.fill_diagonal(L, D)
-
-        if normalize:
-            Dinv = np.where(D > 0, 1.0 / D, 0.0)
-            L = L * Dinv[None, :]  # noqa: PLR6104
-
-    assert L.shape == A.shape
-    return L
-
-
 def stringify_adjacency(
     mat: Array2D[np.floating[Any]],
     *,
@@ -328,6 +190,265 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
         return generate_adjacency_fractal(base, nlevels=k, dtype=dtype)
     else:
         raise ValueError(f"unknown topology: '{topology}'")
+
+
+# }}}
+
+
+# {{{ graph measures
+
+
+def compute_weighted_degree(
+    mat: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
+    """Compute the weighted degree (or strength) of each node in the graph."""
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    return np.sum(mat, axis=1)
+
+
+def compute_weighted_clustering_coefficient(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+    dtype: DTypeLike | None = None,
+) -> Array1D[np.floating[Any]]:
+    r"""Compute a per-node weighted clustering coefficient from [Barrat2004]_.
+
+    .. math::
+
+        c_i = \frac{1}{s_i (d_i - 1)} \sum_{j, k}^n
+            \frac{1}{2} (W_{ij} + W_{ik}) A_{ij} A_{ik} A_{jk}
+
+    .. [Barrat2004] A. Barrat, M. Barthélemy, R. Pastor-Satorras, A. Vespignani,
+        *The Architecture of Complex Weighted Networks*,
+        Proceedings of the National Academy of Sciences, Vol. 101, pp. 3747--3752, 2004,
+        `doi:10.1073/pnas.0400087101 <https://doi.org/10.1073/pnas.0400087101>`__.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    A = (np.abs(mat) < eps).astype(dtype)
+    strength = compute_weighted_degree(mat)
+    degree = np.sum(A, axis=1)
+
+    wcc = np.zeros(n, dtype=dtype)
+    for i in range(n):
+        s_i = strength[i]
+        k_i = degree[i]
+        if k_i < 2 or abs(s_i) < eps:
+            continue
+
+        result = 0.0
+        for j in range(n):
+            for h in range(n):
+                if i == j or i == h or j == h:  # noqa: SIM109,PLR1714
+                    continue
+
+                result += 0.5 * (mat[i, j] + mat[i, h]) * A[i, j] * A[i, h] * A[j, h]
+
+        wcc[i] = result / (s_i * (k_i - 1))
+
+    return wcc
+
+
+def compute_graph_disparity(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+    dtype: DTypeLike | None = None,
+) -> Array1D[np.floating[Any]]:
+    r"""Compute a per-node disparity measure from [Serrano2009]_.
+
+    .. math::
+
+        Y_i = \frac{1}{s_i^2} \sum_{j}^n W_{ij}^2,
+
+    where :math:`s_i` is the weighted degree (see :func:`compute_weighted_degree`).
+    This measure is similar to the Inverse Participation Ratio.
+
+    .. [Serrano2009] M. Á. Serrano, M. Boguñá, A. Vespignani,
+        *Extracting the Multiscale Backbone of Complex Weighted Networks*,
+        Proceedings of the National Academy of Sciences, Vol. 106, pp. 6483--6488, 2009,
+        `doi:10.1073/pnas.0808904106 <https://doi.org/10.1073/pnas.0808904106>`__.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    strength = compute_weighted_degree(mat)
+    mask = np.abs(strength) < eps
+    strength[mask] = 1.0
+
+    disparity = np.sum(mat**2, axis=1, dtype=dtype) / strength**2
+    disparity[mask] = 0.0
+
+    return disparity
+
+
+def compute_graph_density(mat: Array2D[np.floating[Any]]) -> float:
+    """Compute the density of the adjacency matrix *mat*.
+
+    The density is defined as the number of edges in the graph divided by the
+    maximum possible number of edges for the given node count. It is always a
+    number in :math:`[0, 1]`.
+
+    :arg mat: a binary adjacency matrix.
+    """
+    if mat.ndim != 2:
+        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
+
+    if mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
+
+    n, _ = mat.shape
+    if n == 1:
+        return 0.0
+
+    # NOTE: this subtracts the diagonal so that we can handle graphs with self-loops
+    edges = np.sum(mat) - np.sum(np.diag(mat))
+    max_edges = n * (n - 1)
+
+    return float(edges / max_edges)
+
+
+def compute_graph_triangles(mat: Array2D[np.floating[Any]]) -> int:
+    r"""Compute number of triangles in the graph with adjacency matrix *mat*.
+
+    The number of triangles in a graph is given by the simple formula
+
+    .. math::
+
+        \frac{\text{trace}(A^3)}{6}
+
+    :arg mat: a binary adjacency matrix.
+    """
+    if mat.ndim != 2:
+        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
+
+    if mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
+
+    n, _ = mat.shape
+    if n <= 2:
+        return 0
+
+    # NOTE: this computes something like
+    #   tr(O^3) = tr(A^3) - 3 * sum A_{ii} * (A^2)_{ii} + 2 sum A_{ii}^3
+    #   O = A - D
+    # so that we can handle matrices with self-loops as well.
+    d = np.diag(mat)
+    mat2 = mat @ mat
+    trmat3 = np.trace(mat2 @ mat)
+    trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
+
+    return int(trmat3) // 6
+
+
+# }}}
+
+
+# {{{ graph laplacian
+
+
+def make_graph_laplacian_undirected(
+    A: Array2D[np.floating[Any]], *, normalize: bool = False
+) -> Array2D[np.floating[Any]]:
+    r"""Compute the graph Laplacian for the adjacency matrix *A*.
+
+    .. math::
+
+        L = D - A \implies L_{ij} =
+        \begin{cases}
+        \text{deg}(v_i), & \quad \text{if } i = j, \\
+        -1, & \quad \text{if } i \ne j \text{ and } A_{ij} = 1, \\
+        0, & \quad \text{otherwise},
+        \end{cases}
+
+    where the degree is the number of vertices connected to :math:`v_i`, including
+    self-loops. Note that *A* is assumed to be symmetric for an undirected graph.
+    For the normalization, we use
+
+    .. math::
+
+        L_{\text{norm}} = D^{-\frac{1}{2}} L D^{-\frac{1}{2}}.
+    """
+
+    assert np.allclose(A, A.T)
+
+    D = np.sum(A, axis=1)
+    L = -A
+    np.fill_diagonal(L, D)
+    if normalize:
+        Dinv = np.where(D > 0, 1.0 / np.sqrt(D), 0.0)
+        L = Dinv[:, None] * L * Dinv[None, :]
+
+    assert L.shape == A.shape
+    return L
+
+
+def make_graph_laplacian_directed(
+    A: Array2D[np.floating[Any]],
+    *,
+    out: bool = True,
+    normalize: bool = False,
+) -> Array2D[np.floating[Any]]:
+    r"""Compute the graph Laplacian for the adjacency matrix *A*.
+
+    For the normalization, we use left or right normalization, depending on the
+    value of *out*. We take
+
+    .. math ::
+
+        L_{\text{norm}} =
+            \begin{cases}
+            D_{\text{out}}^{-1} L_{\text{out}}, \\
+            L_{\text{in}} D_{\text{in}}^{-1}.
+            \end{cases}
+
+    :arg out: if *True*, we compute the out-degree Laplacian. Otherwise, we
+        compute the in-degree Laplacian.
+    """
+
+    L = -A
+    if out:
+        D = np.sum(A, axis=1)
+        np.fill_diagonal(L, D)
+
+        if normalize:
+            Dinv = np.where(D > 0, 1.0 / D, 0.0)
+            L = Dinv[:, None] * L
+    else:
+        D = np.sum(A, axis=0)
+        np.fill_diagonal(L, D)
+
+        if normalize:
+            Dinv = np.where(D > 0, 1.0 / D, 0.0)
+            L = L * Dinv[None, :]  # noqa: PLR6104
+
+    assert L.shape == A.shape
+    return L
 
 
 # }}}
