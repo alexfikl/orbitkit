@@ -44,7 +44,7 @@ kiwisolver==1.5.0
     # via matplotlib
 leidenalg==0.11.0
     # via orbitkit (pyproject.toml:clustering)
-markdown-it-py==4.0.0
+markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
     # via jinja2
@@ -159,7 +159,7 @@ texttable==1.7.0
     # via igraph
 tomli==2.4.1 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.32
+ty==0.0.35
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.15.0
     # via
