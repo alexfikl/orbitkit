@@ -293,6 +293,14 @@ def get_rgb_color_cycle() -> tuple[ColorTuple, ...]:
 # {{{ figure context manager
 
 
+def with_savefig_suffix(filename: PathLike) -> pathlib.Path:
+    """Adds the default :mod:`matplotlib` ``savefig.format`` extension to the path."""
+    filename = pathlib.Path(filename)
+
+    ext = mp.rcParams["savefig.format"]
+    return filename.with_suffix(f".{ext}").resolve()
+
+
 @contextmanager
 def figure(
     filename: PathLike | None = None,
