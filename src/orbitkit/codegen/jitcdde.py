@@ -190,6 +190,17 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
 
         self.dde.constant_past(y, time=t)
 
+    def set_delays_from_parameters(self, **kwargs: Any) -> None:
+        from pymbolic.mapper.evaluator import evaluate
+
+        delays = tuple(evaluate(delay, context=kwargs) for delay in self.delays)
+        if 0.0 not in delays:
+            delays = (0.0, *delays)
+
+        self.dde.delays = delays
+        self.dde.max_delay = max(delays)
+
+
     def set_parameters(self, **kwargs: Any) -> None:
         if not self.parameters:
             return
@@ -201,15 +212,7 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
                 raise ValueError(f"parameter missing: {param}")
             control_pars.append(kwargs[param])
 
-        from pymbolic.mapper.evaluator import evaluate
-
-        delays = tuple(evaluate(delay, context=kwargs) for delay in self.delays)
-        if 0.0 not in delays:
-            delays = (0.0, *delays)
-
-        self.dde.delays = delays
-        self.dde.max_delay = max(delays)
-
+        self.set_delays_from_parameters(**kwargs)
         self.dde.set_parameters(tuple(control_pars))
 
     def integrate(
