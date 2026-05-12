@@ -200,7 +200,6 @@ class JiTCDDECompiledCode(JiTCXDECompiledCode):
         self.dde.delays = delays
         self.dde.max_delay = max(delays)
 
-
     def set_parameters(self, **kwargs: Any) -> None:
         if not self.parameters:
             return
