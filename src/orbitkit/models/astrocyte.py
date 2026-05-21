@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.models.rate_functions import HillRate, LinearRationalRate, RateFunction
+from orbitkit.typing import Array2D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
@@ -326,6 +327,189 @@ class GlutamateDePitta(DePitta):
 
 # }}}
 
+
+# {{{ Lallouette model
+
+
+@dataclass(frozen=True)
+class LallouetteParameter:
+    """Parameters for the De Pittà model using the naming convention from
+    [Lallouette2014]_.
+
+    The corresponding :class:`DePittaParameter` for use with the :class:`DePitta`
+    model can be obtained using :meth:`to_de_pitta`. Note that the model in
+    [Lallouette2014] also includes a diffusion term, so it is not completely
+    equivalent.
+    """
+
+    # NOTE: these are in the same order as in Table 1
+    # FIXME: the DePitta model eats a few of the parameters inside the rate
+    # functions it has. Maybe that's not the best API if we want to move from
+    # one notation to another.. In this case, the d_i variables are ignored
+
+    # IP3R kinetics
+
+    # d1: float
+    O_2: float
+    r"""Inactivating :math:`\mathrm{Ca}^{2+}` binding rate (1/microM/s)."""
+    # d2: float
+    # d3: float
+    # d5: float
+
+    # Calcium fluxes
+
+    C_T: float
+    r"""Total ER :math:`\mathrm{Ca}^{2+}` content (microM)."""
+    rho_A: float
+    """ER-to-cytoplasm volume ratio."""
+    Omega_C: float
+    r"""Maximal :math:`\mathrm{Ca}^{2+}` release rate by
+    :math:`\mathrm{IP}_3R`s (Hz).
+    """
+    Omega_L: float
+    r"""Maximal :math:`\mathrm{Ca}^{2+}` leak rate (Hz)."""
+    O_P: float
+    r"""Maximal :math:`\mathrm{Ca}^{2+}` update rate (microM/s)."""
+    K_P: float
+    r""":math:`\mathrm{Ca}^{2+}` affinity of SERCA pumps (microM)."""
+
+    # IP3 production
+
+    O_delta: float
+    r"""Maximal rate of :math:`\mathrm{IP}_3` production by
+    PLC:math:`\delta` (microM/s).
+    """
+    K_delta: float
+    r""":math:`\mathrm{Ca}^{2+}` affinity of PLC:math:`\delta` (microM)."""
+    kappa_delta: float
+    r"""Inhibiting :math:`\mathrm{IP}_3` affinity of PLC:math:`\delta` (microM)."""
+
+    # IP3 degradation
+
+    Omega_5P: float
+    r"""Maximal rate of :math:`\mathrm{IP}_3` degradation by IP-5P (Hz)."""
+    O_3K: float
+    r"""Maximal rate of :math:`\mathrm{IP}_3` degradation by
+    :math:`\mathrm{IP}_3`-3K (microM/s)."""
+    K_D: float
+    r""":math:`\mathrm{Ca}^{2+}` affinity of :math:`\mathrm{IP}_3`-3K (microM)."""
+    K_3K: float
+    r""":math:`\mathrm{IP}_3` affinity of :math:`\mathrm{IP}_3`-3K (microM)."""
+
+    # IP3 diffusion
+
+    F: float
+    r"""GJC :math:`\mathrm{IP}_3` permeability (Hz)."""
+    I_theta: float
+    r"""Threshold :math:`\mathrm{IP}_3` gradient for diffusion."""
+    omega_I: float
+    """Scaling factor for diffusion."""
+    I_bias: float
+    r""":math:`\mathrm{IP}_3` bias."""
+
+    def to_de_pitta(self) -> DePittaParameter:
+        return DePittaParameter(
+            c_0=self.C_T,
+            c_1=self.rho_A,
+            r_C=self.Omega_C,
+            r_L=self.Omega_L,
+            v_ER=self.O_P,
+            k_ER=self.K_P,
+            a_2=self.O_2,
+            v_delta=self.O_delta,
+            k_delta=self.kappa_delta,
+            k_PLC=self.K_delta,
+            v_3K=self.O_3K,
+            k_D=self.K_D,
+            k_3=self.K_3K,
+            r_5P=self.Omega_5P,
+        )
+
+
+@dataclass(frozen=True)
+class Lallouette(Model):
+    """Right-hand side of the model from Equations (1-3) in [Lallouette2014]_
+
+    .. [Lallouette2014] J. Lallouette, M. De Pittà, E. Ben-Jacob, H. Berry,
+        *Sparse Short-Distance Connections Enhance Calcium Wave Propagation in a
+        3D Model of Astrocyte Networks*,
+        Frontiers in Computational Neuroscience, Vol. 8, 2014,
+        `doi:10.3389/fncom.2014.00045 <https://doi.org/10.3389/fncom.2014.00045>`__.
+    """
+
+    param: LallouetteParameter
+    """Parameters in the Lallouette model."""
+    A: Array2D | sym.MatrixSymbol
+
+    minf: RateFunction
+    r"""Steady-state activation function :math:`m_\infty(I)`."""
+    ninf: RateFunction
+    r"""Steady-state activation function :math:`n_\infty(C)`."""
+    Q2: RateFunction
+    r"""Rate function for the inactivation variable :math:`h`.
+
+    Note that [Lallouette2014]_ expands :math:`h_\infty` and :math:`\Omega_h`,
+    but their expression is equivalent to [DePitta2009]_, so we use the same
+    :math:`Q_2(I)` rate function for them.
+    """
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return ("C", "h", "I")
+
+    def evaluate(
+        self, t: sym.Expression, *args: sym.MatrixSymbol
+    ) -> tuple[sym.Expression, ...]:
+        C, h, IP3 = args
+        param = self.param
+
+        # See supplemental material S1-S3 for these expressions
+        minf = self.minf(IP3)
+        ninf = self.ninf(C)
+        Q2 = self.Q2(IP3)
+
+        Omega_C, C_T, rho_A = param.Omega_C, param.C_T, param.rho_A
+        J_C = Omega_C * minf**3 * ninf**3 * h * (C_T - (1 + rho_A) * C)
+
+        Omega_L = param.Omega_L
+        J_L = Omega_L * (C_T - (1 + rho_A) * C)
+
+        O_P, K_P = param.O_P, param.K_P
+        J_P = O_P * sym.hill2(C, K_P)
+
+        O_2 = param.O_2
+        Omega_h = O_2 * (Q2 + C)
+        h_inf = Q2 / (Q2 + C)
+
+        O_delta, k_delta, K_delta = param.O_delta, param.kappa_delta, param.K_delta
+        J_delta = O_delta * k_delta / (k_delta + IP3) * sym.hill2(C, K_delta)
+
+        O_3K, K_D, K_3K = param.O_3K, param.K_D, param.K_3K
+        J_3K = O_3K * sym.hill4(C, K_D) * sym.hill1(IP3, K_3K)
+
+        Omega_5P = param.Omega_5P
+        J_5P = Omega_5P * IP3
+
+        # diffusion: See Equation 4
+        F, omega_I, I_theta = param.F, param.omega_I, param.I_theta
+        DeltaIP3 = IP3.reshape(1, IP3.size) - IP3.reshape(IP3.size, 1)
+        J = (
+            -F
+            / 2
+            * (1 + sym.tanh((sym.abs(DeltaIP3) - I_theta) / omega_I))
+            * DeltaIP3
+            / sym.abs(DeltaIP3)
+        )
+        J_diff = sym.Contract(sym.Product((self.A, J)), axes=(1,))  # ty: ignore[invalid-argument-type]
+
+        return (
+            J_C + J_L - J_P,
+            Omega_h * (h_inf - h),
+            J_delta - J_3K - J_5P + J_diff,
+        )
+
+
+# }}}
 
 # {{{ parameters
 
