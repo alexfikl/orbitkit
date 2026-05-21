@@ -193,6 +193,8 @@ class Function(Variable):
     r"""A known special function (e.g. :math:`\sin`, etc.)."""
 
 
+abs = Function("abc")  # noqa: A001
+"""Absolute value."""
 sin = Function("sin")
 """The sine function."""
 cos = Function("cos")
