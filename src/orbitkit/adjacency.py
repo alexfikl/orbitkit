@@ -658,7 +658,8 @@ def generate_adjacency_lattice(
     and :math:`m` are given, then a :math:`n \times m` grid with :math:`n m` nodes
     is created.
 
-    :arg k: number of nearest neighbors to connect in the lattice.
+    :arg k: number of nearest neighbors to connect in the lattice. This applies
+        in each dimension.
     """
     if dtype is None:
         dtype = np.int32
@@ -751,6 +752,64 @@ def generate_adjacency_erdos_renyi(
     return result
 
 
+def rewire_adjacency_small_world(
+    mat: Array2D[np.floating[Any]],
+    *,
+    p: float = 0.1,
+    forward_only: bool = True,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Rewire edges of an adjacency matrix with probability *p*.
+
+    For each edge, with probability *p*, the edge is removed and replaced by
+    a new edge to a randomly chosen non-neighbor. If *forward_only* is
+    ``True``, each undirected edge is visited exactly once (from the row
+    side); otherwise, all edges of each node are considered. This is known as
+    a "small-world" network.
+
+    :arg p: rewiring probability.
+    :arg forward_only: if ``True``, only upper-triangle edges are visited.
+    """
+    if not 0.0 <= p <= 1.0:
+        raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    assert mat.ndim == 2
+    assert mat.shape[0] == mat.shape[1]
+
+    result = mat.copy()
+    n = result.shape[0]
+
+    for i in range(n):
+        if forward_only:
+            edges = np.flatnonzero(result[i, i + 1 :]) + i + 1
+        else:
+            edges = np.flatnonzero(result[i])
+
+        for j in edges:
+            if not rng.random() < p:
+                continue
+
+            # find all candidate edges to rewrite
+            connected = result[i] != 0
+            connected[i] = True
+            choices = np.flatnonzero(~connected)
+
+            if choices.size == 0:
+                continue
+
+            # remove the old edge
+            result[i, j] = result[j, i] = 0
+
+            # rewire the edge randomly
+            jnew = rng.choice(choices)
+            result[i, jnew] = result[jnew, i] = 1
+
+    return result
+
+
 def generate_adjacency_strogatz_watts(
     n: int,
     *,
@@ -774,28 +833,7 @@ def generate_adjacency_strogatz_watts(
         rng = np.random.default_rng()
 
     result = generate_adjacency_ring(n, k=k, dtype=dtype)
-    for i in range(n):
-        for j in range(1, k + 1):
-            if not rng.random() < p:
-                continue
-
-            # remove current edge
-            jold = (i + j) % n
-            result[i, jold] = result[jold, i] = 0
-
-            # rewire to a new edge
-            connected = result[i] != 0
-            connected[i] = True
-            choices = np.flatnonzero(~connected)
-
-            if choices.size == 0:
-                result[i, jold] = result[jold, i] = 1
-                continue
-
-            jnew = rng.choice(choices)
-            result[i, jnew] = result[jnew, i] = 1
-
-    return result
+    return rewire_adjacency_small_world(result, p=p, forward_only=True, rng=rng)
 
 
 def generate_adjacency_barabasi_albert(
