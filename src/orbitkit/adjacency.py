@@ -533,7 +533,7 @@ def generate_adjacency_bus(
         return np.zeros((n, n), dtype=dtype)
 
     if not 0 <= k < n:
-        raise ValueError(f"number of neighbors 'm' is invalid: '{k}' (not in [0, {n}])")
+        raise ValueError(f"number of neighbors 'k' is invalid: '{k}' (not in [0, {n}])")
 
     # NOTE: this is essentially just a non-periodic banded matrix
     ones = np.ones(n, dtype=dtype)
@@ -644,6 +644,7 @@ def generate_adjacency_lattice(
     n: int,
     m: int | None = None,
     *,
+    k: int = 1,
     dtype: DTypeLike | None = None,
 ) -> Array2D[np.floating[Any]]:
     r"""Generate a lattice network with :math:`n` nodes.
@@ -656,6 +657,8 @@ def generate_adjacency_lattice(
     In the most degenerate case, this will create a bus network. If both :math:`n`
     and :math:`m` are given, then a :math:`n \times m` grid with :math:`n m` nodes
     is created.
+
+    :arg k: number of nearest neighbors to connect in the lattice.
     """
     if dtype is None:
         dtype = np.int32
@@ -666,13 +669,18 @@ def generate_adjacency_lattice(
     if m is None:
         n, m = _find_equal_factors(n)
 
+    if not 0 <= k < min(n, m):
+        raise ValueError(
+            f"number of neighbors 'k' is invalid: '{k}' (not in [0, {min(n, m)}])"
+        )
+
     if m < 0:
         raise ValueError(f"'m' cannot be non-positive: '{m}'")
 
     Im = np.eye(m, dtype=dtype)
-    Tm = generate_adjacency_bus(m, dtype=dtype)
+    Tm = generate_adjacency_bus(m, k=k, dtype=dtype)
     In = np.eye(n, dtype=dtype)
-    Tn = generate_adjacency_bus(n, dtype=dtype)
+    Tn = generate_adjacency_bus(n, k=k, dtype=dtype)
 
     return np.kron(Im, Tn) + np.kron(Tm, In)
 
@@ -1142,7 +1150,7 @@ def generate_adjacency_configuration(
     if dtype is None:
         dtype = np.int32
 
-    if n == 1:
+    if n <= 1:
         return np.zeros((n, n), dtype=dtype)
 
     if rng is None:
