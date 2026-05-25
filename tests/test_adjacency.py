@@ -400,10 +400,10 @@ def test_generate_adjacency_strogatz_watts(k: int) -> None:
         if p == 0:
             # NOTE: this is just a ring network for p = 0
             assert np.all(degree == (0 if k == 0 else (2 * k)))
-        else:
-            # NOTE: we cannot know the exact degree, e.g. all edges may move
-            # to the same node so that we have degree = n - 1.
-            assert np.all(degree <= 4 * 2 * k)
+
+        # NOTE: edge count is invariant under rewiring: each removal is
+        # paired with exactly one addition, so the total must equal n * k.
+        assert np.sum(mat) // 2 == n * k
 
 
 # }}}
