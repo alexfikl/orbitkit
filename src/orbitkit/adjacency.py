@@ -1229,8 +1229,32 @@ def generate_adjacency_astrocyte_lattice(
     if rng is None:
         rng = np.random.default_rng()
 
+    if points.ndim != 2:
+        raise ValueError(f"'points' must be a 2D array: {points.shape}")
+
     n, dim = points.shape
+    if dim < 1:
+        raise ValueError(f"'points' must have at least one dimension: {points.shape}")
+
     m_latt = int(n ** (1.0 / dim))
+    if not 0 < k_nearest_neighbors < m_latt:
+        raise ValueError(
+            f"'k_nearest_neighbors' must be positive < m_latt: {k_nearest_neighbors}"
+        )
+
+    if max_neighbor_distance <= 0:
+        raise ValueError(
+            f"'max_neighbor_distance' must be positive: {max_neighbor_distance}"
+        )
+
+    if not 0 <= p <= 1.0:
+        raise ValueError(f"'p' probability must be in [0, 1]: {p}")
+
+    if not 0 < m_sf < n:
+        raise ValueError(f"'m_sf' link count must be positive: {m_sf}")
+
+    if rc <= 0.0:
+        raise ValueError(f"'rc' must be positive: {rc}")
 
     if dtype is None:
         dtype = np.int32
@@ -1282,7 +1306,7 @@ def generate_adjacency_astrocyte_lattice(
         # fancier probabilities: they depend on degree and distance
         mat = np.zeros((n, n), dtype=dtype)
 
-        # fully cconnect the first m nodes
+        # fully connect the first m nodes
         mat[: m_sf + 1, : m_sf + 1] = 1
         np.fill_diagonal(mat[: m_sf + 1, : m_sf + 1], 0)
 
