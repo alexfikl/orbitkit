@@ -1207,15 +1207,19 @@ def generate_adjacency_astrocyte_lattice(
 ) -> Array2D[np.floating[Any]]:
     """Generate lattice-based astrocyte networks from [Lallouette2014]_.
 
-    .. [Lallouette2014] J. Lallouette, M. De Pittà, E. Ben-Jacob, H. Berry,
-        *Sparse Short-Distance Connections Enhance Calcium Wave Propagation in a
-        3D Model of Astrocyte Networks*,
-        Frontiers in Computational Neuroscience, Vol. 8, 2014,
-        `doi:10.3389/fncom.2014.00045 <https://doi.org/10.3389/fncom.2014.00045>`__.
+    The supported variants are described in [Lallouette2014]_. Briefly, they are
+
+    * ``regular-degree``: constructs a graph with edges between k nearest neighbors
+      based on *points*.
+    * ``link-radius``: constructs a graph with edges between nodes within
+      *max_neighbor_distance* based on *points*.
+    * ``shortcut``: constructs a Strogatz-Watts small-world type network on a lattice.
+    * ``scale-free``: constructs Barabási-Albert type network on a lattice.
+    * ``erdos-renyi``: equivalent to :func:`generate_adjacency_erdos_renyi`.
 
     :arg k_nearest_neighbors: the number of nearest neighbors to consider when
         constructing the "regular-degree" network.
-    :arg min_neighbor_distance: the maximum distance between neighbors when
+    :arg max_neighbor_distance: the maximum distance between neighbors when
         constructing the "link-radius" network.
     :arg p: the coupling probability used when constructing the "shortcut" or the
         "erdos-renyi" networks.
