@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import numpy.linalg as la
@@ -879,6 +879,9 @@ def generate_adjacency_barabasi_albert(
     mat[: m + 1, : m + 1] = 1
     np.fill_diagonal(mat, 0)
 
+    degrees = np.zeros(n, dtype=np.int64)
+    degrees[: m + 1] = m
+
     # iteratively add more nodes
     for i in range(m + 1, n):
         # construct probability based on degree: larger degree nodes get a larger
@@ -890,6 +893,9 @@ def generate_adjacency_barabasi_albert(
         j = rng.choice(i, size=m, replace=False, p=p)
         mat[i, j] = 1
         mat[j, i] = 1
+
+        degrees[i] += m
+        degrees[j] += 1
 
     return mat
 
@@ -1181,6 +1187,119 @@ def generate_adjacency_fractal(
     x = _expand_pattern(base, nlevels, dtype=dtype)
     mat = circulant(x).T
     np.fill_diagonal(mat, 0)
+
+    return mat
+
+
+def generate_adjacency_astrocyte_lattice(
+    points: Array2D[np.floating[Any]],
+    *,
+    variant: Literal[
+        "regular-degree", "link-radius", "shortcut", "scale-free", "erdos-renyi"
+    ] = "regular-degree",
+    k_nearest_neighbors: int = 6,
+    max_neighbor_distance: float = 1.0,
+    p: float = 0.1,
+    m: int = 2,
+    rc: float = 1.0,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Generate lattice-based astrocyte networks from [Lallouette2014]_.
+
+    .. [Lallouette2014] J. Lallouette, M. De Pittà, E. Ben-Jacob, H. Berry,
+        *Sparse Short-Distance Connections Enhance Calcium Wave Propagation in a
+        3D Model of Astrocyte Networks*,
+        Frontiers in Computational Neuroscience, Vol. 8, 2014,
+        `doi:10.3389/fncom.2014.00045 <https://doi.org/10.3389/fncom.2014.00045>`__.
+
+    :arg k_nearest_neighbors: the number of nearest neighbors to consider when
+        constructing the "regular-degree" network.
+    :arg min_neighbor_distance: the maximum distance between neighbors when
+        constructing the "link-radius" network.
+    :arg p: the coupling probability used when constructing the "shortcut" or the
+        "erdos-renyi" networks.
+    :arg m: number of links added in the "scale-free" network.
+    :arg rc: spatial decay constant used in the "scale-free" network.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    n, dim = points.shape
+    m = n // dim
+
+    if dtype is None:
+        dtype = np.int32
+
+    if n <= 1:
+        return np.zeros((n, n), dtype=dtype)
+
+    if variant == "regular-degree":
+        from scipy.spatial import KDTree
+
+        tree = KDTree(points)
+        _, indices = tree.query(points, k=k_nearest_neighbors + 1)
+        indices = indices[:, 1:]  # ty: ignore[not-subscriptable]
+
+        mat = np.zeros((n, n), dtype=dtype)
+        for i, j in enumerate(indices):
+            mat[i, j] = 1
+            mat[j, i] = 1
+    elif variant == "link-radius":
+        from scipy.spatial import KDTree
+
+        tree = KDTree(points)
+        indices = tree.query_ball_point(points, r=max_neighbor_distance)
+
+        mat = np.zeros((n, n), dtype=dtype)
+        for i, nbrs in enumerate(indices):
+            mat[i, nbrs != i] = 1
+            mat[nbrs != i, i] = 1
+    elif variant == "shortcut":
+        if m * dim != n:
+            raise ValueError(
+                f"variant='shortcut' expects grid-like 'points': {dim} does not "
+                f"divide {n} exactly"
+            )
+
+        mat = generate_adjacency_lattice((m,) * dim, k=k_nearest_neighbors, dtype=dtype)
+        mat = rewire_adjacency_small_world(mat, p=p, rng=rng)
+    elif variant == "scale-free":
+        mat = np.zeros((n, n), dtype=dtype)
+
+        # fully cconnect the first m nodes
+        mat[: m + 1, : m + 1] = 1
+        np.fill_diagonal(mat[: m + 1, : m + 1], 0)
+
+        # keep track of degrees
+        degrees = np.zeros(n, dtype=np.int64)
+        degrees[: m + 1] = m
+
+        eps = 100 * np.finfo(points.dtype).eps
+        for i in range(m + 1, n):
+            # construct probability based on degree:
+            #   p_i ~ degree * exp(-||x_j - x_i|| / rc)
+            degrees = np.sum(mat[:i, :i], axis=1)
+            dists = np.linalg.norm(points[:i] - points[i], axis=1)
+            weights = degrees[:i] * np.exp(-dists / rc)
+
+            total = np.sum(weights)
+            if total < eps:  # noqa: SIM108
+                probability = np.ones(i) / i
+            else:
+                probability = weights / total
+
+            # choose some connections based on these probabilities
+            j = rng.choice(i, size=m, replace=False, p=probability)
+            mat[i, j] = 1
+            mat[j, i] = 1
+
+            degrees[i] += m
+            degrees[j] += 1
+    elif variant == "erdos-renyi":
+        mat = generate_adjacency_erdos_renyi(n, p=p, dtype=dtype, rng=rng)
+    else:
+        raise ValueError(f"unsupported adjacency variant: {variant}")
 
     return mat
 
