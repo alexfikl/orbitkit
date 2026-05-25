@@ -875,7 +875,7 @@ def write_nx_from_adjacency(
 # }}}
 
 
-# {{{ dot
+# {{{ write_dot_from_adjacency
 
 
 @enum.unique
@@ -1098,6 +1098,44 @@ def write_gexf_from_adjacency(
     tree.write(filename, encoding="utf-8", xml_declaration=True)
 
     log.info("Saving '%s'", filename)
+
+
+# }}}
+
+
+# {{{ write_graph_with_positions
+
+
+def write_graph_with_positions(
+    ax: mp.Axes,
+    points: Array2D[np.floating[Any]],
+    mat: Array2D[np.floating[Any]],
+    *,
+    nodecolor: str = "steelblue",
+    edgecolor: str = "black",
+    nodesize: float = 80.0,
+    alpha: float = 0.75,
+    linewidth: float = 1.0,
+) -> None:
+    _, dim = points.shape
+    if dim != 2:
+        raise ValueError(f"unsupported dimension: {dim}")
+
+    # edges
+    ii, jj = np.where(np.triu(mat, k=1) > 0)
+    for i, j in zip(ii, jj, strict=True):
+        seg = points[[i, j]]
+        ax.plot(seg[:, 0], seg[:, 1], color=edgecolor, lw=linewidth, alpha=alpha)
+
+    # nodes
+    ax.scatter(
+        points[:, 0],
+        points[:, 1],
+        s=nodesize,
+        c=nodecolor,
+        edgecolor=edgecolor,
+        zorder=3,
+    )
 
 
 # }}}
