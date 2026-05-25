@@ -8,8 +8,8 @@ import pathlib
 import numpy as np
 import pytest
 
-from orbitkit.utils import module_logger
-from orbitkit.visualization import set_plotting_defaults
+from orbitkit.utils import enable_test_plotting, module_logger
+from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
@@ -126,6 +126,56 @@ def test_wilson_cowan_fixed_points() -> None:
     assert abs(result[2, 0] - 0.9792620601153998) < rtol
 
     # }}}
+
+
+# }}}
+
+
+# {{{ test_lallouette_mesh
+
+
+def test_lallouette_mesh() -> None:
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+
+    mesh = make_lallouette_mesh(3, 2, rng=rng)
+    assert mesh.shape == (9, 2)
+
+    mesh = make_lallouette_mesh(5, 1, a=0.5, rng=rng)
+    assert mesh.shape == (5, 1)
+
+    mesh = make_lallouette_mesh(2, 3, a_mean=0.0, a_std=0.0, rng=rng)
+    assert mesh.shape == (8, 3)
+
+    if not enable_test_plotting():
+        return
+
+    from matplotlib import pyplot as mp
+
+    n = 16
+    a = 1.0
+    orig = make_lallouette_mesh(n, 2, a=a, a_std=0.0, rng=rng)
+    mesh = make_lallouette_mesh(n, 2, a=a, a_std=0.15 * a, rng=rng)
+
+    with figure(TEST_DIRECTORY / "test_lallouette_mesh_2d", normalize=True) as fig:
+        ax = fig.gca()
+
+        ax.scatter(orig[:, 0], orig[:, 1], marker="x", s=10, zorder=10)
+        ax.scatter(mesh[:, 0], mesh[:, 1], alpha=0.75, edgecolors="k", zorder=10)
+        ax.add_patch(
+            mp.Rectangle(
+                (-a, -a),
+                (n + 1) * a,
+                (n + 1) * a,
+                fill=False,
+                edgecolor="k",
+                linestyle="--",
+            )
+        )
+
+        ax.set_xlabel("$x$")
+        ax.set_ylabel("$y$")
 
 
 # }}}

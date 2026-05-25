@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
@@ -14,6 +16,8 @@ from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from numpy.typing import DTypeLike
 
 log = module_logger(__name__)
 
@@ -507,6 +511,46 @@ class Lallouette(Model):
             Omega_h * (h_inf - h),
             J_delta - J_3K - J_5P + J_diff,
         )
+
+
+def make_lallouette_mesh(
+    n: int,
+    dim: int,
+    *,
+    a: float = 1.0,
+    a_mean: float = 0.0,
+    a_std: float = 0.75,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Generate lattice-based astrocyte networks from [Lallouette2014]_.
+
+    :arg a: internode physical distance.
+    :arg a_mean: the mean of the Gaussian noise added to the positions.
+    :arg a_std: the standard deviation of the Gaussian noise added to the positions.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if n < 0:
+        raise ValueError(f"'n' must be non-negative: {n}")
+
+    if not 1 <= dim <= 3:
+        raise ValueError(f"'dim' must be 1, 2, or 3: {dim}")
+
+    if a < 0:
+        raise ValueError(f"'a' length must be positive: {a}")
+
+    if n == 0:
+        return np.array((0, dim), dtype=dtype)
+
+    x = a * np.arange(n)
+    points = np.stack(np.meshgrid(*([x] * dim), indexing="ij"), axis=-1)
+
+    noise = rng.normal(a_mean, a_std, size=points.shape)
+    points += noise
+
+    return points.reshape(-1, dim)
 
 
 # }}}
