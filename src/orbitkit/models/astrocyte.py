@@ -342,7 +342,7 @@ class LallouetteParameter:
 
     The corresponding :class:`DePittaParameter` for use with the :class:`DePitta`
     model can be obtained using :meth:`to_de_pitta`. Note that the model in
-    [Lallouette2014] also includes a diffusion term, so it is not completely
+    [Lallouette2014]_ also includes a diffusion term, so it is not completely
     equivalent.
     """
 
@@ -368,7 +368,7 @@ class LallouetteParameter:
     """ER-to-cytoplasm volume ratio."""
     Omega_C: float
     r"""Maximal :math:`\mathrm{Ca}^{2+}` release rate by
-    :math:`\mathrm{IP}_3R`s (Hz).
+    :math:`\mathrm{IP}_3\mathrm{R}`\ s (Hz).
     """
     Omega_L: float
     r"""Maximal :math:`\mathrm{Ca}^{2+}` leak rate (Hz)."""
@@ -412,6 +412,11 @@ class LallouetteParameter:
     r""":math:`\mathrm{IP}_3` bias."""
 
     def to_de_pitta(self) -> DePittaParameter:
+        """Convert the parameters to a :class:`DePittaParameter`.
+
+        Note that some of the parameters (like :math:`d_i`) are included in the
+        class itself, so cannot be reproduced here.
+        """
         return DePittaParameter(
             c_0=self.C_T,
             c_1=self.rho_A,
