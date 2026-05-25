@@ -251,6 +251,25 @@ def test_generate_adjacency_lattice_both(n: int, m: int) -> None:
     assert np.sum(mat) // 2 == (n * (m - 1) + (n - 1) * m)
 
 
+@pytest.mark.parametrize(("n", "m", "k"), [(5, 5, 2), (6, 4, 2), (8, 8, 3), (10, 5, 2)])
+def test_generate_adjacency_lattice_k(n: int, m: int, k: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_lattice
+
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_lattice(n, m, k=k, dtype=dtype)
+    assert mat.shape == (n * m, n * m)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+    def edges_bus(p: int) -> int:
+        return k * p - k * (k + 1) // 2
+
+    expected = edges_bus(n) * m + edges_bus(m) * n
+    assert np.sum(mat) // 2 == expected
+
+
 # }}}
 
 
