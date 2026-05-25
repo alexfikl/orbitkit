@@ -641,7 +641,7 @@ def _find_equal_factors(n: int) -> tuple[int, int]:
 
 
 def generate_adjacency_lattice(
-    dims: int | tuple[int, ...],
+    dims: int | np.integer[Any] | tuple[int, ...],
     *,
     k: int = 1,
     dtype: DTypeLike | None = None,
@@ -664,8 +664,8 @@ def generate_adjacency_lattice(
     if dtype is None:
         dtype = np.int32
 
-    if isinstance(dims, int):
-        dims = _find_equal_factors(dims)
+    if isinstance(dims, (int, np.integer)):
+        dims = _find_equal_factors(int(dims))
 
     if not dims:
         raise ValueError("at least one dimension is required")
