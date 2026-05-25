@@ -550,6 +550,7 @@ def test_generate_adjacency_distance_decay_edge_cases() -> None:
 
 # }}}
 
+
 # {{{ test_generate_adjacency_gap_junction
 
 
@@ -898,6 +899,158 @@ def test_generate_graph_laplacian_weights() -> None:
 
         error = np.linalg.norm(W @ x - f_inv(0) * x)  # ty: ignore[invalid-argument-type]
         assert error < atol
+
+
+# }}}
+
+
+# {{{ test_generate_adjacency_astrocyte_lattice
+
+
+@pytest.mark.parametrize(("n", "dim"), [(4, 2), (5, 2), (4, 3)])
+@pytest.mark.parametrize("k", [2, 4, 6])
+def test_generate_adjacency_astrocyte_regular_degree(n: int, dim: int, k: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+    points = make_lallouette_mesh(n, dim, a_std=0.0, rng=rng)
+    nnodes = points.shape[0]
+
+    mat = generate_adjacency_astrocyte_lattice(
+        points, variant="regular-degree", k_nearest_neighbors=k, rng=rng
+    )
+    assert mat.shape == (nnodes, nnodes)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+    degrees = np.sum(mat, axis=1)
+    assert np.all(degrees >= k)
+    assert np.max(degrees) <= dim * k
+    assert np.sum(mat) // 2 <= nnodes * k
+
+
+@pytest.mark.parametrize(("n", "dim"), [(4, 2), (5, 2), (4, 3)])
+@pytest.mark.parametrize("radius", [0.5, 1.0, 2.0])
+def test_generate_adjacency_astrocyte_link_radius(
+    n: int, dim: int, radius: float
+) -> None:
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+
+    a = 1.0
+    points = make_lallouette_mesh(n, dim, a=a, a_std=0.0, rng=rng)
+    nnodes = points.shape[0]
+
+    mat = generate_adjacency_astrocyte_lattice(
+        points, variant="link-radius", max_neighbor_distance=radius, rng=rng
+    )
+    assert mat.shape == (nnodes, nnodes)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+    # NOTE: there are no neighbors in this case
+    if radius <= a:
+        return
+
+    from scipy.spatial import KDTree
+
+    tree = KDTree(points)
+    for i in range(nnodes):
+        nbrs = tree.query_ball_point(points[i], r=radius)
+        nbrs = [j for j in nbrs if j != i]
+        for j in nbrs:
+            assert mat[i, j] == 1
+
+
+@pytest.mark.parametrize(("n", "dim"), [(4, 2), (5, 2)])
+@pytest.mark.parametrize("p", [0.0, 0.1, 0.5])
+def test_generate_adjacency_astrocyte_shortcut(n: int, dim: int, p: float) -> None:
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+    points = make_lallouette_mesh(n, dim, a_std=0.0, rng=rng)
+    nnodes = points.shape[0]
+
+    mat = generate_adjacency_astrocyte_lattice(points, variant="shortcut", p=p, rng=rng)
+    assert mat.shape == (nnodes, nnodes)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+
+@pytest.mark.parametrize(("n", "dim"), [(4, 2), (5, 2), (4, 3)])
+@pytest.mark.parametrize("m", [1, 2, 3])
+def test_generate_adjacency_astrocyte_scale_free(n: int, dim: int, m: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+    points = make_lallouette_mesh(n, dim, a_std=0.0, rng=rng)
+    nnodes = points.shape[0]
+
+    if m >= nnodes:
+        pytest.skip("m must be smaller than the number of nodes")
+
+    mat = generate_adjacency_astrocyte_lattice(
+        points, variant="scale-free", m_sf=m, rc=1.0, rng=rng
+    )
+    assert mat.shape == (nnodes, nnodes)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+    degrees = np.sum(mat, axis=1)
+    assert np.all(degrees >= m)
+
+    edges = m * (m + 1) // 2 + (nnodes - m - 1) * m
+    assert np.sum(mat) // 2 == edges
+
+
+@pytest.mark.parametrize(("n", "dim"), [(4, 2), (5, 2), (4, 3)])
+@pytest.mark.parametrize("p", [0.1, 0.25, 0.5])
+def test_generate_adjacency_astrocyte_erdos_renyi(n: int, dim: int, p: float) -> None:
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+    points = make_lallouette_mesh(n, dim, a_std=0.0, rng=rng)
+    nnodes = points.shape[0]
+
+    mat = generate_adjacency_astrocyte_lattice(
+        points, variant="erdos-renyi", p=p, rng=rng
+    )
+    assert mat.shape == (nnodes, nnodes)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+
+def test_generate_adjacency_astrocyte_lattice_edge_cases() -> None:
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+    from orbitkit.models.astrocyte import make_lallouette_mesh
+
+    rng = np.random.default_rng(seed=42)
+
+    # single node
+    points = make_lallouette_mesh(1, 2, a_std=0.0, rng=rng)
+    mat = generate_adjacency_astrocyte_lattice(points, rng=rng)
+    assert mat.shape == (1, 1)
+    assert np.all(mat == 0)
+
+    # unsupported variant
+    points = make_lallouette_mesh(3, 2, a_std=0.0, rng=rng)
+    with pytest.raises(ValueError, match="unsupported"):
+        generate_adjacency_astrocyte_lattice(
+            points,
+            variant="unknown",  # ty: ignore[invalid-argument-type]
+            rng=rng,
+        )
 
 
 # }}}

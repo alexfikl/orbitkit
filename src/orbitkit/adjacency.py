@@ -1200,7 +1200,7 @@ def generate_adjacency_astrocyte_lattice(
     k_nearest_neighbors: int = 6,
     max_neighbor_distance: float = 1.0,
     p: float = 0.1,
-    m: int = 2,
+    m_sf: int = 2,
     rc: float = 1.0,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
@@ -1219,14 +1219,14 @@ def generate_adjacency_astrocyte_lattice(
         constructing the "link-radius" network.
     :arg p: the coupling probability used when constructing the "shortcut" or the
         "erdos-renyi" networks.
-    :arg m: number of links added in the "scale-free" network.
+    :arg m_sf: number of links added in the "scale-free" network.
     :arg rc: spatial decay constant used in the "scale-free" network.
     """
     if rng is None:
         rng = np.random.default_rng()
 
     n, dim = points.shape
-    m = n // dim
+    m_latt = int(n ** (1.0 / dim))
 
     if dtype is None:
         dtype = np.int32
@@ -1253,33 +1253,43 @@ def generate_adjacency_astrocyte_lattice(
 
         mat = np.zeros((n, n), dtype=dtype)
         for i, nbrs in enumerate(indices):
-            mat[i, nbrs != i] = 1
-            mat[nbrs != i, i] = 1
+            # filter out self
+            j = np.array(nbrs)
+            j = j[j != i]
+
+            mat[i, j] = 1
+            mat[j, i] = 1
     elif variant == "shortcut":
-        if m * dim != n:
+        # NOTE: this is basically a Strogatz-Watts on a lattice
+        if m_latt**dim != n:
             raise ValueError(
                 f"variant='shortcut' expects grid-like 'points': {dim} does not "
-                f"divide {n} exactly"
+                f"match {n} exactly"
             )
 
-        mat = generate_adjacency_lattice((m,) * dim, k=k_nearest_neighbors, dtype=dtype)
+        mat = generate_adjacency_lattice(
+            (m_latt,) * dim,
+            k=k_nearest_neighbors,
+            dtype=dtype,
+        )
         mat = rewire_adjacency_small_world(mat, p=p, rng=rng)
     elif variant == "scale-free":
+        # NOTE: this is basically a Barabási-Albert on a lattice with slightly
+        # fancier probabilities: they depend on degree and distance
         mat = np.zeros((n, n), dtype=dtype)
 
         # fully cconnect the first m nodes
-        mat[: m + 1, : m + 1] = 1
-        np.fill_diagonal(mat[: m + 1, : m + 1], 0)
+        mat[: m_sf + 1, : m_sf + 1] = 1
+        np.fill_diagonal(mat[: m_sf + 1, : m_sf + 1], 0)
 
         # keep track of degrees
         degrees = np.zeros(n, dtype=np.int64)
-        degrees[: m + 1] = m
+        degrees[: m_sf + 1] = m_sf
 
         eps = 100 * np.finfo(points.dtype).eps
-        for i in range(m + 1, n):
+        for i in range(m_sf + 1, n):
             # construct probability based on degree:
             #   p_i ~ degree * exp(-||x_j - x_i|| / rc)
-            degrees = np.sum(mat[:i, :i], axis=1)
             dists = np.linalg.norm(points[:i] - points[i], axis=1)
             weights = degrees[:i] * np.exp(-dists / rc)
 
@@ -1290,11 +1300,11 @@ def generate_adjacency_astrocyte_lattice(
                 probability = weights / total
 
             # choose some connections based on these probabilities
-            j = rng.choice(i, size=m, replace=False, p=probability)
+            j = rng.choice(i, size=m_sf, replace=False, p=probability)
             mat[i, j] = 1
             mat[j, i] = 1
 
-            degrees[i] += m
+            degrees[i] += m_sf
             degrees[j] += 1
     elif variant == "erdos-renyi":
         mat = generate_adjacency_erdos_renyi(n, p=p, dtype=dtype, rng=rng)
