@@ -641,49 +641,60 @@ def _find_equal_factors(n: int) -> tuple[int, int]:
 
 
 def generate_adjacency_lattice(
-    n: int,
-    m: int | None = None,
+    dims: int | tuple[int, ...],
     *,
     k: int = 1,
     dtype: DTypeLike | None = None,
 ) -> Array2D[np.floating[Any]]:
-    r"""Generate a lattice network with :math:`n` nodes.
+    r"""Generate an :math:`d`-dimensional lattice adjacency matrix.
 
-    In this network, every node is connected to at most 4 other nodes in such a
-    way that they form a two dimensional grid.
+    The lattice is defined by *dims*, which can be a single integer (creating
+    a 1D bus network) or a tuple of integers defining the size along each
+    dimension. For example, ``dims = (n, m)`` creates an :math:`n \times m`
+    grid with :math:`n m` nodes.
 
-    The algorithm attempts to generate a grid close to :math:`\sqrt{n} \times
-    \sqrt{n}`, so ensure that :math:`n` is not prime and can be factorized nicely.
-    In the most degenerate case, this will create a bus network. If both :math:`n`
-    and :math:`m` are given, then a :math:`n \times m` grid with :math:`n m` nodes
-    is created.
+    Each node is connected to at most :math:`2 k d` neighbors, where
+    :math:`d` is the number of dimensions.
 
-    :arg k: number of nearest neighbors to connect in the lattice. This applies
-        in each dimension.
+    :arg dims: size of the lattice along each dimension. If this is a single
+        integer instead of a tuple, a 2D lattice of approximate size
+        :math:`\sqrt{n} \times \sqrt{n}` is created.
+    :arg k: number of nearest neighbors to connect in each dimension.
     """
     if dtype is None:
         dtype = np.int32
 
-    if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+    if isinstance(dims, int):
+        dims = _find_equal_factors(dims)
 
-    if m is None:
-        n, m = _find_equal_factors(n)
+    if not dims:
+        raise ValueError("at least one dimension is required")
 
-    if k <= 0 or (k > n and k > m):
-        raise ValueError(
-            f"number of neighbors 'k' is invalid: {k} for a ({n}, {m}) lattice"
-        )
+    if any(d < 0 for d in dims):
+        raise ValueError(f"negative dimensions are not allowed: {dims}")
 
-    if m < 0:
-        raise ValueError(f"'m' cannot be non-positive: '{m}'")
+    if k <= 0:
+        raise ValueError(f"number of neighbors 'k' must be positive: '{k}'")
 
-    Im = np.eye(m, dtype=dtype)
-    Tm = generate_adjacency_bus(m, k=min(k, m - 1), dtype=dtype)
-    In = np.eye(n, dtype=dtype)
-    Tn = generate_adjacency_bus(n, k=min(k, n - 1), dtype=dtype)
+    n = 1
+    for d in dims:
+        n *= d
 
-    return np.kron(Im, Tn) + np.kron(Tm, In)
+    result = np.zeros((n, n), dtype=dtype)
+    if n == 1:
+        return result
+
+    for i, d in enumerate(dims):
+        factors = [np.eye(dj, dtype=dtype) for dj in dims]
+        factors[i] = generate_adjacency_bus(d, k=min(k, d - 1), dtype=dtype)
+
+        kron = factors[0]
+        for f in factors[1:]:
+            kron = np.kron(kron, f)
+
+        result += kron
+
+    return result
 
 
 def generate_adjacency_erdos_renyi(
