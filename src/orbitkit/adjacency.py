@@ -775,9 +775,6 @@ def generate_adjacency_strogatz_watts(
 
     result = generate_adjacency_ring(n, k=k, dtype=dtype)
     for i in range(n):
-        forbidden = {(i + j) % n for j in range(-k, k + 1)}
-        choices = np.array([c for c in range(n) if c not in forbidden])
-
         for j in range(1, k + 1):
             if not rng.random() < p:
                 continue
@@ -787,6 +784,14 @@ def generate_adjacency_strogatz_watts(
             result[i, jold] = result[jold, i] = 0
 
             # rewire to a new edge
+            connected = result[i] != 0
+            connected[i] = True
+            choices = np.flatnonzero(~connected)
+
+            if choices.size == 0:
+                result[i, jold] = result[jold, i] = 1
+                continue
+
             jnew = rng.choice(choices)
             result[i, jnew] = result[jnew, i] = 1
 
