@@ -1236,10 +1236,13 @@ def generate_adjacency_astrocyte_lattice(
     if dim < 1:
         raise ValueError(f"'points' must have at least one dimension: {points.shape}")
 
+    if n <= 1:
+        return np.zeros((n, n), dtype=dtype)
+
     m_latt = int(n ** (1.0 / dim))
-    if not 0 < k_nearest_neighbors < m_latt:
+    if not 0 < k_nearest_neighbors <= n:
         raise ValueError(
-            f"'k_nearest_neighbors' must be positive < m_latt: {k_nearest_neighbors}"
+            f"'k_nearest_neighbors' must be positive < n: {k_nearest_neighbors}"
         )
 
     if max_neighbor_distance <= 0:
@@ -1258,9 +1261,6 @@ def generate_adjacency_astrocyte_lattice(
 
     if dtype is None:
         dtype = np.int32
-
-    if n <= 1:
-        return np.zeros((n, n), dtype=dtype)
 
     if variant == "regular-degree":
         from scipy.spatial import KDTree
