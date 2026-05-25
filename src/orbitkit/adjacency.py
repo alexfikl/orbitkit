@@ -1197,9 +1197,9 @@ def generate_adjacency_astrocyte_lattice(
     variant: Literal[
         "regular-degree", "link-radius", "shortcut", "scale-free", "erdos-renyi"
     ] = "regular-degree",
-    k_nearest_neighbors: int = 6,
+    k_nearest_neighbors: int = 4,
     max_neighbor_distance: float = 1.0,
-    p: float = 0.1,
+    p: float = 0.2,
     m_sf: int = 2,
     rc: float = 1.0,
     dtype: DTypeLike | None = None,
