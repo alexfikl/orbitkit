@@ -221,7 +221,7 @@ def test_generate_adjacency_lattice(n: int) -> None:
     m, p = _find_equal_factors(n)
     dtype = np.dtype(np.uint8)
 
-    mat = generate_adjacency_lattice(n, dtype=dtype)
+    mat = generate_adjacency_lattice((m, p), dtype=dtype)
     assert mat.shape == (n, n)
     assert mat.dtype == dtype
     assert np.all(np.diag(mat) == 0)
@@ -234,12 +234,12 @@ def test_generate_adjacency_lattice(n: int) -> None:
 
 
 @pytest.mark.parametrize(("n", "m"), [(15, 3), (15, 1), (1, 15), (7, 7)])
-def test_generate_adjacency_lattice_both(n: int, m: int) -> None:
+def test_generate_adjacency_lattice_2d(n: int, m: int) -> None:
     from orbitkit.adjacency import generate_adjacency_lattice
 
     dtype = np.dtype(np.uint8)
 
-    mat = generate_adjacency_lattice(n, m, dtype=dtype)
+    mat = generate_adjacency_lattice((n, m), dtype=dtype)
     assert mat.shape == (n * m, n * m)
     assert mat.dtype == dtype
     assert np.all(np.diag(mat) == 0)
@@ -257,7 +257,7 @@ def test_generate_adjacency_lattice_k(n: int, m: int, k: int) -> None:
 
     dtype = np.dtype(np.uint8)
 
-    mat = generate_adjacency_lattice(n, m, k=k, dtype=dtype)
+    mat = generate_adjacency_lattice((n, m), k=k, dtype=dtype)
     assert mat.shape == (n * m, n * m)
     assert mat.dtype == dtype
     assert np.all(np.diag(mat) == 0)
@@ -268,6 +268,22 @@ def test_generate_adjacency_lattice_k(n: int, m: int, k: int) -> None:
 
     expected = edges_bus(n) * m + edges_bus(m) * n
     assert np.sum(mat) // 2 == expected
+
+
+@pytest.mark.parametrize("dims", [(3, 4, 5), (2, 2, 2, 2), (6,), (4, 3)])
+def test_generate_adjacency_lattice_nd(dims: tuple[int, ...]) -> None:
+    import math
+
+    from orbitkit.adjacency import generate_adjacency_lattice
+
+    n = math.prod(dims)
+    dtype = np.dtype(np.uint8)
+
+    mat = generate_adjacency_lattice(dims, dtype=dtype)
+    assert mat.shape == (n, n)
+    assert mat.dtype == dtype
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
 
 
 # }}}
