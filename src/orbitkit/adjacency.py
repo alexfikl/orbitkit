@@ -669,18 +669,18 @@ def generate_adjacency_lattice(
     if m is None:
         n, m = _find_equal_factors(n)
 
-    if not 0 <= k < min(n, m):
+    if k <= 0 or (k > n and k > m):
         raise ValueError(
-            f"number of neighbors 'k' is invalid: '{k}' (not in [0, {min(n, m)}])"
+            f"number of neighbors 'k' is invalid: {k} for a ({n}, {m}) lattice"
         )
 
     if m < 0:
         raise ValueError(f"'m' cannot be non-positive: '{m}'")
 
     Im = np.eye(m, dtype=dtype)
-    Tm = generate_adjacency_bus(m, k=k, dtype=dtype)
+    Tm = generate_adjacency_bus(m, k=min(k, m - 1), dtype=dtype)
     In = np.eye(n, dtype=dtype)
-    Tn = generate_adjacency_bus(n, k=k, dtype=dtype)
+    Tn = generate_adjacency_bus(n, k=min(k, n - 1), dtype=dtype)
 
     return np.kron(Im, Tn) + np.kron(Tm, In)
 
