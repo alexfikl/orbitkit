@@ -77,6 +77,12 @@ def get_model_from_module(
                     kernels=tuple(sym.ZeroDelayKernel() for _ in model.I.kernels),
                 ),
             )
+    elif module_name == "astrocyte":
+        from orbitkit.models import astrocyte
+
+        model = astrocyte.make_model_from_name(model_name)
+        if model_name.startswith("Lallouette2014"):
+            model = replace(model, A=A)
     else:
         raise ValueError(f"unknown module name: '{module_name}'")
 
