@@ -448,7 +448,13 @@ class Lallouette(Model):
 
     param: LallouetteParameter
     """Parameters in the Lallouette model."""
+
+    points: Array2D | sym.MatrixSymbol
+    """The physical positions of the astrocyte cells. These are not used by the
+    model itself, but have been used to construct the adjacency matrix :attr:`A`.
+    """
     A: Array2D | sym.MatrixSymbol
+    """The adjacency matrix for the astrocyte network."""
 
     minf: RateFunction
     r"""Steady-state activation function :math:`m_\infty(I)`."""
@@ -461,6 +467,23 @@ class Lallouette(Model):
     but their expression is equivalent to [DePitta2009]_, so we use the same
     :math:`Q_2(I)` rate function for them.
     """
+
+    if __debug__:
+
+        def __post_init__(self) -> None:
+            assert isinstance(self.param, LallouetteParameter)
+
+            if self.points.ndim != 2:
+                raise ValueError(
+                    f"'points' must have shape (npoints, dim): {self.points.shape}"
+                )
+
+            if self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]:
+                raise ValueError(f"adjacency matrix 'A' not square: {self.A.shape}")
+
+    @property
+    def n(self) -> int:
+        return self.A.shape[0]
 
     @property
     def variables(self) -> tuple[str, ...]:
@@ -507,7 +530,7 @@ class Lallouette(Model):
             / 2
             * (1 + sym.tanh((sym.abs(DeltaIP3) - I_theta) / omega_I))
             * DeltaIP3
-            / sym.abs(DeltaIP3)
+            / (sym.abs(DeltaIP3) + 1.0e-16)
         )
         J_diff = sym.Contract(sym.Product((self.A, J)), axes=(1,))  # ty: ignore[invalid-argument-type]
 
@@ -646,10 +669,54 @@ def _make_de_pitta_2009(
     )
 
 
+def _make_lallouette_2014() -> Lallouette:
+    param = LallouetteParameter(
+        O_2=0.2,
+        C_T=2.0,
+        rho_A=0.185,
+        Omega_C=6,
+        Omega_L=0.11,
+        O_P=0.9,
+        K_P=0.05,
+        O_delta=0.7,
+        K_delta=0.1,
+        kappa_delta=1.5,
+        Omega_5P=0.21,
+        O_3K=4.5,
+        K_D=1.0,
+        K_3K=0.7,
+        F=2.0,
+        I_theta=0.3,
+        omega_I=0.05,
+        I_bias=2.0,
+    )
+
+    d1 = 0.13
+    d2 = 1.049
+    d3 = 0.9434
+    d5 = 0.08234
+
+    from orbitkit.adjacency import generate_adjacency_astrocyte_lattice
+
+    rng = np.random.default_rng(seed=0)
+    points = make_lallouette_mesh(5, 2, rng=rng)
+    A = generate_adjacency_astrocyte_lattice(points, variant="regular-degree", rng=rng)
+
+    return Lallouette(
+        param=param,
+        points=points,
+        A=A,
+        minf=HillRate(d1, 1),
+        ninf=HillRate(d5, 1),
+        Q2=LinearRationalRate(d2, d1, d3),
+    )
+
+
 ASTROCYTE_MODEL = {
     "LiRinzel1994Figure3": _make_li_rinzel_1994(0.4),
     "DePitta2009Figure12am": _make_de_pitta_2009(0.1, 0.02, 0.04, 0.2, (0.002, 5.0)),
     "DePitta2009Figure12fm": _make_de_pitta_2009(0.05, 0.05, 0.05, 0.5, (0.001, 6.0)),
+    "Lallouette2014": _make_lallouette_2014(),
 }
 
 

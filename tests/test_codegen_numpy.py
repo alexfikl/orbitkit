@@ -35,6 +35,9 @@ set_plotting_defaults()
         ("wang_rinzel", "WangRinzel1992Figure1a"),
         ("wang_rinzel", "WangRinzel1992Figure4a"),
         ("wilson_cowan", "CustomSet1"),
+        ("astrocyte", "LiRinzel1994Figure3"),
+        ("astrocyte", "DePitta2009Figure12am"),
+        ("astrocyte", "Lallouette2014"),
     ],
 )
 def test_symbolify(module_name: str, model_name: str) -> None:
@@ -72,6 +75,9 @@ def test_symbolify(module_name: str, model_name: str) -> None:
         ("wang_buzsaki", "WangBuzsaki1996Figure3a"),
         ("wang_rinzel", "WangRinzel1992Figure1a"),
         ("wang_rinzel", "WangRinzel1992Figure4a"),
+        ("astrocyte", "LiRinzel1994Figure3"),
+        ("astrocyte", "DePitta2009Figure12am"),
+        ("astrocyte", "Lallouette2014"),
     ],
 )
 def test_codegen_numpy(module_name: str, model_name: str) -> None:
