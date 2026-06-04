@@ -19,7 +19,7 @@
 orbitkit
 ========
 
-This is bag of random utilities that can be used to analyse and visualize
+This is a bag of random utilities that can be used to analyse and visualize
 continuous dynamical systems. It will mainly grow as various needs arise and
 it does not aim to be a general framework for dynamical systems.
 
