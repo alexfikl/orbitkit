@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from matplotlib.collections import EventCollection
     from matplotlib.colorbar import Colorbar
     from matplotlib.image import AxesImage
+    from matplotlib.lines import Line2D
 
 log = module_logger(__name__)
 
@@ -516,6 +517,46 @@ def set_uniform_ticks(
     if which in {"y", "both"}:
         ax.set_yticks(x[indices], [f"{xi:.2f}" for xi in x[indices]])
         ax.tick_params(axis="y", rotation=rotation, labelsize=labelsize)
+
+
+# }}}
+
+
+# {{{ make_alpha_line_collection
+
+
+def plot_phase(
+    ax: mp.Axes,
+    x: Array1D[np.floating[Any]],
+    y: Array1D[np.floating[Any]],
+    *,
+    alpha: Array1D[np.floating[Any]] | None = None,
+    color: ColorTuple | None = None,
+    linewidth: float = 1.0,
+) -> Line2D:
+    if alpha is None:
+        return ax.plot(x, y, color=color)
+
+    points = np.stack([x, y], axis=-1)
+    segments = np.stack([points[:-1], points[1:]], axis=1)
+
+    alphas = (alpha[1:] + alpha[:-1]) / 2.0
+
+    amin = np.min(alphas)
+    amax = np.max(alphas)
+    alphas = (alphas - amin) / (amax - amin)
+
+    rgba = np.zeros((alphas.size, 4))
+    rgba[:, 0] = color[0]
+    rgba[:, 1] = color[1]
+    rgba[:, 2] = color[2]
+    rgba[:, 3] = alphas
+
+    from matplotlib.collections import LineCollection
+
+    lc = LineCollection(segments, color=rgba, linewidth=linewidth)
+    ax.add_collection(lc)
+    ax.autoscale_view()
 
 
 # }}}
