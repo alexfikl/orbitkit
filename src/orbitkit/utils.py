@@ -804,7 +804,7 @@ def find_common_path(*args: pathlib.Path, sep: str = "_") -> pathlib.Path | None
     if not all(arg.suffix == ext for arg in args[1:]):
         return None
 
-    stems: list[str] = sorted([arg.stem for arg in args], key=len)  # ty: ignore[invalid-assignment]
+    stems: list[str] = sorted([arg.stem for arg in args], key=len)
     shortest = stems[0]
     candidates = set()
 

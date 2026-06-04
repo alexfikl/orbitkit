@@ -16,11 +16,11 @@ from orbitkit.utils import BOOLEAN_STATES, module_logger, on_ci
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as mp
+    from matplotlib.artist import Artist
     from matplotlib.cm import ScalarMappable
     from matplotlib.collections import EventCollection
     from matplotlib.colorbar import Colorbar
     from matplotlib.image import AxesImage
-    from matplotlib.lines import Line2D
 
 log = module_logger(__name__)
 
@@ -533,9 +533,13 @@ def plot_phase(
     alpha: Array1D[np.floating[Any]] | None = None,
     color: ColorTuple | None = None,
     linewidth: float = 1.0,
-) -> Line2D:
+) -> Artist:
     if alpha is None:
-        return ax.plot(x, y, color=color)
+        (line,) = ax.plot(x, y, color=color)
+        return line
+
+    if color is None:
+        color, *_ = get_rgb_color_cycle()
 
     points = np.stack([x, y], axis=-1)
     segments = np.stack([points[:-1], points[1:]], axis=1)
@@ -554,9 +558,11 @@ def plot_phase(
 
     from matplotlib.collections import LineCollection
 
-    lc = LineCollection(segments, color=rgba, linewidth=linewidth)
+    lc = LineCollection(segments, color=rgba, linewidth=linewidth)  # ty: ignore[invalid-argument-type]
     ax.add_collection(lc)
     ax.autoscale_view()
+
+    return lc
 
 
 # }}}
