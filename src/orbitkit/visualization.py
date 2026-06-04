@@ -199,7 +199,12 @@ def set_plotting_defaults(
 # {{{ scale_color
 
 
-def scale_color(color: ColorTuple, fac: float) -> ColorTuple:
+def scale_color(
+    color: ColorTuple,
+    fac: float,
+    *,
+    base: ColorTuple = (1.0, 1.0, 1.0),
+) -> ColorTuple:
     """Scale a color tuple by a given factor.
 
     :arg color: a floating point RGB 3-tuple with values in :math:`[0, 1]`.
@@ -212,7 +217,11 @@ def scale_color(color: ColorTuple, fac: float) -> ColorTuple:
         raise ValueError(f"'fac' should be in [0, 1]: {fac}")
 
     assert all(0 <= c <= 1.0 for c in color)
-    return fac * color[0], fac * color[1], fac * color[2]
+    return (
+        (1 - fac) * base[0] + fac * color[0],
+        (1 - fac) * base[1] + fac * color[1],
+        (1 - fac) * base[2] + fac * color[2],
+    )
 
 
 def scale_rgb(color: RGB, fac: float) -> RGB:
