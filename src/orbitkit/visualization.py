@@ -381,7 +381,7 @@ def savefig(
     filename: PathLike,
     *,
     bbox_inches: str = "tight",
-    pad_inches: float = 0,
+    pad_inches: float = 0.075,
     normalize: bool = False,
     facecolor: str = "white",
     transparent: bool = False,
