@@ -664,7 +664,7 @@ def _get_wilson_cowan_fixed_point(
 
         result = so.minimize_scalar(
             root_func_sqr,
-            bracket=bracket,  # ty: ignore[invalid-argument-type]
+            bracket=bracket,
             tol=rtol,
             options={"xtol": rtol},
             # options={"xatol": 1.0e-4 * rtol},
