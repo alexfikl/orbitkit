@@ -28,7 +28,10 @@ ColorTuple: TypeAlias = tuple[float, float, float]
 """An RGB color tuple with values in :math:`[0, 1]` denoting RGB values."""
 RGB: TypeAlias = tuple[int, int, int]
 """An RGB color tuple with integer values in :math:`[0, 255]`."""
-
+CIELAB: TypeAlias = tuple[float, float, float]
+r"""An CIELAB ``(L*, a*, b*)`` tuple with values in
+:math:`[0, 100] \times [-127, 127] \times [-127, 127]`.
+"""
 
 # {{{ set_plotting_defaults
 
@@ -197,48 +200,182 @@ def set_plotting_defaults(
 # }}}
 
 
-# {{{ scale_color
+# {{{ rgb2lab
 
 
-def scale_color(
-    color: ColorTuple,
-    fac: float,
-    *,
-    base: ColorTuple = (1.0, 1.0, 1.0),
-) -> ColorTuple:
-    """Scale a color tuple by a given factor.
+def _srgb_oetf(R: float) -> float:
+    # https://en.wikipedia.org/wiki/SRGB#Transfer_function_(%22gamma%22)
+    return (R / 12.92) if R <= 0.04045 else ((R + 0.055) / 1.055) ** 2.4
 
-    :arg color: a floating point RGB 3-tuple with values in :math:`[0, 1]`.
-    :arg fac: a factor with values in :math:`[0, 1]`.
+
+def _srgb_oetf_inv(R: float) -> float:
+    # https://en.wikipedia.org/wiki/SRGB#Transfer_function_(%22gamma%22)
+    return (R * 12.92) if R <= 0.0031308 else (1.055 * R ** (1 / 2.4) - 0.055)
+
+
+def _xyz_f(t: float) -> float:
+    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIE_XYZ_to_CIELAB
+    delta = 6 / 29
+    return (t ** (1 / 3)) if t > delta**3 else (t / (3 * delta**2) + 4 / 29)
+
+
+def _xyz_f_inv(t: float) -> float:
+    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIELAB_to_CIEXYZ
+    delta = 6 / 29
+    return (t**3) if t > delta else (3 * delta**2 * (t - 4 / 29))
+
+
+def rgb2lab(rgb: ColorTuple) -> CIELAB:
+    """Convert from RGB to the CIELAB color space."""
+
+    assert all(0 <= c <= 1.0 for c in rgb)
+
+    # RGB to sRGB
+    r = _srgb_oetf(rgb[0])
+    g = _srgb_oetf(rgb[1])
+    b = _srgb_oetf(rgb[2])
+
+    # sRGB to XYZ
+    x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375
+    y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750
+    z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041
+
+    # XYZ to LAB (D65)
+    fx = _xyz_f(x / 0.95047)
+    fy = _xyz_f(y / 1.00000)
+    fz = _xyz_f(z / 1.08883)
+
+    L = 116 * fy - 16
+    a = 500 * (fx - fy)
+    b = 200 * (fy - fz)
+
+    return L, a, b
+
+
+def lab2rgb(lab: CIELAB) -> ColorTuple:
+    """Convert from the CIELAB color space to RGB."""
+    L, a, b = lab
+
+    # LAB to XYZ (D65)
+    fy = (L + 16) / 116
+    fx = a / 500 + fy
+    fz = fy - b / 200
+
+    x = _xyz_f_inv(fx) * 0.95047
+    y = _xyz_f_inv(fy) * 1.00000
+    z = _xyz_f_inv(fz) * 1.08883
+
+    # XYZ to sRGB
+    r = x * 3.2404542 - y * 1.5371385 - z * 0.4985314
+    g = -x * 0.9692660 + y * 1.8760108 + z * 0.0415560
+    b = x * 0.0556434 - y * 0.2040259 + z * 1.0572252
+
+    # sRGB to RGB
+    r = _srgb_oetf_inv(r)
+    g = _srgb_oetf_inv(g)
+    b = _srgb_oetf_inv(b)
+
+    return r, g, b
+
+
+# }}}
+
+
+# {{{ rgb_lerp
+
+
+def rgbf_lerp(from_color: ColorTuple, to_color: ColorTuple, fac: float) -> ColorTuple:
+    """Linearly interpolate between *from_color* and *to_color*.
+
+    Use :func:`rgbf_lerp_p` for a perceptually correct interpolation.
     """
-    if len(color) != 3:
-        raise ValueError(f"'color' should be a 3-tuple: {color}")
+    if len(from_color) != 3:
+        raise ValueError(f"'from_color' should be a 3-tuple: {from_color}")
 
     if not 0 <= fac <= 1.0:
         raise ValueError(f"'fac' should be in [0, 1]: {fac}")
 
-    assert all(0 <= c <= 1.0 for c in color)
+    assert all(0 <= c <= 1.0 for c in from_color)
+    assert all(0 <= c <= 1.0 for c in to_color)
     return (
-        (1 - fac) * base[0] + fac * color[0],
-        (1 - fac) * base[1] + fac * color[1],
-        (1 - fac) * base[2] + fac * color[2],
+        (1 - fac) * from_color[0] + fac * to_color[0],
+        (1 - fac) * from_color[1] + fac * to_color[1],
+        (1 - fac) * from_color[2] + fac * to_color[2],
     )
 
 
-def scale_rgb(color: RGB, fac: float) -> RGB:
-    """Scale a color tuple by a given factor.
+def rgb_lerp(from_color: RGB, to_color: RGB, fac: float) -> RGB:
+    """Linearly interpolate between *from_color* and *to_color*.
 
-    :arg color: an integer RGB 3-tuple with values in :math:`[0, 255]`.
-    :arg fac: a factor with values in :math:`[0, 1]`.
+    Use :func:`rgb_lerp_p` for a perceptually correct interpolation.
     """
-    if len(color) != 3:
-        raise ValueError(f"'color' should be a 3-tuple: {color}")
+    result = rgbf_lerp(
+        (from_color[0] / 255, from_color[1] / 255, from_color[2] / 255),
+        (to_color[0] / 255, to_color[1] / 255, to_color[2] / 255),
+        fac,
+    )
+
+    return (
+        round(max(0, min(255, result[0]))),
+        round(max(0, min(255, result[1]))),
+        round(max(0, min(255, result[2]))),
+    )
+
+
+def rgbf_lerp_p(from_color: ColorTuple, to_color: ColorTuple, fac: float) -> ColorTuple:
+    """Linearly interpolate between *from_color* and *to_color*.
+
+    This function passes through the CIELAB color space to perceptually interpolate
+    the colors for better results. For a straight interpolation in RGB space,
+    use :meth:`rgbf_lerp`.
+
+    :arg from_color: a 3-tuple of floating point numbers in [0, 1].
+    :arg to_color: a 3-tuple of floating point numbers in [0, 1].
+    :arg fac: a factor in [0, 1].
+    """
+    if len(from_color) != 3:
+        raise ValueError(f"'from_color' should be a 3-tuple: {from_color}")
+
+    if len(to_color) != 3:
+        raise ValueError(f"'to_color' should be a 3-tuple: {to_color}")
 
     if not 0 <= fac <= 1.0:
         raise ValueError(f"'fac' should be in [0, 1]: {fac}")
 
-    assert all(0 <= c <= 255 for c in color)
-    return round(fac * color[0]), round(fac * color[1]), round(fac * color[2])
+    from_lab = rgb2lab(from_color)
+    to_lab = rgb2lab(to_color)
+
+    result = (
+        (1 - fac) * from_lab[0] + fac * to_lab[0],
+        (1 - fac) * from_lab[1] + fac * to_lab[1],
+        (1 - fac) * from_lab[2] + fac * to_lab[2],
+    )
+
+    return lab2rgb(result)
+
+
+def rgb_lerp_p(from_color: RGB, to_color: RGB, fac: float) -> RGB:
+    """Linearly interpolate between *from_color* and *to_color*.
+
+    This function passes through the CIELAB color space to perceptually interpolate
+    the colors for better results. For a straight interpolation in RGB space,
+    use :meth:`rgb_lerp`.
+
+    :arg from_color: a 3-tuple of integers in [0, 255].
+    :arg to_color: a 3-tuple of integers in [0, 255].
+    :arg fac: a factor in [0, 1].
+    """
+    result = rgbf_lerp_p(
+        (from_color[0] / 255, from_color[1] / 255, from_color[2] / 255),
+        (to_color[0] / 255, to_color[1] / 255, to_color[2] / 255),
+        fac,
+    )
+
+    return (
+        round(max(0, min(255, result[0]))),
+        round(max(0, min(255, result[1]))),
+        round(max(0, min(255, result[2]))),
+    )
 
 
 # }}}
