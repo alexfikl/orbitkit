@@ -389,8 +389,8 @@ def to_color(
     vmax: float | None = 1.0,
 ) -> tuple[str, ...]:
     """Map an array of numbers to a list of HEX values in the given colormap."""
-    from matplotlib import cm
     from matplotlib.colors import Normalize, to_hex
+    from matplotlib.pyplot import get_cmap
 
     if vmin is None:
         vmin = np.min(w)
@@ -398,7 +398,7 @@ def to_color(
     if vmax is None:
         vmax = np.max(w)
 
-    cmap = cm.get_cmap(colormap)
+    cmap = get_cmap(colormap)
     norm = Normalize(vmin=vmin, vmax=vmax)
 
     colors = cmap(norm(w))
