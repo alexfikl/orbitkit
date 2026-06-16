@@ -101,7 +101,6 @@ def set_plotting_defaults(
     use_tex: bool | None = None,
     dark: bool | None = None,
     savefig_format: str | None = None,
-    overrides: dict[str, Any] | None = None,
 ) -> None:
     """Set custom :mod:`matplotlib` parameters.
 
@@ -120,8 +119,6 @@ def set_plotting_defaults(
     :arg savefig_format: the format used when saving figures. By default, this
         uses the ``ORBITKIT_SAVEFIG`` environment variable and falls back to
         the :mod:`matplotlib` parameter ``savefig.format``.
-    :arg overrides: a mapping of parameters to override the defaults. These
-        can also be set separately after this function was called using ``rcParams``.
     """
     if on_ci():
         return
@@ -167,63 +164,34 @@ def set_plotting_defaults(
     if mplstyle is not None:
         mp.style.use(mplstyle)
 
-        defaults: dict[str, dict[str, Any]] = {
-            "savefig": {"format": savefig_format},
-            "text": {"usetex": use_tex},
-        }
+        mp.rc("savefig", format=savefig_format)
+        mp.rc("text", usetex=use_tex)
     else:
-        defaults: dict[str, dict[str, Any]] = {
-            "figure": {
-                "figsize": (8, 8),
-                "dpi": 300,
-                "constrained_layout.use": True,
-            },
-            "savefig": {"format": savefig_format},
-            "text": {"usetex": use_tex},
-            "legend": {
-                "fontsize": 20,
-                "frameon": True,
-                "fancybox": False,
-                "edgecolor": "black",
-            },
-            "lines": {"linewidth": 2, "markersize": 10},
-            "axes": {
-                "labelsize": 28,
-                "titlesize": 28,
-                "grid": True,
-                "grid.axis": "both",
-                "grid.which": "both",
-                "prop_cycle": prop_cycle,
-            },
-            "xtick": {"labelsize": 20, "direction": "in"},
-            "ytick": {"labelsize": 20, "direction": "in"},
-            "xtick.major": {"size": 6.5, "width": 1.5},
-            "ytick.major": {"size": 6.5, "width": 1.5},
-            "xtick.minor": {"size": 4.0},
-            "ytick.minor": {"size": 4.0},
-        }
+        mp.rc("figure", figsize=(8, 8), dpi=300)
+        mp.rc("figure.constrained_layout", use=True)
+        mp.rc("savefig", format=savefig_format)
+        mp.rc("text", usetex=use_tex)
+        mp.rc("legend", fontsize=20, frameon=True, fancybox=False, edgecolor="black")
+        mp.rc("lines", linewidth=2, markersize=10)
+        mp.rc("axes", labelsize=28, titlesize=28, grid=True, prop_cycle=prop_cycle)
+        mp.rc("axes.grid", axis="both", which="both")
+        mp.rc("xtick", labelsize=20, direction="in")
+        mp.rc("ytick", labelsize=20, direction="in")
+        mp.rc("xtick.major", size=6.5, width=1.5)
+        mp.rc("ytick.major", size=6.5, width=1.5)
+        mp.rc("xtick.minor", size=4.0)
+        mp.rc("ytick.minor", size=4.0)
 
         if dark:
             # NOTE: this is the black color used by the sphinx-book theme
             black = "111111"
             gray = "28313D"
-            defaults["text"].update({"color": "white"})
-            defaults["axes"].update({
-                "labelcolor": "white",
-                "facecolor": gray,
-                "edgecolor": "white",
-            })
-            defaults["xtick"].update({"color": "white"})
-            defaults["ytick"].update({"color": "white"})
-            defaults["figure"].update({"facecolor": black, "edgecolor": black})
-            defaults["savefig"].update({"facecolor": black, "edgecolor": black})
-
-    for group, params in defaults.items():
-        mp.rc(group, **params)
-
-    if overrides:
-        for group, params in overrides.items():
-            mp.rc(group, **params)
+            mp.rc("text", color="white")
+            mp.rc("axes", labelcolor="white", facecolor=gray, edgecolor="white")
+            mp.rc("xtick", color="white")
+            mp.rc("ytick", color="white")
+            mp.rc("figure", facecolor=black, edgecolor=black)
+            mp.rc("savefig", facecolor=black, edgecolor=black)
 
 
 # }}}
