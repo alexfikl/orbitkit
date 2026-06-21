@@ -53,7 +53,7 @@ urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
-test = [ "pytest", "ruff", "scipy-stubs", "ty" ]
+test = [ "pytest", "pytest-github-actions-annotate-failures", "ruff", "scipy-stubs", "ty" ]
 docs = [ "sphinx>=6", "sphinx-book-theme" ]
 backends = [ "jax>=0.6", "jitcdde>=1.8.3", "jitcode>=1.7.3" ]
 clustering = [ "leidenalg>=0.10" ]
