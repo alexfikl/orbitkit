@@ -20,5 +20,7 @@ rich==15.0.0
     # via orbitkit (pyproject.toml)
 scipy==1.15.3 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml)
-scipy==1.17.1 ; python_full_version >= '3.11'
+scipy==1.17.1 ; python_full_version == '3.11.*'
+    # via orbitkit (pyproject.toml)
+scipy==1.18.0 ; python_full_version >= '3.12'
     # via orbitkit (pyproject.toml)
