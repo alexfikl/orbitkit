@@ -1267,7 +1267,7 @@ def generate_adjacency_astrocyte_lattice(
 
         tree = KDTree(points)
         _, indices = tree.query(points, k=k_nearest_neighbors + 1)
-        indices = indices[:, 1:]  # ty: ignore[not-subscriptable]
+        indices = indices[:, 1:]
 
         mat = np.zeros((n, n), dtype=dtype)
         for i, j in enumerate(indices):
