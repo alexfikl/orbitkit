@@ -686,17 +686,21 @@ def _pade(
     m: int,
     n: int,
 ) -> tuple[Array1D, Array1D]:
-    from mpmath import mp
+    N = n + m
+    an = coeffs[: N + 1]
 
-    # NOTE: increase precision to handle ill-conditioned matrices
-    with mp.workdps(50):
-        coeffs_mp = [mp.mpf(float(c)) for c in coeffs]
-        pcoeff, qcoeff = mp.pade(coeffs_mp, n, m)  # ty: ignore[unresolved-attribute]
+    # NOTE: https://en.wikipedia.org/wiki/Pad%C3%A9_approximant#Computation
+    eye = np.eye(N + 1, n + 1, dtype=an.dtype)
+    toe = np.zeros((N + 1, m), dtype=an.dtype)
+    for row in range(1, m + 1):
+        toe[row, :row] = -(an[:row])[::-1]
+    for row in range(m + 1, N + 1):
+        toe[row, :] = -(an[row - m : row])[::-1]
 
-    return (
-        np.asarray(pcoeff, dtype=coeffs.dtype),
-        np.asarray(qcoeff, dtype=coeffs.dtype),
-    )
+    C = np.column_stack([eye, toe])
+    pq, *_ = np.linalg.lstsq(C, an, rcond=None)
+
+    return pq[: n + 1], np.r_[1.0, pq[n + 1 :]]
 
 
 def pade_gamma(
