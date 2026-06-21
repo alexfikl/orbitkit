@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 from pymbolic.typing import Expression
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.symbolic.mappers import IdentityMapper
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
@@ -447,8 +447,9 @@ def optimal_soe_gamma_points(
     tfinal: float | None = None,
     *,
     dt: float | None = None,
+    dtype: Any = None,
     rtol: float = 1.0e-8,
-) -> Array:
+) -> Array1D[np.floating[Any]]:
     r"""Approximate a range over which to fit a sum of exponentials approximation.
 
     See :func:`soe_gamma_varpo` and :func:`soe_gamma_mpm` for uses of this function.
@@ -479,17 +480,17 @@ def optimal_soe_gamma_points(
     if tstart >= tfinal:
         raise ValueError(f"'tstart' ({tstart}) > 'tfinal' ({tfinal})")
 
-    return np.arange(tstart, tfinal, dt)
+    return np.arange(tstart, tfinal, dt, dtype=dtype)
 
 
 def soe_gamma_varpo(
-    t: Array,
+    t: Array1D[np.floating[Any]],
     p: float,
     alpha: float,
     *,
     n: int | None = None,
     atol: float = 1.0e-8,
-) -> tuple[Array, Array]:
+) -> tuple[Array1D[np.floating[Any]], Array1D[np.floating[Any]]]:
     r"""Create a sum of exponentials approximation of the
     :math:`\mathrm{Gamma}(t; p, \alpha)` kernel using Variable Projection.
 
@@ -543,8 +544,9 @@ def soe_gamma_varpo(
 
     from scipy.special import gamma
 
+    dtype = t.dtype
     if p == 1:
-        return np.array([alpha]), np.array([-alpha])
+        return np.array([alpha], dtype=dtype), np.array([-alpha], dtype=dtype)
 
     x = t
     y = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * x)
@@ -553,13 +555,15 @@ def soe_gamma_varpo(
 
     from scipy.optimize import least_squares
 
-    def fit_weights(loglambdas: Array) -> tuple[Array, Array]:
+    def fit_weights(
+        loglambdas: Array1D[np.floating[Any]],
+    ) -> tuple[Array2D[np.floating[Any]], Array1D[np.floating[Any]]]:
         lambdas = np.exp(loglambdas)
         A = np.exp(-lambdas[None, :] * x[:, None])
         ws, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
         return A, ws
 
-    def residuals(loglambdas: Array) -> Array:
+    def residuals(loglambdas: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
         A, ws = fit_weights(loglambdas)
         return A @ ws - y
 
@@ -567,12 +571,16 @@ def soe_gamma_varpo(
 
     min_rate = 1.0 / x[-1]
     max_rate = 1.0 / (0.5 * peak)
-    lambdas0 = np.logspace(np.log10(min_rate), np.log10(max_rate), n)
+    lambdas0 = np.logspace(np.log10(min_rate), np.log10(max_rate), n, dtype=dtype)
 
     # TODO: use approximation of Jacobian from [Kaufman1975]? Should give much
     # faster+better results than the default 2-point finite difference.
     result = least_squares(
-        residuals, np.log(lambdas0), method="lm", ftol=atol, xtol=atol
+        residuals,
+        np.log(lambdas0),
+        method="lm",
+        ftol=atol,
+        xtol=atol,
     )
 
     lambdas = np.exp(result.x)
@@ -584,13 +592,13 @@ def soe_gamma_varpo(
 
 
 def soe_gamma_mpm(
-    t: Array,
+    t: Array1D[np.floating[Any]],
     p: float,
     alpha: float,
     *,
     n: int | None = None,
     atol: float = 1.0e-8,
-) -> tuple[Array, Array]:
+) -> tuple[Array1D[np.complexfloating[Any]], Array1D[np.complexfloating[Any]]]:
     r"""Create a sum of exponentials approximation of the
     :math:`\mathrm{Gamma}(t; p, \alpha)` kernel using the Matrix Pencil Method.
 
@@ -631,8 +639,9 @@ def soe_gamma_mpm(
 
     from scipy.special import gamma
 
+    dtype = t.dtype
     if p == 1:
-        return np.array([alpha]), np.array([-alpha])
+        return np.array([alpha], dtype=dtype), np.array([-alpha], dtype=dtype)
 
     x = t
     y = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * x)
@@ -672,13 +681,32 @@ def soe_gamma_mpm(
 # {{{ pade_gamma
 
 
+def _pade(
+    coeffs: Array1D[np.floating[Any]],
+    m: int,
+    n: int,
+) -> tuple[Array1D, Array1D]:
+    from mpmath import mp
+
+    # NOTE: increase precision to handle ill-conditioned matrices
+    with mp.workdps(50):
+        coeffs_mp = [mp.mpf(float(c)) for c in coeffs]
+        pcoeff, qcoeff = mp.pade(coeffs_mp, n, m)  # ty: ignore[unresolved-attribute]
+
+    return (
+        np.asarray(pcoeff, dtype=coeffs.dtype),
+        np.asarray(qcoeff, dtype=coeffs.dtype),
+    )
+
+
 def pade_gamma(
     gamma_p: float,
     alpha: float,
     *,
     n: int | None = None,
     m: int = 6,
-) -> tuple[Array, Array]:
+    dtype: Any = None,
+) -> tuple[Array1D[np.floating[Any]], Array1D[np.floating[Any]]]:
     r"""Create a Padé approximant for the Laplace transform of the
     :math:`\mathrm{Gamma}(t; p, \alpha)` kernel.
 
@@ -740,22 +768,14 @@ def pade_gamma(
     # gather Taylor coefficients
     from scipy.special import binom
 
-    k = np.arange(n + m + 1)
+    k = np.arange(n + m + 1, dtype=dtype)
     if float(gamma_p).is_integer():
         taylor_coeffs = (-1.0) ** k * binom(gamma_p + k - 1, k) / alpha**k
     else:
         taylor_coeffs = binom(-gamma_p, k) / alpha**k
 
     # evaluate Pade approximant
-    # NOTE: pade seems to return a `np.poly1d`, which has coefficients in a
-    # reverse order to `np.polynomial` classes, so we flip them for compatibility
-    # NOTE: this could cause issues: https://github.com/scipy/scipy/issues/20064
-    from scipy.interpolate import pade
-
-    ppoly, qpoly = pade(taylor_coeffs, m, n)
-    # assert ppoly.order <= qpoly.order
-
-    return np.flip(ppoly.coefficients), np.flip(qpoly.coefficients)
+    return _pade(taylor_coeffs, m, n)
 
 
 # }}}
