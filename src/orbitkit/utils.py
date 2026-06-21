@@ -7,7 +7,7 @@ import logging
 import os
 import pathlib
 import time
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field, make_dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -610,7 +610,7 @@ class TicTocTimer:
 
 
 @contextmanager
-def tictoc(name: str = "timing") -> Iterator[None]:
+def tictoc(name: str = "timing") -> Generator[None]:
     tt = TicTocTimer()
     tt.tic()
 
