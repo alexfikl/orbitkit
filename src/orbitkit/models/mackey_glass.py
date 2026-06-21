@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
@@ -104,7 +105,7 @@ def _make_mackey_glass_1979_figure6(k: float) -> Model:
     )
 
 
-MACKEY_GLASS_MODEL = {
+MACKEY_GLASS_MODEL: Final = {
     "MackeyGlass1977Figure2b": _make_mackey_glass_1977_figure2(6.0),
     "MackeyGlass1977Figure2c": _make_mackey_glass_1977_figure2(20.0),
     # https://doi.org/10.1111/j.1749-6632.1979.tb29471.x

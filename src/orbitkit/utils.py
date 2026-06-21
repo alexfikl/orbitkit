@@ -10,7 +10,7 @@ import time
 from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field, make_dataclass
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Final, Literal, cast
 
 import numpy as np
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 # fmt: off
-BOOLEAN_STATES = {
+BOOLEAN_STATES: Final = {
     1: True, "1": True, "yes": True, "true": True, "on": True, "y": True,
     0: False, "0": False, "no": False, "false": False, "off": False, "n": False,
 }

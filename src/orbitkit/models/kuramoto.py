@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 import numpy as np
 
@@ -221,7 +222,7 @@ def _make_kuramoto_abrams_2008_model(beta: float, A: float) -> KuramotoAbrams:
     )
 
 
-KURAMOTO_MODEL = {
+KURAMOTO_MODEL: Final = {
     "Schroder2017Figure1b": _make_kuramoto_schroder_2017_model(0.05),
     "Schroder2017Figure1c": _make_kuramoto_schroder_2017_model(0.25),
     "Schroder2017Figure1d": _make_kuramoto_schroder_2017_model(0.50),

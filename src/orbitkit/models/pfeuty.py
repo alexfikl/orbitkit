@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Final
 
 import numpy as np
 
@@ -290,7 +291,7 @@ def _make_pfeuty_2007_model(g_inh: float) -> Pfeuty:
     )
 
 
-PFEUTY_MODEL = {
+PFEUTY_MODEL: Final = {
     "Pfeuty2007Figure2cl": _make_pfeuty_2007_model(0.005),
     "Pfeuty2007Figure2cr": _make_pfeuty_2007_model(0.1),
 }

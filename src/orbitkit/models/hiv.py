@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
@@ -116,7 +117,7 @@ def _make_hiv_culshaw_2003(kernel: sym.DelayKernel, k_Ip: float) -> CulshawRuanW
     )
 
 
-HIV_MODEL = {
+HIV_MODEL: Final = {
     # NOTE: the paper does not mention what value of k_I' is used in Figure 3.2, so
     # this is chosen based on some numerical experiments and looks good enough.
     # The value must be > 1.5 10^-7.

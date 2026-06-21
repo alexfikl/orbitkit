@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Final
 
 import numpy as np
 
@@ -141,7 +142,7 @@ def _make_fhn_omelchenko_2019(sigma: float) -> FitzHughNagumoOmelchenko:
     )
 
 
-FITZHUGH_NAGUMO_MODEL = {
+FITZHUGH_NAGUMO_MODEL: Final = {
     "Omelchenko2019Figure1": _make_fhn_omelchenko_2019(0.05),
     "Omelchenko2019Figure4a": _make_fhn_omelchenko_2019(0.1),
     "Omelchenko2019Figure4b": _make_fhn_omelchenko_2019(0.15),

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final
 
 import numpy as np
 
@@ -93,7 +93,7 @@ def _make_laing_2018(eta: float, kappa: float) -> ThetaModel:
     )
 
 
-THETA_MODEL = {
+THETA_MODEL: Final = {
     "Laing2018Figure2a": _make_laing_2018(-0.5, 1.0),
     "Laing2018Figure2b": _make_laing_2018(+0.5, 1.0),
 }

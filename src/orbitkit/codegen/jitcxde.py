@@ -7,7 +7,7 @@ import pathlib
 import platform
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeAlias
 
 import numpy as np
 
@@ -112,16 +112,16 @@ else:
     JITCXDE_SYSTEM_RELEASE_LINKER_FLAGS = ("-lm",)
     JITCXDE_SYSTEM_DEBUG_LINKER_FLAGS = ("-lm",)
 
-JITCXDE_RELEASE_FLAGS = (*JITCXDE_COMMON_CFLAGS, *JITCXDE_SYSTEM_RELEASE_CFLAGS)
+JITCXDE_RELEASE_FLAGS: Final = (*JITCXDE_COMMON_CFLAGS, *JITCXDE_SYSTEM_RELEASE_CFLAGS)
 """Compiler flags used for release builds of JiTC*DE modules."""
 
-JITCXDE_DEBUG_FLAGS = (*JITCXDE_COMMON_CFLAGS, *JITCXDE_SYSTEM_DEBUG_CFLAGS)
+JITCXDE_DEBUG_FLAGS: Final = (*JITCXDE_COMMON_CFLAGS, *JITCXDE_SYSTEM_DEBUG_CFLAGS)
 """Compiler flags used for debug builds of JiTC*DE modules."""
 
-JITCXDE_RELEASE_LINKER_FLAGS = JITCXDE_SYSTEM_RELEASE_LINKER_FLAGS
+JITCXDE_RELEASE_LINKER_FLAGS: Final = JITCXDE_SYSTEM_RELEASE_LINKER_FLAGS
 """Additional linker flags used for release builds of JiTC*DE modules."""
 
-JITCXDE_DEBUG_LINKER_FLAGS = JITCXDE_SYSTEM_DEBUG_LINKER_FLAGS
+JITCXDE_DEBUG_LINKER_FLAGS: Final = JITCXDE_SYSTEM_DEBUG_LINKER_FLAGS
 """Additional linker flags used for debug builds of JiTC*DE modules."""
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Final
 
 import numpy as np
 import pytools
@@ -27,7 +27,7 @@ log = module_logger(__name__)
 # {{{ numpy code generator
 
 # FIXME: this should not be needed
-CODEGEN_IGNORE_PARAMS = {"make_delay_variable"}
+CODEGEN_IGNORE_PARAMS: Final = {"make_delay_variable"}
 
 
 @dataclass(frozen=True)

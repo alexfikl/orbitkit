@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 import numpy as np
 
@@ -43,7 +43,7 @@ class Behavior(enum.IntEnum):
     """
 
 
-BEHAVIOR_FULL_NAME = {
+BEHAVIOR_FULL_NAME: Final = {
     Behavior.Unknown: "Unknown",
     Behavior.Divergent: "Divergent",
     Behavior.Chaotic: "Chaotic",

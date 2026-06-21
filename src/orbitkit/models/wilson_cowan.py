@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Literal, TypeAlias
+from typing import Final, Literal, TypeAlias
 
 import numpy as np
 
@@ -505,7 +505,7 @@ def _make_conti_gorder_2019_figure5(rho: float, topology: str) -> WilsonCowan:
     return _make_conti_gorder_2019_figure345(100, topology, k=1, rho=rho)
 
 
-WILSON_COWAN_MODEL = {
+WILSON_COWAN_MODEL: Final = {
     # Others
     "CustomSet1": _make_custom_set1(),
     "CustomSet2": _make_custom_set2(),

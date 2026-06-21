@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Final
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
@@ -18,7 +18,7 @@ log = module_logger(__name__)
 
 # {{{ code
 
-ORBTIKIT_PREFIX = "_ok_"
+ORBTIKIT_PREFIX: Final = "_ok_"
 """Prefix for generated variables."""
 
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 import numpy as np
 
@@ -230,7 +231,7 @@ def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
     )
 
 
-WANG_RINZEL_MODEL = {
+WANG_RINZEL_MODEL: Final = {
     "WangRinzel1992Figure1a": _make_wang_rinzel_1992_model(0.3, -44.0),
     # NOTE: Figure 2 uses g_PIR = 0.3 (like Figure 1) and g_syn = 1.0 (like Figure 3)
     # "WangRinzel1992Figure2a": None,

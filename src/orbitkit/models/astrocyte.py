@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import numpy as np
 
@@ -712,7 +712,7 @@ def _make_lallouette_2014() -> Lallouette:
     )
 
 
-ASTROCYTE_MODEL = {
+ASTROCYTE_MODEL: Final = {
     "LiRinzel1994Figure3": _make_li_rinzel_1994(0.4),
     "DePitta2009Figure12am": _make_de_pitta_2009(0.1, 0.02, 0.04, 0.2, (0.002, 5.0)),
     "DePitta2009Figure12fm": _make_de_pitta_2009(0.05, 0.05, 0.05, 0.5, (0.001, 6.0)),

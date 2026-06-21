@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Final
 
 import numpy as np
 
@@ -224,7 +225,7 @@ def _make_wang_buzsaki_1996_model(phi: float = 5.0) -> WangBuzsaki:
     )
 
 
-WANG_BUZSAKI_MODEL = {
+WANG_BUZSAKI_MODEL: Final = {
     "WangBuzsaki1996Figure3a": _make_wang_buzsaki_1996_model(5.0),
     "WangBuzsaki1996Figure3b": _make_wang_buzsaki_1996_model(10 / 3),
     "WangBuzsaki1996Figure3c": _make_wang_buzsaki_1996_model(2.0),

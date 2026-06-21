@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 import numpy as np
 import numpy.linalg as la
@@ -99,7 +99,7 @@ def stringify_adjacency(
         raise ValueError(f"unknown stringify format: '{fmt}'")
 
 
-ADJACENCY_TYPES = frozenset({
+ADJACENCY_TYPES: Final = frozenset({
     "bus",
     "bus1",
     "bus2",
