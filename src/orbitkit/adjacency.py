@@ -137,6 +137,7 @@ def make_adjacency_matrix_from_name(  # noqa: PLR0911
     """
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -464,6 +465,7 @@ def generate_adjacency_all(
     r"""Generate a all-to-all :math:`n \times n` adjacency matrix."""
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     result = np.ones((n, n), dtype=dtype)
     np.fill_diagonal(result, 0)
@@ -477,6 +479,7 @@ def generate_adjacency_feed_forward(
     r"""Generate a :math:`n \times n` lower triangular adjacency matrix."""
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     result = np.ones((n, n), dtype=dtype)
     return np.tril(result, k=-1)
@@ -492,6 +495,7 @@ def generate_adjacency_ring(
     """
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
@@ -525,6 +529,7 @@ def generate_adjacency_bus(
     """
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
@@ -557,6 +562,7 @@ def generate_adjacency_star(
     """
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
@@ -590,6 +596,7 @@ def generate_adjacency_star_tree(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if n < 0:
         raise ValueError(f"negative dimensions are now allowed: '{n}'")
@@ -663,6 +670,7 @@ def generate_adjacency_lattice(
     """
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if isinstance(dims, (int, np.integer)):
         dims = _find_equal_factors(int(dims))
@@ -727,6 +735,7 @@ def generate_adjacency_erdos_renyi(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if n == 1:
         return np.zeros((n, n), dtype=dtype)
@@ -839,6 +848,7 @@ def generate_adjacency_strogatz_watts(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -869,6 +879,7 @@ def generate_adjacency_barabasi_albert(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -955,6 +966,7 @@ def generate_adjacency_distance_decay(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -1023,6 +1035,7 @@ def _make_adjacency_from_groups(
 ]:
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if isinstance(gaps, int):
         gaps = np.array([gaps] * groups.size)
@@ -1093,6 +1106,7 @@ def generate_adjacency_gap_junctions(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if rng is None:
         rng = np.random.default_rng()
@@ -1176,6 +1190,7 @@ def generate_adjacency_fractal(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if nlevels == 0:
         # FIXME: what size do we actually expect here? this chose was mostly
@@ -1261,6 +1276,7 @@ def generate_adjacency_astrocyte_lattice(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if variant == "regular-degree":
         from scipy.spatial import KDTree
@@ -1360,6 +1376,7 @@ def generate_adjacency_configuration(
 
     if dtype is None:
         dtype = np.int32
+    dtype = np.dtype(dtype)
 
     if n <= 1:
         return np.zeros((n, n), dtype=dtype)
@@ -1462,7 +1479,11 @@ def generate_random_gaussian_weights(
     # generate some random points to compute distances
     Sigma = rng.random(size=2, dtype=dtype)  # ty: ignore[no-matching-overload]
     Sigma @= Sigma.T
-    x = rng.multivariate_normal(np.zeros(2, dtype=dtype), Sigma, size=mat.shape[0])
+    x = rng.multivariate_normal(
+        np.zeros(2, dtype=Sigma.dtype),
+        Sigma,
+        size=mat.shape[0],
+    )
 
     # compute square distances
     D = x.reshape(-1, 1, 2) - x.reshape(1, -1, 2)

@@ -657,7 +657,7 @@ def soe_gamma_mpm(
 
     # determine number of terms from singular values and tolerance
     S /= S[0]
-    indices = np.where(atol < S)[0]
+    indices = np.flatnonzero(atol < S)
     N = indices.size
 
     # find lambdas: eigenvalues of U[:-1]^\dagger @ U[1:]

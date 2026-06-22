@@ -111,7 +111,7 @@ class WangRinzel(Model):
         minf = self.minf(V)
         sinf = self.sinf(V)
         hinf = self.hinf(V)
-        tauh = hinf / self.betah(V)
+        tauh = sym.Quotient(hinf, self.betah(V))
 
         # compute PIR current
         g_PIR, V_PIR = param.g_PIR, param.V_PIR
@@ -177,7 +177,7 @@ class WangRinzelExt(WangRinzel):
         minf = self.minf(V)
         sinf = self.sinf(V)
         hinf = self.hinf(V)
-        tauh = hinf / self.betah(V)
+        tauh = sym.Quotient(hinf, self.betah(V))
 
         # compute PIR current
         g_PIR, V_PIR = param.g_PIR, param.V_PIR

@@ -25,7 +25,7 @@ def test_wilson_cowan_fixed_points() -> None:
     from orbitkit.models.wilson_cowan import get_wilson_cowan_fixed_points
 
     def sigmoid(s: SigmoidRate, x: float) -> float:
-        return s.a / (1.0 + np.exp(-(x - s.theta) / s.sigma))  # ty: ignore[no-matching-overload]
+        return s.a / (1.0 + np.exp(-(x - s.theta) / s.sigma))
 
     rng = np.random.default_rng(seed=42)
     rtol = 1.0e-8

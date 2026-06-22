@@ -102,8 +102,8 @@ class SigmoidRate:
         return self.a / (1 + sym.exp(-(V - self.theta) / self.sigma))
 
     def diff(self, V: sym.Expression) -> sym.Expression:
-        f = self(V) / self.a
-        return self.a / self.sigma * f * (1 - f)
+        f = sym.Quotient(self(V), self.a)
+        return sym.Quotient(self.a, self.sigma) * f * (1 - f)
 
 
 @dataclass(frozen=True)
@@ -123,13 +123,13 @@ class CenteredSigmoidRate:
 
     def __call__(self, V: sym.Expression) -> sym.Expression:
         return self.a * (
-            1 / (1 + sym.exp(-(V - self.theta) / self.sigma))
-            - 1 / (1 + sym.exp(self.theta / self.sigma))
+            sym.Quotient(1, 1 + sym.exp(-(V - self.theta) / self.sigma))
+            - sym.Quotient(1, 1 + sym.exp(sym.Quotient(self.theta, self.sigma)))
         )
 
     def diff(self, V: sym.Expression) -> sym.Expression:
-        f = self(V) / self.a
-        return self.a / self.sigma * f * (1 - f)
+        f = sym.Quotient(self(V), self.a)
+        return sym.Quotient(self.a, self.sigma) * f * (1 - f)
 
 
 @dataclass(frozen=True)
@@ -150,8 +150,8 @@ class Expm1Rate:
         return self.a / (1 - sym.exp(-(V - self.theta) / self.sigma))
 
     def diff(self, V: sym.Expression) -> sym.Expression:
-        f = self(V) / self.a
-        return self.a / self.sigma * f * (1 - f)
+        f = sym.Quotient(self(V), self.a)
+        return sym.Quotient(self.a, self.sigma) * f * (1 - f)
 
 
 @dataclass(frozen=True)
@@ -198,4 +198,7 @@ class TanhRate:
         return self.a * (1 + sym.tanh((V - self.theta) / self.sigma))
 
     def diff(self, V: sym.Expression) -> sym.Expression:
-        return self.a / self.sigma * sym.sech((V - self.theta) / self.sigma) ** 2
+        return (
+            sym.Quotient(self.a, self.sigma)
+            * sym.sech(sym.Quotient(V - self.theta, self.sigma)) ** 2
+        )

@@ -67,7 +67,7 @@ def test_dirac_delay_distributor() -> None:
     assert delay(expr) == dirac(a) + dirac(b) * dirac(t)
 
     expr = t + x[0] / x[1]
-    assert delay(expr) == dirac(t) + dirac(x[0]) / dirac(x[1])
+    assert delay(expr) == dirac(t) + sym.Quotient(dirac(x[0]), dirac(x[1]))
 
 
 # }}}
