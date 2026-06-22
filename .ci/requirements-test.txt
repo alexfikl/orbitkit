@@ -77,7 +77,22 @@ numpy==2.2.6 ; python_full_version < '3.11'
     #   matplotlib
     #   ml-dtypes
     #   scipy
-numpy==2.4.6 ; python_full_version >= '3.11'
+numpy==2.4.6 ; python_full_version == '3.11.*'
+    # via
+    #   orbitkit (pyproject.toml)
+    #   chspy
+    #   contourpy
+    #   jax
+    #   jaxlib
+    #   jitcdde
+    #   jitcode
+    #   jitcxde-common
+    #   matplotlib
+    #   ml-dtypes
+    #   numpy-typing-compat
+    #   optype
+    #   scipy
+numpy==2.5.0 ; python_full_version >= '3.12'
     # via
     #   orbitkit (pyproject.toml)
     #   chspy
@@ -94,7 +109,7 @@ numpy==2.4.6 ; python_full_version >= '3.11'
     #   scipy
 numpy-typing-compat==20251206.2.4 ; python_full_version == '3.11.*'
     # via optype
-numpy-typing-compat==20260602.2.4 ; python_full_version >= '3.12'
+numpy-typing-compat==20260602.2.5 ; python_full_version >= '3.12'
     # via optype
 opt-einsum==3.4.0
     # via jax
