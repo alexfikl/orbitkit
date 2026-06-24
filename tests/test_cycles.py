@@ -9,13 +9,11 @@ import numpy as np
 import pytest
 
 from orbitkit.utils import enable_test_plotting, module_logger
-from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
 log = module_logger(__name__)
-set_plotting_defaults()
 
 
 # {{{ test_detect_cycle_harmonic
@@ -40,6 +38,8 @@ def test_detect_cycle_harmonic(b: float) -> None:
 
     if not enable_test_plotting():
         return
+
+    from orbitkit.visualization import figure
 
     with figure(
         TEST_DIRECTORY / "test_detect_cycle_harmonic_psd", normalize=True

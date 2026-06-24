@@ -9,13 +9,11 @@ import numpy as np
 import pytest
 
 from orbitkit.utils import enable_test_plotting, module_logger
-from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
 log = module_logger(__name__)
-set_plotting_defaults()
 
 # {{{ test_wilson_cowan_fixed_points
 
@@ -157,6 +155,8 @@ def test_lallouette_mesh() -> None:
     a = 1.0
     orig = make_lallouette_mesh(n, 2, a=a, a_std=0.0, rng=rng)
     mesh = make_lallouette_mesh(n, 2, a=a, a_std=0.15 * a, rng=rng)
+
+    from orbitkit.visualization import figure
 
     with figure(TEST_DIRECTORY / "test_lallouette_mesh_2d", normalize=True) as fig:
         ax = fig.gca()

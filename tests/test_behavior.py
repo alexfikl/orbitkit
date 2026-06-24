@@ -10,13 +10,11 @@ import pytest
 
 from orbitkit.typing import Array
 from orbitkit.utils import enable_test_plotting, module_logger
-from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
 log = module_logger(__name__)
-set_plotting_defaults()
 
 
 # {{{ test_periodic_behavior_culshaw
@@ -42,6 +40,8 @@ def visualize_behavior(
     ys = ys[:, -n:]
     ts = ts[-n:]
     dt = np.min(np.diff(ts))
+
+    from orbitkit.visualization import figure
 
     with figure(TEST_DIRECTORY / f"{basename}_solution", normalize=True) as fig:
         ax = fig.gca()

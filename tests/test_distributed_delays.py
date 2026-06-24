@@ -19,13 +19,11 @@ from orbitkit.utils import (
     module_logger,
     stringify_eoc,
 )
-from orbitkit.visualization import figure, set_plotting_defaults
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
 log = module_logger(__name__)
-set_plotting_defaults()
 
 # {{{ linear model
 
@@ -214,6 +212,8 @@ def test_weak_gamma_dde(alpha: float) -> None:
 
     if not enable_test_plotting():
         return
+
+    from orbitkit.visualization import figure
 
     with figure(
         TEST_DIRECTORY / f"test_dde_weak_gamma_{alpha:.2f}", normalize=True
@@ -443,6 +443,8 @@ def test_uniform_dde(tau: float, epsilon: float) -> None:
 
     if not enable_test_plotting():
         return
+
+    from orbitkit.visualization import figure
 
     with figure(
         TEST_DIRECTORY / f"test_dde_uniform_{tau:.2f}_{epsilon:.3f}", normalize=True
