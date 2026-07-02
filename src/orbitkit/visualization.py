@@ -152,14 +152,12 @@ def set_plotting_defaults(
 
     # NOTE: preserve existing colors (the ones in "science" are ugly)
     prop_cycle = mp.rcParams["axes.prop_cycle"]
-    scienceplots = load_scienceplots_styles()
-    mp.style.use(scienceplots.get(["science", "ieee"]))
-
-    # NOTE: the 'petroff10' style is available for version >= 3.10.0 and changes
-    # the 'prop_cycle' to the 10 colors that are more accessible
     if "petroff10" in mp.style.available:
         mp.style.use("petroff10")
         prop_cycle = mp.rcParams["axes.prop_cycle"]
+
+    scienceplots = load_scienceplots_styles()
+    mp.style.use(scienceplots.get(["science", "ieee"]))
 
     if mplstyle is not None:
         mp.style.use(mplstyle)
