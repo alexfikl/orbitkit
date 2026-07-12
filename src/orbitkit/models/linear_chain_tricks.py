@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
-from pymbolic.typing import Expression
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.symbolic.mappers import IdentityMapper
@@ -17,6 +16,7 @@ from orbitkit.utils import module_logger
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
 
+    from pymbolic.typing import Expression
     from pytools import UniqueNameGenerator
 
 log = module_logger(__name__)
