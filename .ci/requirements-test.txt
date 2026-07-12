@@ -146,10 +146,12 @@ pytest-github-actions-annotate-failures==0.4.2
 python-dateutil==2.9.0.post0
     # via matplotlib
 pytools==2026.1.1
-    # via pymbolic
+    # via
+    #   orbitkit (pyproject.toml:codegen)
+    #   pymbolic
 rich==15.0.0
     # via orbitkit (pyproject.toml)
-ruff==0.15.20
+ruff==0.15.21
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.2
     # via orbitkit (pyproject.toml:visualization)
@@ -194,7 +196,7 @@ texttable==1.7.0
     # via igraph
 tomli==2.4.1 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.57
+ty==0.0.58
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.16.0
     # via
