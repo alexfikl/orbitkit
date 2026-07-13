@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
@@ -91,6 +91,76 @@ def compute_weighted_clustering_coefficient_barrat(
     mask = (degree >= 2) & (np.abs(strength) >= eps)
     wcc = np.zeros(n, dtype=dtype)
     wcc[mask] = result[mask] / (strength[mask] * (degree[mask] - 1))
+
+    return wcc
+
+
+# }}}
+
+# {{{ compute_weighted_clustering_coefficient_costantini
+
+
+def compute_weighted_clustering_coefficient_costantini(
+    mat: Array2D[np.floating[Any]],
+    *,
+    variant: Literal[6, 7, 8] = 6,
+    eps: float | None = None,
+    dtype: DTypeLike | None = None,
+) -> Array1D[np.floating[Any]]:
+    """Compute the weighted clustering coefficients from [Costantini2014]_.
+
+    This function implements the 3 generalization of the clustering coefficient
+    to signed weighted graphs given in Equation 6, 7, and 8. The precise coefficient
+    can be chosen with the *variant* keyword (matching the equation number).
+
+    .. [Costantini2014] G. Costantini, M. Perugini,
+        *Generalization of Clustering Coefficients to Signed Correlation Networks*,
+        PLoS ONE, Vol. 9, pp. e88669--e88669, 2014,
+        `doi:10.1371/journal.pone.0088669 <https://doi.org/10.1371/journal.pone.0088669>`__.
+    """
+
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    W = mat.copy()
+    W[np.abs(mat) < eps] = 0.0
+
+    if variant == 6:
+        A = np.sign(W)
+        A3 = np.einsum("ij,jk,ki->i", A, A, A)
+
+        degree = np.sum(W != 0, axis=1, dtype=dtype)
+        max_triangles = degree * (degree - 1)
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            wcc = np.where(max_triangles > 0, A3 / max_triangles, np.nan)
+    elif variant == 7:
+        A = np.sign(W) * np.cbrt(np.abs(W))
+        A3 = np.einsum("ij,jk,ki->i", A, A, A)
+
+        degree = np.sum(W != 0, axis=1, dtype=dtype)
+        max_triangles = degree * (degree - 1)
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            wcc = np.where(max_triangles > 0, A3 / max_triangles, np.nan)
+    elif variant == 8:
+        W3 = np.einsum("ij,jk,ki->i", W, W, W)
+        denominator = np.sum(np.abs(W), axis=1) ** 2 - np.sum(W**2, axis=1)
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            wcc = np.where(denominator > 0, W3 / denominator, np.nan)
+    else:
+        raise ValueError(f"unknown coefficient variant: {variant}")
 
     return wcc
 
