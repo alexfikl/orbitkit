@@ -33,10 +33,10 @@ def test_compute_weighted_degree() -> None:
 # }}}
 
 
-# {{{ test_compute_weighted_clustering_coefficient
+# {{{ test_compute_weighted_clustering_coefficient_barrat
 
 
-def test_compute_weighted_clustering_coefficient() -> None:
+def test_compute_weighted_clustering_coefficient_barrat() -> None:
     from orbitkit.metrics import compute_weighted_clustering_coefficient_barrat
 
     with pytest.raises(ValueError, match="not square"):
@@ -66,10 +66,10 @@ def test_compute_weighted_clustering_coefficient() -> None:
 # }}}
 
 
-# {{{ test_compute_graph_disparity
+# {{{ test_compute_graph_disparity_serrano
 
 
-def test_compute_graph_disparity() -> None:
+def test_compute_graph_disparity_serrano() -> None:
     from orbitkit.metrics import compute_disparity_serrano
 
     with pytest.raises(ValueError, match="not square"):
@@ -95,6 +95,61 @@ def test_compute_graph_disparity() -> None:
     W = np.ones((n, n)) - np.eye(n)  # k = n-1 = 4 equal neighbours
     Y = compute_disparity_serrano(W)
     assert np.allclose(Y, 1.0 / (n - 1), atol=1.0e-10)
+
+
+# }}}
+
+
+# {{{ test_compute_weighted_clustering_coefficient_costantini
+
+
+def test_compute_weighted_clustering_coefficient_costantini() -> None:
+    """Test the values from [Costantini2014]_ Figure 1."""
+
+    from orbitkit.adjacency import make_adjacency_from_edges as make
+    from orbitkit.metrics import compute_weighted_clustering_coefficient_costantini
+
+    eps = 1.0e-6
+    mats = [
+        # Col 1: legs ~0, closing edge = -1
+        make(3, {(0, 1): eps, (0, 2): eps, (1, 2): -1.0}, symmetrize=True),
+        # Col 2: legs = 1, closing edge ~ -0
+        make(3, {(0, 1): 1.0, (0, 2): 1.0, (1, 2): -eps}, symmetrize=True),
+        # Col 3: one leg = 1, other leg ~0, closing edge = -1
+        make(3, {(0, 1): 1.0, (0, 2): eps, (1, 2): -1.0}, symmetrize=True),
+        # Col 4: triangle legs = 1, isolated leg ~0, closing edge = -1
+        make(4, {(0, 1): 1.0, (0, 2): 1.0, (0, 3): eps, (1, 2): -1.0}, symmetrize=True),
+        # Col 5: triangle legs = 1, isolated leg = 1, closing edge ~ -0
+        make(4, {(0, 1): 1.0, (0, 2): 1.0, (0, 3): 1.0, (1, 2): -eps}, symmetrize=True),
+        # Col 6: triangle legs ~0, isolated leg ~0, closing edge = -1
+        make(4, {(0, 1): eps, (0, 2): eps, (0, 3): eps, (1, 2): -1.0}, symmetrize=True),
+        # Col 7: triangle legs = 1, isolated leg ~0, closing edge ~ -0
+        make(4, {(0, 1): 1.0, (0, 2): 1.0, (0, 3): eps, (1, 2): -eps}, symmetrize=True),
+    ]
+    expected_wccs = [
+        (-1.0, 0.0, -1.0),  # col 1
+        (-1.0, 0.0, 0.0),  # col 2
+        (-1.0, 0.0, -1.0),  # col 3
+        (-1 / 3, -1 / 3, -1.0),  # col 4
+        (-1 / 3, 0.0, 0.0),  # col 5
+        (-1 / 3, 0.0, -1 / 3),  # col 6
+        (-1 / 3, 0.0, 0.0),  # col 7
+    ]
+    log.info("")
+
+    for mat, wccs in zip(mats, expected_wccs, strict=True):
+        C_W = compute_weighted_clustering_coefficient_costantini(mat, variant=6)
+        C_O = compute_weighted_clustering_coefficient_costantini(mat, variant=7)
+        C_Z = compute_weighted_clustering_coefficient_costantini(mat, variant=8)
+
+        error_W = np.abs(wccs[0] - C_W[0])
+        error_O = np.abs(wccs[1] - C_O[0])
+        error_Z = np.abs(wccs[2] - C_Z[0])
+        log.info("C_W %.6e C_O %.6e C_Z %.6e", C_W[0], C_O[0], C_Z[0])
+        log.info("     %.6e      %.6e      %.6e", error_W, error_O, error_Z)
+        assert error_W < eps
+        assert error_O < 2.0e-2
+        assert error_Z < 2 * eps
 
 
 # }}}
