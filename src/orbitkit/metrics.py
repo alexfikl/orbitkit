@@ -21,7 +21,17 @@ log = module_logger(__name__)
 def compute_weighted_degree(
     mat: Array2D[np.floating[Any]],
 ) -> Array1D[np.floating[Any]]:
-    """Compute the weighted degree (or strength) of each node in the graph."""
+    r"""Compute the weighted degree (or strength) of each node in the graph.
+
+    .. math::
+
+        s_i = \sum_{j}^n W_{ij}.
+
+    Note that, by definition, this also works for signed networks. However,
+    cancellation can occur if the weights balance out, so a strength of 0 does
+    not mean that the node is isolated.
+    """
+
     n, m = mat.shape
     if n != m:
         raise ValueError(f"matrix not square: {mat.shape}")
