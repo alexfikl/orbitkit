@@ -59,7 +59,8 @@ def compute_weighted_clustering_coefficient_barrat(
             \frac{1}{2} (W_{ij} + W_{ik}) A_{ij} A_{ik} A_{jk}
 
     Note that this clustering coefficient is officially defined for matrices with
-    positive weights.
+    positive weights. It also assumes that the weight matrix *mat* is symmetric
+    and has zero diagonal.
 
     .. [Barrat2004] A. Barrat, M. Barthélemy, R. Pastor-Satorras, A. Vespignani,
         *The Architecture of Complex Weighted Networks*,
@@ -113,10 +114,17 @@ def compute_weighted_clustering_coefficient_costantini(
     to signed weighted graphs given in Equation 6, 7, and 8. The precise coefficient
     can be chosen with the *variant* keyword (matching the equation number).
 
+    All the coefficients assume that: (1) the weight matrix *mat* is symmetric
+    and (2) that its diagonal is 0.
+
     .. [Costantini2014] G. Costantini, M. Perugini,
         *Generalization of Clustering Coefficients to Signed Correlation Networks*,
         PLoS ONE, Vol. 9, pp. e88669--e88669, 2014,
         `doi:10.1371/journal.pone.0088669 <https://doi.org/10.1371/journal.pone.0088669>`__.
+
+    :returns: a local cluster coefficient for each node. If the coefficient is not
+        defined for a node (e.g. if it does not have sufficient neighbors), then
+        the degree is set to NaN.
     """
 
     n, m = mat.shape
@@ -145,7 +153,7 @@ def compute_weighted_clustering_coefficient_costantini(
         with np.errstate(invalid="ignore", divide="ignore"):
             wcc = np.where(max_triangles > 0, A3 / max_triangles, np.nan)
     elif variant == 7:
-        A = np.sign(W) * np.cbrt(np.abs(W))
+        A = np.cbrt(W)
         A3 = np.einsum("ij,jk,ki->i", A, A, A)
 
         degree = np.sum(W != 0, axis=1, dtype=dtype)
