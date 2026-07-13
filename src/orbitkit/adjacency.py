@@ -281,6 +281,36 @@ def make_graph_laplacian_directed(
 # }}}
 
 
+# {{{ make_adjacency_from_edges
+
+
+def make_adjacency_from_edges(
+    n: int,
+    edges: dict[tuple[int, int], float],
+    *,
+    symmetrize: bool = False,
+    dtype: DTypeLike | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Construct an adjacency matrix from a given mapping of edges.
+
+    :arg edges: a mapping from ``(i, j)`` node tuples to the weight of the edge.
+    :arg symmetrize: if *True*, both ``(i, j)`` and ``(j, i)`` edges are added.
+    """
+    result = np.zeros((n, n), dtype=dtype)
+    for (i, j), w in edges.items():
+        if not 0 <= i < n or not 0 <= j < n:
+            raise ValueError(f"Edges out of bounds for {n} nodes: ({i}, {j})")
+
+        result[i, j] = w
+        if symmetrize:
+            result[j, i] = w
+
+    return result
+
+
+# }}}
+
+
 # {{{ adjacency matrices
 
 
