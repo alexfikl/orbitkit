@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -11,6 +11,9 @@ from orbitkit.typing import Array1D, Array2D, InexactT
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
+
+
+# {{{ make_mse_weight_matrix
 
 
 def make_mse_weight_matrix(
@@ -37,6 +40,12 @@ def make_mse_weight_matrix(
     np.fill_diagonal(mat, 0.0)
 
     return mat
+
+
+# }}}
+
+
+# {{{ make_spearman_weight_matrix
 
 
 def make_spearman_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
@@ -67,6 +76,12 @@ def make_spearman_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
     return mat
 
 
+# }}}
+
+
+# {{{ make_plv_weight_matrix
+
+
 def make_plv_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
     """Compute a weight matrix using the Phase Locking Value (PLV).
 
@@ -86,6 +101,12 @@ def make_plv_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
     np.fill_diagonal(mat, 0.0)
 
     return mat
+
+
+# }}}
+
+
+# {{{ find_clusters_from_weights
 
 
 def find_clusters_from_weights(
@@ -119,6 +140,12 @@ def find_clusters_from_weights(
     )
 
     return tuple(np.array(p) for p in part)
+
+
+# }}}
+
+
+# {{{ find_clusters_from_timeseries
 
 
 def find_clusters_from_timeseries(
@@ -170,3 +197,59 @@ def find_clusters_from_timeseries(
         raise ValueError(f"unknown weight matrix computation 'method': {method}")
 
     return find_clusters_from_weights(mat, gamma=gamma)
+
+
+# }}}
+
+
+# {{{ leiden_communities_signed
+
+
+def leiden_communities_signed(
+    mat: Array2D[np.floating[Any]],
+    *,
+    resolution: float = 1.0,
+    mode: Literal["undirected", "directed"] = "undirected",
+    seed: int | None = None,
+) -> tuple[set[int], ...]:
+    try:
+        import leidenalg
+    except ImportError:
+        raise ImportError("clustering functionality requires 'leidenalg'") from None
+
+    from igraph import Graph
+
+    # create positive and negative subgraphs
+    W_pos = np.where(mat > 0, mat, 0.0)
+    W_neg = np.where(mat < 0, -mat, 0.0)
+
+    G_pos = Graph.Weighted_Adjacency(W_pos, mode=mode)
+    G_neg = Graph.Weighted_Adjacency(W_neg, mode=mode)
+
+    part_pos = leidenalg.CPMVertexPartition(
+        G_pos, weights="weight", resolution_parameter=resolution
+    )
+    part_neg = leidenalg.CPMVertexPartition(
+        G_neg, weights="weight", resolution_parameter=resolution
+    )
+
+    # optimize
+    optimiser = leidenalg.Optimiser()
+    if seed is not None:
+        optimiser.set_rng_seed(seed)
+
+    optimiser.optimise_partition_multiplex(
+        [part_pos, part_neg],
+        layer_weights=[1, -1],
+    )
+    membership = part_pos.membership
+
+    # convert results
+    result = {}
+    for node, c in zip(range(len(membership)), membership, strict=True):
+        result.setdefault(c, set()).add(node)
+
+    return tuple(result.values())
+
+
+# }}}
