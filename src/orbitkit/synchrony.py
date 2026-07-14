@@ -3,15 +3,17 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
-def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
+def pfeuty_chi(V: Array2D[np.inexact[Any]], *, ddof: int = 1) -> float:
     r"""Computes the synchrony measure from [Pfeuty2007]_.
 
     This measure is based on the normalized standard deviation of the membrane
@@ -43,7 +45,9 @@ def pfeuty_chi(V: Array, *, ddof: int = 1) -> float:
     return chi
 
 
-def kuramoto_order_parameter(theta: Array) -> Array:
+def kuramoto_order_parameter(
+    theta: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
     r"""Compute Kuramoto's order parameter for the time series *theta*.
 
     Then the order parameter :math:`r(t)` is computed as usual (see e.g.
@@ -69,7 +73,7 @@ def kuramoto_order_parameter(theta: Array) -> Array:
     return np.abs(np.mean(np.exp(1j * theta), axis=0))
 
 
-def global_kuramoto_order_parameter(theta: Array) -> float:
+def global_kuramoto_order_parameter(theta: Array2D[np.floating[Any]]) -> float:
     r"""Compute an average of the classic Kuramoto order parameter.
 
     See :func:`kuramoto_order_parameter` to get the value at each time step. The
@@ -82,7 +86,10 @@ def global_kuramoto_order_parameter(theta: Array) -> float:
     return float(np.mean(kuramoto_order_parameter(theta), axis=-1))
 
 
-def global_kuramoto_order_parameter_network(theta: Array, mat: Array) -> float:
+def global_kuramoto_order_parameter_network(
+    theta: Array2D[np.floating[Any]],
+    mat: Array2D[np.floating[Any]],
+) -> float:
     r"""Compute a network-sensitive order parameter (see Equation 6 in [Schroder2017]_).
 
     This order parameter is given by
@@ -120,7 +127,10 @@ def global_kuramoto_order_parameter_network(theta: Array, mat: Array) -> float:
     return float(np.sum(r) / np.sum(k))
 
 
-def kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> Array:
+def kuramoto_order_parameter_mean_field(
+    theta: Array2D[np.floating[Any]],
+    mat: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
     r"""Compute a network-sensitive mean-field order parameter (see Equation 7
     in [Schroder2017]_).
 
@@ -149,7 +159,9 @@ def kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> Array:
     return np.abs(np.sum(k * np.exp(1j * theta), axis=0) / np.sum(k))
 
 
-def global_kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> float:
+def global_kuramoto_order_parameter_mean_field(
+    theta: Array2D[np.floating[Any]], mat: Array2D[np.floating[Any]]
+) -> float:
     """Compute an average of the mean field Kuramoto order parameter.
 
     See :func:`kuramoto_order_parameter_mean_field` to get the value at each time step.
@@ -157,7 +169,9 @@ def global_kuramoto_order_parameter_mean_field(theta: Array, mat: Array) -> floa
     return float(np.mean(kuramoto_order_parameter_mean_field(theta, mat), axis=-1))
 
 
-def global_kuramoto_order_parameter_link(theta: Array, mat: Array) -> float:
+def global_kuramoto_order_parameter_link(
+    theta: Array2D[np.floating[Any]], mat: Array2D[np.floating[Any]]
+) -> float:
     r"""Compute a network-sensitive order parameter (see Equation 8 in [Schroder2017]_).
 
     This order parameter is given by
@@ -182,7 +196,9 @@ def global_kuramoto_order_parameter_link(theta: Array, mat: Array) -> float:
     return float(np.sum(mat * np.abs(dt)) / np.sum(k))
 
 
-def global_kuramoto_order_parameter_universal(theta: Array, mat: Array) -> float:
+def global_kuramoto_order_parameter_universal(
+    theta: Array2D[np.floating[Any]], mat: Array2D[np.floating[Any]]
+) -> float:
     r"""Compute a universal network-sensitive order parameter (see Equation 9
     from [Schroder2017]_).
 
@@ -210,11 +226,11 @@ def global_kuramoto_order_parameter_universal(theta: Array, mat: Array) -> float
 
 
 def kemeth_spatial_correlation_measure(
-    V: Array,
+    V: Array2D[np.inexact[Any]],
     *,
     atol: float | None = None,
     rtol: float = 1.0e-2,
-) -> Array:
+) -> Array1D[np.floating[Any]]:
     r"""Compute the :math:`g_0` correlation measure from [Kemeth2016]_.
 
     The correlation measure is computed using Equation (4) from [Kemeth2016]_.

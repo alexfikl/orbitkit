@@ -17,10 +17,6 @@ T = TypeVar("T")
 PathLike: TypeAlias = os.PathLike[str] | str
 """A union of types supported as paths."""
 
-# TODO: this is deprecated, use ArrayND
-Array: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
-"""Array type alias for :class:`numpy.ndarray`."""
-
 # TODO: Should probably just depend on `optype`. We already pull it in through
 # `scipy-stubs`. For now this is a very minimalist copy-paste from there. It
 # contains parts of

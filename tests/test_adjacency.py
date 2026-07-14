@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
 
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger
 
 TEST_FILENAME = pathlib.Path(__file__)
@@ -875,12 +877,11 @@ def test_generate_graph_laplacian_weights() -> None:
         apply_graph_laplacian,
         make_adjacency_matrix_from_name,
     )
-    from orbitkit.typing import Array
 
-    def f_sin(x: Array) -> Array:
+    def f_sin(x: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
         return 2.0 + np.sin(x)
 
-    def f_inv(x: Array) -> Array:
+    def f_inv(x: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
         return 1.0 / (2.0 + x)
 
     rng = np.random.default_rng(seed=42)
@@ -897,7 +898,7 @@ def test_generate_graph_laplacian_weights() -> None:
         w_eigs = np.linalg.eigvals(W)
         assert np.all(w_eigs.real > -atol)
 
-        error = np.linalg.norm(W @ x - f_inv(0) * x)  # ty: ignore[invalid-argument-type]
+        error = np.linalg.norm(W @ x - f_inv(0) * x)
         assert error < atol
 
 

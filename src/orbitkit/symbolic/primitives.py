@@ -10,7 +10,7 @@ import numpy as np
 import pymbolic.primitives as prim
 from pymbolic.mapper.stringifier import StringifyMapper as StringifyMapperBase
 
-from orbitkit.typing import Array
+from orbitkit.typing import ArrayND
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -120,8 +120,8 @@ class DotProduct(ExpressionNode):
         matrices, etc.
     """
 
-    left: Array | Expression
-    right: Array | Expression
+    left: ArrayND[Any] | Expression
+    right: ArrayND[Any] | Expression
 
 
 @prim.expr_dataclass()

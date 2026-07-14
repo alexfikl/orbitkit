@@ -4,19 +4,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
 
 
-def shift_kuramoto_angle(theta: Array) -> Array:
+def shift_kuramoto_angle(theta: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
     # FIXME: there's probably faster way to do this, but this is nice and clear
     return np.angle(np.exp(1j * theta))
 
@@ -43,11 +43,11 @@ class Kuramoto(Model):
         `doi:10.1007/978-3-642-69689-3 <https://doi.org/10.1007/978-3-642-69689-3>`__.
     """
 
-    omega: Array | sym.Expression
-    """Frequency of ech oscillator in the Kuramoto model."""
+    omega: Array1D[np.floating[Any]] | sym.Expression
+    """Frequency of each oscillator in the Kuramoto model."""
     alpha: sym.Expression
     """Phase lag for each oscillator in the Kuramoto model."""
-    K: Array | sym.MatrixSymbol
+    K: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """Coupling matrix between the different populations."""
 
     if __debug__:
@@ -84,10 +84,10 @@ class Kuramoto(Model):
                 f"got {theta.shape} but expected ({K.shape[0]},)"
             )
 
-        result = sym.Sum((  # ty: ignore[invalid-argument-type]
+        result = sym.Sum((
             self.omega,
             sym.Contract(
-                sym.Product((  # ty: ignore[invalid-argument-type]
+                sym.Product((
                     self.K,
                     sym.sin(theta.reshape(1, -1) - theta.reshape(-1, 1) - self.alpha),
                 )),
@@ -128,7 +128,7 @@ class KuramotoAbrams(Model):
     """Frequency of each oscillator in the Kuramoto model."""
     alpha: sym.Expression
     """Phase lag for each oscillator in the Kuramoto model."""
-    K: Array | sym.MatrixSymbol
+    K: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """Coupling matrix between the different populations."""
 
     if __debug__:

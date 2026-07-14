@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import replace
+from typing import Any
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.wang_buzsaki import make_model_from_name
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger, on_ci
 
 log = module_logger(__name__)
@@ -47,7 +48,9 @@ sinf = target.lambdify(target.generate_code((V,), model.sinf(V)))
 I_app = {"Figure3a": 1.0, "Figure3b": 1.2, "Figure3c": 1.4}[figname]
 
 
-def wang_buzsaki_source(t: float, y: Array) -> Array:
+def wang_buzsaki_source(
+    t: float, y: Array1D[np.floating[Any]]
+) -> Array1D[np.floating[Any]]:
     dy = source(t, y)
     dy[: model.n] += I_app / model.param.C
 

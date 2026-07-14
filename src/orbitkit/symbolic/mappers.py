@@ -19,7 +19,7 @@ from pymbolic.typing import ArithmeticExpression
 from pymbolic.typing import Expression as PymbolicExpression
 
 import orbitkit.symbolic.primitives as sym
-from orbitkit.typing import Array
+from orbitkit.typing import ArrayND
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -67,9 +67,8 @@ class IdentityMapper(IdentityMapperBase[[]]):
         return type(expr)(subscripts=expr.subscripts, operands=operands)
 
     def map_dot_product(self, expr: sym.DotProduct, /) -> PymbolicExpression:
-        # NOTE: ty is upset because left/right can also be ndarrays
-        left = self.rec_arith(expr.left)  # ty: ignore[invalid-argument-type]
-        right = self.rec_arith(expr.right)  # ty: ignore[invalid-argument-type]
+        left = self.rec_arith(expr.left)
+        right = self.rec_arith(expr.right)
         if left is expr.left and right is expr.right:
             return expr
 
@@ -151,8 +150,8 @@ class WalkMapper(WalkMapperBase[[]]):
         if not self.visit(expr):
             return
 
-        self.rec(expr.left)  # ty: ignore[invalid-argument-type]
-        self.rec(expr.right)  # ty: ignore[invalid-argument-type]
+        self.rec(expr.left)
+        self.rec(expr.right)
         self.post_visit(expr)
 
     def map_delay_kernel(self, expr: sym.DelayKernel) -> None:
@@ -191,8 +190,8 @@ class StringifyMapper(StringifyMapperBase[[]]):
         return f"({aggregate}).reshape{expr.shape}"
 
     def map_dot_product(self, expr: sym.DotProduct, /, enclosing_prec: int) -> str:
-        left = self.rec(expr.left, PREC_NONE)  # ty: ignore[invalid-argument-type]
-        right = self.rec(expr.right, PREC_NONE)  # ty: ignore[invalid-argument-type]
+        left = self.rec(expr.left, PREC_NONE)
+        right = self.rec(expr.right, PREC_NONE)
         return f"dot({left}, {right})"
 
     def map_delay_kernel(self, expr: sym.DelayKernel, /, enclosing_prec: int) -> str:
@@ -224,7 +223,7 @@ class StringifyMapper(StringifyMapperBase[[]]):
         return super().map_call(expr, enclosing_prec)
 
 
-def stringify(expr: sym.Expression | tuple[sym.Expression, ...] | Array) -> str:
+def stringify(expr: sym.Expression | tuple[sym.Expression, ...] | ArrayND[Any]) -> str:
     return StringifyMapper()(expr)
 
 
@@ -236,8 +235,8 @@ def stringify(expr: sym.Expression | tuple[sym.Expression, ...] | Array) -> str:
 
 class FlattenMapper(FlattenMapperBase, IdentityMapper):
     def map_dot_product(self, expr: sym.DotProduct, /) -> PymbolicExpression:
-        left: sym.Expression = self.rec(expr.left)  # ty: ignore[invalid-argument-type,invalid-assignment]
-        right: sym.Expression = self.rec(expr.right)  # ty: ignore[invalid-argument-type,invalid-assignment]
+        left: sym.Expression = self.rec(expr.left)  # ty: ignore[invalid-assignment]
+        right: sym.Expression = self.rec(expr.right)  # ty: ignore[invalid-assignment]
         if prim.is_zero(left) or prim.is_zero(right):
             return 0
 
@@ -261,7 +260,7 @@ def flatten(expr: sym.Expression) -> sym.Expression: ...
 
 
 @overload
-def flatten(expr: Array) -> Array: ...
+def flatten(expr: ArrayND[Any]) -> ArrayND[Any]: ...
 
 
 @overload
@@ -269,9 +268,9 @@ def flatten(expr: tuple[sym.Expression, ...]) -> tuple[sym.Expression, ...]: ...
 
 
 def flatten(
-    expr: sym.Expression | tuple[sym.Expression, ...] | Array,
-) -> sym.Expression | tuple[sym.Expression, ...] | Array:
-    return FlattenMapper()(expr)  # ty: ignore[invalid-argument-type,invalid-return-type]
+    expr: sym.Expression | tuple[sym.Expression, ...] | ArrayND[Any],
+) -> sym.Expression | tuple[sym.Expression, ...] | ArrayND[Any]:
+    return FlattenMapper()(expr)
 
 
 # }}}

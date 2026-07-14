@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.models.rate_functions import ExponentialRate, RateFunction, SigmoidRate
-from orbitkit.typing import Array
+from orbitkit.typing import Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -72,7 +72,7 @@ class WangRinzel(Model):
 
     param: WangRinzelParameter
     """Parameters for the Wang-Rinzel model."""
-    A: Array | sym.MatrixSymbol
+    A: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """A connection matrix for the synaptic current."""
 
     minf: RateFunction

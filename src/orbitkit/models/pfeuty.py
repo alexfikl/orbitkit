@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Final
+from typing import Any, Final
 
 import numpy as np
 
@@ -18,7 +18,7 @@ from orbitkit.models.rate_functions import (
     SigmoidRate,
     TanhRate,
 )
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -98,9 +98,9 @@ class Pfeuty(Model):
     param: PfeutyParameter
     """Parameters for the Wang-Buzsáki model."""
 
-    A_inh: Array | sym.MatrixSymbol
+    A_inh: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """An adjacency matrix for the inhibitory synaptic current."""
-    A_gap: Array | sym.MatrixSymbol
+    A_gap: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """An adjacency matrix for the electric synaptic current."""
 
     alpha_s: RateFunction
@@ -145,7 +145,7 @@ class Pfeuty(Model):
         return self.A_inh.shape[0]
 
     @cached_property
-    def M_gap(self) -> Array | sym.MatrixSymbol:  # noqa: N802
+    def M_gap(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:  # noqa: N802
         """Degree of each of the nodes in the electric synaptic network."""
         return (
             sym.MatrixSymbol("M_gap", (self.n,))
@@ -229,12 +229,12 @@ class Pfeuty(Model):
         Is_gap = (
             self.K_gap
             * g_gap
-            * (sym.Product((self.M_gap, Vs)) - sym.DotProduct(self.A_gap, Vs))  # ty: ignore[invalid-argument-type]
+            * (sym.Product((self.M_gap, Vs)) - sym.DotProduct(self.A_gap, Vs))
         )
         Id_gap = (
             self.K_gap
             * g_gap
-            * (sym.Product((self.M_gap, Vd)) - sym.DotProduct(self.A_gap, Vd))  # ty: ignore[invalid-argument-type]
+            * (sym.Product((self.M_gap, Vd)) - sym.DotProduct(self.A_gap, Vd))
         )
 
         # put it all together

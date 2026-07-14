@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import replace
+from typing import Any
 
 import numpy as np
 
@@ -12,7 +13,7 @@ import orbitkit.symbolic.primitives as sym
 from orbitkit.adjacency import generate_adjacency_erdos_renyi
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.pfeuty import make_model_from_name
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger, on_ci
 
 log = module_logger(__name__)
@@ -99,7 +100,7 @@ eta = rng.standard_normal((n, noise_t.size))
 I_noise_bins = noise_sigma / np.sqrt(noise_dt) * eta
 
 
-def pfeuty_source(t: float, y: Array) -> Array:
+def pfeuty_source(t: float, y: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
     k = min(int(np.digitize(t, noise_t)), noise_t.size - 1)
 
     dy = source(t, y)

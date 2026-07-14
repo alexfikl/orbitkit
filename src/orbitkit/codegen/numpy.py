@@ -13,7 +13,7 @@ from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code, Target, execute_code
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, ArrayND
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -44,12 +44,14 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
     parameters: set[str] = field(init=False, default_factory=set)
     """A set of additional variables that are not known inputs."""
 
-    array_arguments: dict[str, Array] = field(init=False, default_factory=dict)
+    array_arguments: dict[str, ArrayND[Any]] = field(init=False, default_factory=dict)
     """A mapping of unique names to arrays that have been found in the expression
     graph. These need to be added as arguments or defined as variables on code
     generation.
     """
-    object_array_arguments: dict[str, Array] = field(init=False, default_factory=dict)
+    object_array_arguments: dict[str, ArrayND[Any]] = field(
+        init=False, default_factory=dict
+    )
     """A mapping of unique names to object arrays. These arrays need additional
     post-processing to find any nested symbolic expressions.
     """
@@ -71,7 +73,7 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
     def map_function(self, expr: sym.Function, /, enclosing_prec: int) -> str:
         return f"{self.module}.{expr.name}"
 
-    def map_numpy_array(self, expr: Array, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
+    def map_numpy_array(self, expr: ArrayND[Any], /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
         if expr.dtype.char == "O":
             for name, ary in self.object_array_arguments.items():
                 if ary is expr:
@@ -98,8 +100,8 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
         return f"{self.module}.reshape({aggregate}, shape={expr.shape})"
 
     def map_dot_product(self, expr: sym.DotProduct, /, enclosing_prec: int) -> str:
-        left = self.rec(expr.left, PREC_NONE)  # ty: ignore[invalid-argument-type]
-        right = self.rec(expr.right, PREC_NONE)  # ty: ignore[invalid-argument-type]
+        left = self.rec(expr.left, PREC_NONE)
+        right = self.rec(expr.right, PREC_NONE)
         return f"{self.module}.dot({left}, {right})"
 
     def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
@@ -112,10 +114,10 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
         return super().map_call(expr, enclosing_prec)
 
 
-def cgen_obj_array(cgen: NumpyCodeGenerator, ary: Array) -> str:
+def cgen_obj_array(cgen: NumpyCodeGenerator, ary: ArrayND[Any]) -> str:
     from orbitkit.symbolic.mappers import flatten
 
-    def _cgen_obj_array(subary: Array) -> str:
+    def _cgen_obj_array(subary: ArrayND[Any]) -> str:
         items = []
         for item in subary:
             if isinstance(item, np.ndarray):
@@ -262,7 +264,7 @@ class NumpyTarget(Target):
         code: Code,
         *,
         parameters: Mapping[str, Any] | None = None,
-    ) -> Callable[..., Array]:
+    ) -> Callable[..., Array1D[np.inexact[Any]]]:
         func = execute_code(code)
         cargs = code.args
 
@@ -279,7 +281,7 @@ class NumpyTarget(Target):
 
             cargs = (*params, *cargs)
 
-        def wrapper(*args: Array) -> Array:
+        def wrapper(*args: Array1D[np.inexact[Any]]) -> Array1D[np.inexact[Any]]:
             return func(*args, *cargs)
 
         return wrapper

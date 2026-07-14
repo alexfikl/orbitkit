@@ -5,13 +5,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Final
+from typing import Any, Final
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -55,9 +55,9 @@ class FitzHughNagumoOmelchenko(Model):
     sigma: sym.Expression
     """Coupling strength between the nodes."""
 
-    H: Array | sym.MatrixSymbol
+    H: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """Matrix controlling the coupling between the components."""
-    G: Array | sym.MatrixSymbol
+    G: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """Adjacency matrix that describes the inter-node interactions in each component."""
 
     if __debug__:
@@ -78,7 +78,7 @@ class FitzHughNagumoOmelchenko(Model):
         return ("u", "v")
 
     @cached_property
-    def g(self) -> Array | sym.MatrixSymbol:
+    def g(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:
         """Degree of each of the nodes in the electric synaptic network."""
         return (
             sym.MatrixSymbol("g", (self.n,))
@@ -105,7 +105,7 @@ class FitzHughNagumoOmelchenko(Model):
 
         def sum_g(a: sym.Expression, b: sym.Expression) -> sym.Expression:
             return sym.Contract(
-                sym.Product((  # ty: ignore[invalid-argument-type]
+                sym.Product((
                     self.G,
                     a * (u.reshape(1, -1) - u.reshape(-1, 1))
                     + b * (v.reshape(1, -1) - v.reshape(-1, 1)),
@@ -114,7 +114,7 @@ class FitzHughNagumoOmelchenko(Model):
             )
 
         H, epsilon, a = self.H, self.epsilon, self.a
-        sigma_g = sym.Quotient(self.sigma, self.g)  # ty: ignore[invalid-argument-type]
+        sigma_g = sym.Quotient(self.sigma, self.g)
         return (
             (u - u**3 / 3 - v + sigma_g * sum_g(H[0, 0], H[0, 1])) / epsilon,
             u + a + sigma_g * sum_g(H[1, 0], H[1, 1]),

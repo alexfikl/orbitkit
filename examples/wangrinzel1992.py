@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.wang_rinzel import make_model_from_name
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger, on_ci
 
 log = module_logger(__name__)
@@ -33,7 +34,9 @@ source = target.lambdify_model(model, model.n)
 # {{{ simulation parameters
 
 
-def figure3a_source(t: float, y: Array) -> Array:
+def figure3a_source(
+    t: float, y: Array1D[np.floating[Any]]
+) -> Array1D[np.floating[Any]]:
     # NOTE: Figure3a clamps the voltage V0 to some value. We fake that here by
     # removing the right-hand side completely in the interval [380, 580].
     dy = source(t, y)
@@ -43,7 +46,9 @@ def figure3a_source(t: float, y: Array) -> Array:
     return dy
 
 
-def figure3c_source(t: float, y: Array) -> Array:
+def figure3c_source(
+    t: float, y: Array1D[np.floating[Any]]
+) -> Array1D[np.floating[Any]]:
     # NOTE: Figure3c adds a little transient hyperpolarization to kickstart the
     # oscillations. The text is not clear, but this seems to work well enough.
     dy = source(t, y)
@@ -54,7 +59,9 @@ def figure3c_source(t: float, y: Array) -> Array:
     return dy
 
 
-def figure4a_source(t: float, y: Array) -> Array:
+def figure4a_source(
+    t: float, y: Array1D[np.floating[Any]]
+) -> Array1D[np.floating[Any]]:
     # NOTE: Figure4a has two burst of additional current pumped into the system.
     # This is nicely described in the caption, so should work.
     dy = source(t, y)

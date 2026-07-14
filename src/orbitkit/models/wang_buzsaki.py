@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Final
+from typing import Any, Final
 
 import numpy as np
 
@@ -17,7 +17,7 @@ from orbitkit.models.rate_functions import (
     RateFunction,
     SigmoidRate,
 )
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -87,7 +87,7 @@ class WangBuzsaki(Model):
 
     param: WangBuzsakiParameter
     """Parameters for the Wang-Buzsáki model."""
-    A: Array | sym.MatrixSymbol
+    A: Array2D[np.floating[Any]] | sym.MatrixSymbol
     """An adjacency matrix for the synaptic current."""
 
     fpre: RateFunction
@@ -122,7 +122,7 @@ class WangBuzsaki(Model):
         return self.A.shape[0]
 
     @cached_property
-    def M_syn(self) -> Array | sym.MatrixSymbol:  # noqa: N802
+    def M_syn(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:  # noqa: N802
         return (
             sym.MatrixSymbol("M_syn", (self.A.shape[0],))
             if isinstance(self.A, sym.MatrixSymbol)
@@ -173,7 +173,7 @@ class WangBuzsaki(Model):
         # compute synaptic current
         g_syn, E_syn = param.g_syn, param.E_syn
         I_syn = (
-            g_syn * (V - E_syn) * sym.Quotient(sym.DotProduct(self.A, s), self.M_syn)  # ty: ignore[invalid-argument-type]
+            g_syn * (V - E_syn) * sym.Quotient(sym.DotProduct(self.A, s), self.M_syn)
         )
 
         # put it all together

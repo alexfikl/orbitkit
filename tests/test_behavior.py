@@ -4,11 +4,12 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
 
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import enable_test_plotting, module_logger
 
 TEST_FILENAME = pathlib.Path(__file__)
@@ -21,8 +22,8 @@ log = module_logger(__name__)
 
 
 def visualize_behavior(
-    ts: Array,
-    ys: Array,
+    ts: Array1D[np.floating[Any]],
+    ys: Array2D[np.floating[Any]],
     basename: str,
     *,
     lcmethod: str,

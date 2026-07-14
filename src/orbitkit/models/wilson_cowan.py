@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Final, Literal, TypeAlias
+from typing import Any, Final, Literal, TypeAlias
 
 import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.models.rate_functions import RateFunction, SigmoidRate
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -31,12 +31,16 @@ class WilsonCowanPopulation:
     kernels: tuple[sym.DelayKernel, ...]
     r"""Delay kernels :math:`h_{ij}` used in the variables inside the sigmoid."""
     weights: tuple[
-        tuple[float | Array | sym.MatrixSymbol, float | Array | sym.MatrixSymbol], ...
+        tuple[
+            float | Array2D[np.floating[Any]] | sym.MatrixSymbol,
+            float | Array2D[np.floating[Any]] | sym.MatrixSymbol,
+        ],
+        ...,
     ]
     r"""The weight matrices
     :math:`(\boldsymbol{W}_{*E}^{(k)}, \boldsymbol{W}_{*I}^{(k)}` used in the model.
     """
-    forcing: Array | sym.MatrixSymbol
+    forcing: Array1D[np.floating[Any]] | sym.MatrixSymbol
     """Forcing term used in the model."""
 
     if __debug__:
@@ -156,12 +160,12 @@ class WilsonCowan(Model):
             # NOTE: pymbolic should be able to do @ here, but we leave it with
             # a dot product so that it supports scalars
             terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
-        Es = sym.Sum((*terms, self.E.forcing))  # ty: ignore[invalid-argument-type]
+        Es = sym.Sum((*terms, self.E.forcing))
 
         terms = []
         for (W_E, W_I), h in zip(self.I.weights, self.I.kernels, strict=True):
             terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
-        Is = sym.Sum((*terms, self.I.forcing))  # ty: ignore[invalid-argument-type]
+        Is = sym.Sum((*terms, self.I.forcing))
 
         return (
             (-E + (1 - self.E.r * E) * self.E.sigmoid(Es)) / self.E.tau,
@@ -616,7 +620,7 @@ def _get_wilson_cowan_fixed_point(
     import scipy.optimize as so
 
     def root_func_E(E: float, I: float) -> float:  # noqa: E741,N802
-        return E - sE_func(a * E - b * I + p)  # ty: ignore[invalid-return-type]
+        return E - sE_func(a * E - b * I + p)
 
     def root_jac_E(E: float, I: float) -> float:  # noqa: E741,N802
         return 1.0 - a * sE_prime(a * E - b * I + p)
@@ -707,7 +711,7 @@ def get_wilson_cowan_fixed_points(
     npoints: int = 32,
     rtol: float = 1.0e-8,
     method: Methods | None = "brentq",
-) -> Array:
+) -> Array2D[np.floating[Any]]:
     r"""Find the synchronized fixed points of the one delay Wilson-Cowan system
     :class:`WilsonCowan`.
 

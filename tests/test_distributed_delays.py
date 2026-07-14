@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import numpy.linalg as la
@@ -12,7 +13,7 @@ import pytest
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D
 from orbitkit.utils import (
     EOCRecorder,
     enable_test_plotting,
@@ -28,7 +29,9 @@ log = module_logger(__name__)
 # {{{ linear model
 
 
-def _weak_gamma_homogeneous_solution(model: HomogeneousLinearModel, t: Array) -> Array:
+def _weak_gamma_homogeneous_solution(
+    model: HomogeneousLinearModel, t: Array1D[np.floating[Any]]
+) -> Array1D[np.floating[Any]]:
     lambda_star = _weak_gamma_homogeneous_root(model)
     return np.exp(lambda_star * t)
 

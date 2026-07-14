@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import pymbolic.primitives as prim
 import pytest
 
 from orbitkit.models.kuramoto import KuramotoAbrams
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D, Array2D
 from orbitkit.utils import module_logger
 
 TEST_FILENAME = pathlib.Path(__file__)
@@ -109,7 +110,9 @@ def test_codegen_numpy(module_name: str, model_name: str) -> None:
 # {{{ test_codegen_numpy_kuramoto
 
 
-def kuramoto(model: KuramotoAbrams, t: float, *thetas: Array) -> Array:
+def kuramoto(
+    model: KuramotoAbrams, t: float, *thetas: Array1D[np.floating[Any]]
+) -> Array2D[np.floating[Any]]:
     return np.hstack([
         model.omega
         + sum(

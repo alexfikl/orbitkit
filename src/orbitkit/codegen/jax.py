@@ -7,9 +7,11 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+import numpy as np
+
 from orbitkit.codegen import Code, execute_code
 from orbitkit.codegen.numpy import NumpyTarget
-from orbitkit.typing import Array
+from orbitkit.typing import Array1D
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -33,7 +35,7 @@ class JaxTarget(NumpyTarget):
         code: Code,
         *,
         parameters: Mapping[str, Any] | None = None,
-    ) -> Callable[..., Array]:
+    ) -> Callable[..., Array1D[np.floating[Any]]]:
         import jax
 
         func = execute_code(code)
@@ -52,7 +54,7 @@ class JaxTarget(NumpyTarget):
 
             cargs = (*cargs, *params)
 
-        def wrapper(*args: Array) -> Array:
+        def wrapper(*args: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
             return func(*args, *cargs)
 
         return jax.jit(wrapper) if self.jit else wrapper
