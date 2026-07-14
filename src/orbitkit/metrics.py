@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -297,6 +298,108 @@ def compute_graph_triangles(mat: Array2D[np.floating[Any]]) -> int:
     trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
 
     return int(trmat3) // 6
+
+
+# }}}
+
+
+# {{{ compute_participation_coefficient
+
+
+def compute_nx_community_strengths(
+    mat: Array2D[np.floating[Any]],
+    communities: Sequence[set[int]],
+) -> Array2D[np.floating[Any]]:
+    r"""Compute the community strengths for each node.
+
+    For each node :math:`i` and community :math:`c`, this computes a sum over all
+    the edges between that node and nodes in the community, i.e.
+
+    .. math::
+
+        \kappa_{ic} = \sum_{j \in c} W_{ij}
+
+    In practice, this is similar to a :func:`compute_weighted_degree` and comes
+    with the same caveats for signed networks.
+
+    :arg mat: a weighted adjacency matrix of shape ``(n, n)``, where *n* is the
+        number of nodes. The matrix is assumed to be symmetric and have a
+        zero diagonal.
+    :arg communities: a list of communities defined as ``[{node0, node1, ...}, ...],
+        i.e. a list of node sets, one for each community. This is the format
+        returned by ``networkx.community.greedy_modularity_communities``.
+    """
+    if mat.ndim != 2:
+        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
+
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
+
+    from itertools import product
+
+    node_to_community = np.full(n, -1, dtype=np.int32)
+    for c, nodes in enumerate(communities):
+        for node in nodes:
+            node_to_community[node] = c
+
+    if not np.all(node_to_community >= 0):
+        raise ValueError("not all nodes are assigned to communities")
+
+    result = np.zeros((n, len(communities)), dtype=mat.dtype)
+    for i, j in product(range(n), repeat=2):
+        result[i, node_to_community[j]] += mat[i, j]
+
+    return result
+
+
+def compute_participation_coefficient(
+    mat: Array2D[np.floating[Any]],
+    community_strengths: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
+    r"""Compute a weighted participation coefficient from [Guimera2005]_.
+
+    .. math::
+
+        P_i = 1 - \sum_{j \in c} \left(\frac{\kappa_{ij}}{k_i}\right)^2,
+
+    where :math:`\kappa` is the community strength and :math:`k` is total degree.
+    Note that the the participation coefficient is only defined for unsigned
+    weighted graphs. This is mainly due to the fact that community algorithms
+    only work on unsigned graphs.
+
+    .. [Guimera2005] R. Guimerà, L. A. N. Amaral,
+        *Cartography of Complex Networks: Modules and Universal Roles*,
+        Journal of Statistical Mechanics: Theory and Experiment, 2005,
+        `doi:10.1088/1742-5468/2005/02/p02001 <https://doi.org/10.1088/1742-5468/2005/02/p02001>`__.
+
+    :arg community_strengths: an array of shape ``(nnodes, ncommunities)`` that
+        describes the strength (weighted degree) of each node to a set of
+        communities. See :func:`compute_nx_community_strengths`.
+    """
+    if mat.ndim != 2:
+        raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
+
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"adjacency matrix is not square: {mat.shape}")
+
+    if community_strengths.ndim != 2:
+        raise ValueError(f"strength is not 2 dimensional: {community_strengths.shape}")
+
+    if community_strengths.shape[0] != n:
+        raise ValueError(
+            f"'mat' does not match 'community_strengths': expected {n} nodes "
+            f"(got {community_strengths.shape[0]} strengths)"
+        )
+
+    kappa = np.sum(community_strengths**2, axis=1)
+    degree = np.sum(mat, axis=1)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        p = np.where(degree > 0, 1.0 - kappa / degree**2, 0.0)
+
+    return p
 
 
 # }}}
