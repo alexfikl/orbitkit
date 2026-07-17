@@ -246,7 +246,7 @@ def test_codegen_jitcdde_pickle_roundtrip() -> None:
     pytest.importorskip("pymbolic")
     pytest.importorskip("jitcdde")
 
-    import pickle  # noqa: S403
+    import pickle  # ruff:ignore[suspicious-pickle-import]
 
     module_location = pathlib.Path(tempfile.gettempdir()) / "jitcdde_orbitkit_pickle.so"
 
@@ -269,7 +269,7 @@ def test_codegen_jitcdde_pickle_roundtrip() -> None:
 
     # Round-trip
     data = pickle.dumps(dde)
-    dde2 = pickle.loads(data)  # noqa: S301
+    dde2 = pickle.loads(data)  # ruff:ignore[suspicious-pickle-usage]
 
     # Same metadata
     assert dde2.parameters == dde.parameters
@@ -304,7 +304,7 @@ def test_codegen_jitcdde_pickle_no_module_location() -> None:
     pytest.importorskip("pymbolic")
     pytest.importorskip("jitcdde")
 
-    import pickle  # noqa: S403
+    import pickle  # ruff:ignore[suspicious-pickle-import]
 
     dde = _make_dde_from_name(
         "hiv",
@@ -315,7 +315,7 @@ def test_codegen_jitcdde_pickle_no_module_location() -> None:
 
     # Round-trip without module_location
     data = pickle.dumps(dde)
-    dde2 = pickle.loads(data)  # noqa: S301
+    dde2 = pickle.loads(data)  # ruff:ignore[suspicious-pickle-usage]
 
     # Still functional (Python backend)
     tau = 0.5

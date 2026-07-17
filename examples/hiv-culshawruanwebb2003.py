@@ -81,7 +81,7 @@ if on_ci():
     raise SystemExit(0)
 
 try:
-    import matplotlib.pyplot as mp  # noqa: F401
+    import matplotlib.pyplot as mp  # ruff:ignore[unused-import]
 except ImportError:
     raise SystemExit(0) from None
 

@@ -216,7 +216,7 @@ def test_wilson_cowan_linear_chain_tricks(knl: sym.DelayKernel) -> None:
         lines.append(f"[{i:02d}]:\n\td{stringify(y)}/dt = {stringify(eq)}")
 
     for i, (name, eq) in enumerate(eqs.items()):
-        i += len(exprs)  # noqa: PLW2901
+        i += len(exprs)  # ruff:ignore[redefined-loop-name]
         y = sym.Variable(name)
         lines.append(f"[{i:02d}]:\n\td{stringify(y)}/dt = {stringify(eq.expr)}")
 

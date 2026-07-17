@@ -52,7 +52,7 @@ log.info("\n%s", integrator.f)
 
 # {{{ evolve
 
-if figname.startswith("Figure9"):  # noqa: SIM108
+if figname.startswith("Figure9"):  # ruff:ignore[if-else-block-instead-of-if-exp]
     tspan = (0.0, 45.0)
 else:
     tspan = (0.0, 15.0)
@@ -86,7 +86,7 @@ if on_ci():
     raise SystemExit(0)
 
 try:
-    import matplotlib.pyplot as mp  # noqa: F401
+    import matplotlib.pyplot as mp  # ruff:ignore[unused-import]
 except ImportError:
     raise SystemExit(0) from None
 

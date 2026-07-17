@@ -89,7 +89,7 @@ def _check_usetex(*, s: bool) -> bool:
         if not shutil.which("dvipng"):
             return False
 
-        if not shutil.which("gs"):  # noqa: SIM103
+        if not shutil.which("gs"):  # ruff:ignore[needless-bool]
             return False
 
         return True
@@ -1124,7 +1124,7 @@ def write_dot_from_adjacency(
             f"incorrect number of node names: got {len(nodenames)} but expected {n}"
         )
 
-    if nodecolors is None:  # noqa: SIM108
+    if nodecolors is None:  # ruff:ignore[if-else-block-instead-of-if-exp]
         nodecolors = ("#000000",) * n
     else:
         nodecolors = tuple(nodecolors)
@@ -1200,14 +1200,14 @@ def write_gexf_from_adjacency(
     else:
         nodenames = tuple(nodenames)
 
-    if nodecolors is None:  # noqa: SIM108
+    if nodecolors is None:  # ruff:ignore[if-else-block-instead-of-if-exp]
         nodecolors = ("#000000",) * n
     else:
         nodecolors = tuple(nodecolors)
 
     edgedefault = "direct" if directed else "undirected"
 
-    from xml.etree.ElementTree import (  # noqa: S405
+    from xml.etree.ElementTree import (  # ruff:ignore[suspicious-xml-etree-import]
         Element,
         ElementTree,
         SubElement,

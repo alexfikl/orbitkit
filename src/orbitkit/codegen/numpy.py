@@ -147,7 +147,7 @@ class NumpyTarget(Target):
     this code generator.
     """
 
-    def _get_module(self) -> Any:  # noqa: PLR6301
+    def _get_module(self) -> Any:  # ruff:ignore[no-self-use]
         return np
 
     def _get_code_generator(self, inputs: set[str]) -> NumpyCodeGenerator:
@@ -259,7 +259,7 @@ class NumpyTarget(Target):
             context={self.module: self._get_module()},
         )
 
-    def lambdify(  # noqa: PLR6301
+    def lambdify(  # ruff:ignore[no-self-use]
         self,
         code: Code,
         *,

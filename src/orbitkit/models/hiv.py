@@ -69,7 +69,7 @@ class CulshawRuanWebb(Model):
     def evaluate(
         self, t: sym.Expression, *args: sym.MatrixSymbol
     ) -> tuple[sym.Expression, ...]:
-        C, I = args  # noqa: E741
+        C, I = args  # ruff:ignore[ambiguous-variable-name]
 
         r, C_M, k_I, mu_C, mu_I = self.r, self.C_M, self.k_I, self.mu_C, self.mu_I
         r_C = r - mu_C

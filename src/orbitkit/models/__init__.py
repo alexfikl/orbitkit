@@ -41,7 +41,7 @@ def ds_symbolic(
     if rattrs is None:
         rattrs = set()
 
-    def _ds_field_symbolic(  # noqa: PLR0911
+    def _ds_field_symbolic(  # ruff:ignore[too-many-return-statements]
         attr: object, fname: str, *, rec: bool, rattrs: set[str]
     ) -> object:
         from pymbolic.primitives import ExpressionNode

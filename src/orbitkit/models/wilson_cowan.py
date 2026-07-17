@@ -113,7 +113,7 @@ class WilsonCowan(Model):
 
     E: WilsonCowanPopulation
     """Excitatory population parameters."""
-    I: WilsonCowanPopulation  # noqa: E741
+    I: WilsonCowanPopulation  # ruff:ignore[ambiguous-variable-name]
     """Excitatory population parameters."""
 
     if __debug__:
@@ -140,7 +140,7 @@ class WilsonCowan(Model):
     def evaluate(
         self, t: sym.Expression, *args: sym.MatrixSymbol
     ) -> tuple[sym.Expression, ...]:
-        E, I = args  # noqa: E741
+        E, I = args  # ruff:ignore[ambiguous-variable-name]
 
         if E.shape != (self.n,):
             raise ValueError(
@@ -619,13 +619,13 @@ def _get_wilson_cowan_fixed_point(
 
     import scipy.optimize as so
 
-    def root_func_E(E: float, I: float) -> float:  # noqa: E741,N802
+    def root_func_E(E: float, I: float) -> float:  # ruff:ignore[ambiguous-variable-name, invalid-function-name]
         return E - sE_func(a * E - b * I + p)
 
-    def root_jac_E(E: float, I: float) -> float:  # noqa: E741,N802
+    def root_jac_E(E: float, I: float) -> float:  # ruff:ignore[ambiguous-variable-name, invalid-function-name]
         return 1.0 - a * sE_prime(a * E - b * I + p)
 
-    def solve_for_I(E: float) -> float:  # noqa: N802
+    def solve_for_I(E: float) -> float:  # ruff:ignore[invalid-function-name]
         result = so.root_scalar(  # ty: ignore[no-matching-overload]
             lambda x: x - sI_func(c * E - d * x + q),
             fprime=lambda x: 1 + d * sI_prime(c * E - d * x + q),
@@ -654,7 +654,7 @@ def _get_wilson_cowan_fixed_point(
         return 0.5 * root_func_E(E, solve_for_I(E)) ** 2
 
     def root_jac_sqr(E: float) -> float:
-        I = solve_for_I(E)  # noqa: E741
+        I = solve_for_I(E)  # ruff:ignore[ambiguous-variable-name]
         return root_func_E(E, I) * root_jac_E(E, I)
 
     # }}}
@@ -698,7 +698,7 @@ def _get_wilson_cowan_fixed_point(
 
         E = result.root
 
-    I = solve_for_I(E)  # noqa: E741
+    I = solve_for_I(E)  # ruff:ignore[ambiguous-variable-name]
     return E, I
 
 

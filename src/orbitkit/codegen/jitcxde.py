@@ -31,7 +31,7 @@ JiTCXDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 
 def has_jitcode() -> bool:
     try:
-        import jitcode  # noqa: F401
+        import jitcode  # ruff:ignore[unused-import]
     except ImportError:
         return False
     else:
@@ -40,7 +40,7 @@ def has_jitcode() -> bool:
 
 def has_jitcdde() -> bool:
     try:
-        import jitcdde  # noqa: F401
+        import jitcdde  # ruff:ignore[unused-import]
     except ImportError:
         return False
     else:

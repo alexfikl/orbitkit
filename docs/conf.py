@@ -15,7 +15,7 @@ from importlib import metadata
 m = metadata.metadata("orbitkit")
 project = m["Name"]
 author = m["Author-email"]
-copyright = f"2025 {author}"  # noqa: A001
+copyright = f"2025 {author}"  # ruff:ignore[builtin-variable-shadowing]
 version = m["Version"]
 release = version
 url = "https://github.com/alexfikl/orbitkit"
@@ -272,10 +272,10 @@ custom_type_links = {
     "sym.Call": (None, "orbitkit.symbolic.primitives.Call", "obj"),
     "sym.Expression": (None, "orbitkit.symbolic.primitives.Expression", "obj"),
     "sym.Variable": (None, "orbitkit.symbolic.primitives.Variable", "class"),
-    "sym.DiracDelayKernel": (None, "orbitkit.symbolic.primitives.DiracDelayKernel", "class"),  # noqa: E501
-    "sym.UniformDelayKernel": (None, "orbitkit.symbolic.primitives.UniformDelayKernel", "class"),  # noqa: E501
-    "sym.TriangularDelayKernel": (None, "orbitkit.symbolic.primitives.TriangularDelayKernel", "class"),  # noqa: E501
-    "sym.GammaDelayKernel": (None, "orbitkit.symbolic.primitives.GammaDelayKernel", "class"),  # noqa: E501
+    "sym.DiracDelayKernel": (None, "orbitkit.symbolic.primitives.DiracDelayKernel", "class"),  # ruff:ignore[line-too-long]
+    "sym.UniformDelayKernel": (None, "orbitkit.symbolic.primitives.UniformDelayKernel", "class"),  # ruff:ignore[line-too-long]
+    "sym.TriangularDelayKernel": (None, "orbitkit.symbolic.primitives.TriangularDelayKernel", "class"),  # ruff:ignore[line-too-long]
+    "sym.GammaDelayKernel": (None, "orbitkit.symbolic.primitives.GammaDelayKernel", "class"),  # ruff:ignore[line-too-long]
 }
 # fmt: on
 

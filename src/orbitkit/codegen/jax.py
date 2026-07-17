@@ -25,7 +25,7 @@ class JaxTarget(NumpyTarget):
     jit: bool = True
     """If *True*, the functions returned by :meth:`lambdify` will be JITed."""
 
-    def _get_module(self) -> Any:  # noqa: PLR6301
+    def _get_module(self) -> Any:  # ruff:ignore[no-self-use]
         import jax.numpy as jnp
 
         return jnp

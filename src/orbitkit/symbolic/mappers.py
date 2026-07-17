@@ -81,7 +81,7 @@ class IdentityMapper(IdentityMapperBase[[]]):
 
         return type(expr)(aggregate=aggregate, shape=expr.shape)
 
-    def map_zero_delay_kernel(self, expr: sym.ZeroDelayKernel, /) -> PymbolicExpression:  # noqa: PLR6301
+    def map_zero_delay_kernel(self, expr: sym.ZeroDelayKernel, /) -> PymbolicExpression:  # ruff:ignore[no-self-use]
         return expr
 
     def map_dirac_delay_kernel(
@@ -167,13 +167,13 @@ class WalkMapper(WalkMapperBase[[]]):
 
 
 class StringifyMapper(StringifyMapperBase[[]]):
-    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # noqa: PLR6301 # ty: ignore[invalid-method-override]
+    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # ruff:ignore[no-self-use] # ty: ignore[invalid-method-override]
         from sympy.printing.pretty.pretty_symbology import pretty_symbol
 
         result = pretty_symbol(expr.name)
         return str(result)
 
-    def map_numpy_array(  # noqa: PLR6301 # ty: ignore[invalid-method-override]
+    def map_numpy_array(  # ruff:ignore[no-self-use] # ty: ignore[invalid-method-override]
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], /, enclosing_prec: int
     ) -> str:
         if expr.size >= 10:

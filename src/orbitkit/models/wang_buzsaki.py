@@ -122,7 +122,7 @@ class WangBuzsaki(Model):
         return self.A.shape[0]
 
     @cached_property
-    def M_syn(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:  # noqa: N802
+    def M_syn(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:  # ruff:ignore[invalid-function-name]
         return (
             sym.MatrixSymbol("M_syn", (self.A.shape[0],))
             if isinstance(self.A, sym.MatrixSymbol)

@@ -216,7 +216,7 @@ def test_generate_adjacency_star_tree() -> None:
 @pytest.mark.parametrize("n", [32, 49, 64, 95])
 def test_generate_adjacency_lattice(n: int) -> None:
     from orbitkit.adjacency import (
-        _find_equal_factors,  # noqa: PLC2701
+        _find_equal_factors,  # ruff:ignore[import-private-name]
         generate_adjacency_lattice,
     )
 
@@ -296,7 +296,7 @@ def test_generate_adjacency_lattice_nd(dims: tuple[int, ...]) -> None:
 
 @pytest.mark.parametrize(("n", "p"), [(100, 0.25), (500, 0.05), (300, 0.95)])
 @pytest.mark.parametrize("symmetric", [True, False])
-def test_generate_erdos_renyi_probability(n: int, p: float, symmetric: bool) -> None:  # noqa: FBT001
+def test_generate_erdos_renyi_probability(n: int, p: float, symmetric: bool) -> None:  # ruff:ignore[boolean-type-hint-positional-argument]
     """Check that the generated matrix has the desired probability distribution."""
     from orbitkit.adjacency import generate_adjacency_erdos_renyi
 
@@ -324,7 +324,7 @@ def test_generate_erdos_renyi_probability(n: int, p: float, symmetric: bool) -> 
 
 @pytest.mark.parametrize(("n", "k"), [(100, 25), (500, 10), (300, 200)])
 @pytest.mark.parametrize("symmetric", [True, False])
-def test_generate_erdos_renyi_degree(n: int, k: int, symmetric: bool) -> None:  # noqa: FBT001
+def test_generate_erdos_renyi_degree(n: int, k: int, symmetric: bool) -> None:  # ruff:ignore[boolean-type-hint-positional-argument]
     """Check that the generated matrix has the desired node degree."""
     from orbitkit.adjacency import generate_adjacency_erdos_renyi
 
@@ -490,7 +490,7 @@ def test_generate_adjacency_barabasi_albert_edge_cases() -> None:
 
 @pytest.mark.parametrize("n", [128, 256, 512])
 @pytest.mark.parametrize("symmetric", [True, False])
-def test_generate_adjacency_distance_decay(n: int, symmetric: bool) -> None:  # noqa: FBT001
+def test_generate_adjacency_distance_decay(n: int, symmetric: bool) -> None:  # ruff:ignore[boolean-type-hint-positional-argument]
     from orbitkit.adjacency import generate_adjacency_distance_decay
 
     dtype = np.dtype(np.uint8)
@@ -570,7 +570,7 @@ def test_generate_adjacency_distance_decay_edge_cases() -> None:
 def test_generate_gap_junction_probability(n: int, m: int) -> None:
     """Check that the cluster sizes have the desired statistics."""
     from orbitkit.adjacency import (
-        _generate_random_gap_junction_clusters,  # noqa: PLC2701
+        _generate_random_gap_junction_clusters,  # ruff:ignore[import-private-name]
     )
 
     rng = np.random.default_rng(seed=42)
@@ -649,7 +649,7 @@ def test_generate_adjacency_gap_junctions(n: int, m: int) -> None:
     ],
 )
 def test_expand_pattern(base: str, nlevels: int) -> None:
-    from orbitkit.adjacency import _expand_pattern  # noqa: PLC2701
+    from orbitkit.adjacency import _expand_pattern  # ruff:ignore[import-private-name]
 
     dtype = np.dtype(np.uint8)
     pattern = _expand_pattern(base, nlevels, dtype=dtype)
@@ -739,7 +739,7 @@ ADJACENCY_SYMMETRIC = frozenset({
 
 
 @pytest.mark.parametrize("normalize", [True, False])
-def test_make_graph_laplacian_undirected(normalize: bool) -> None:  # noqa: FBT001
+def test_make_graph_laplacian_undirected(normalize: bool) -> None:  # ruff:ignore[boolean-type-hint-positional-argument]
     from orbitkit.adjacency import (
         make_adjacency_matrix_from_name,
         make_graph_laplacian_undirected,
@@ -779,7 +779,7 @@ def test_make_graph_laplacian_undirected(normalize: bool) -> None:  # noqa: FBT0
 
 @pytest.mark.parametrize("out", [True, False])
 @pytest.mark.parametrize("normalize", [True, False])
-def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # noqa: FBT001
+def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # ruff:ignore[boolean-type-hint-positional-argument]
     from orbitkit.adjacency import (
         ADJACENCY_TYPES,
         make_adjacency_matrix_from_name,
@@ -796,13 +796,13 @@ def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # n
         x = np.ones(L.shape[1])
 
         if normalize:
-            if out:  # noqa: SIM108
+            if out:  # ruff:ignore[if-else-block-instead-of-if-exp]
                 error = np.linalg.norm(L @ x)
             else:
                 # NOTE: not sure what the right eigenvector would be?
                 error = np.linalg.norm(x @ L)
-        else:  # noqa: PLR5501
-            if out:  # noqa: SIM108
+        else:  # ruff:ignore[collapsible-else-if]
+            if out:  # ruff:ignore[if-else-block-instead-of-if-exp]
                 error = np.linalg.norm(L @ x)
             else:
                 error = np.linalg.norm(x @ L)

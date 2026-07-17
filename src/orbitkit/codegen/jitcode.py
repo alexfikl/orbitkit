@@ -257,7 +257,7 @@ class JiTCODETarget(JiTCXDETarget):
             verbose=verbose,
         )
 
-    def compile_module(  # noqa: PLR6301
+    def compile_module(  # ruff:ignore[no-self-use]
         self,
         de: jitcxde,
         *,
@@ -280,7 +280,7 @@ class JiTCODETarget(JiTCXDETarget):
             verbose=verbose,
         )
 
-    def reload_module(  # noqa: PLR6301
+    def reload_module(  # ruff:ignore[no-self-use]
         self,
         de: jitcxde,
         module_location: pathlib.Path | None = None,

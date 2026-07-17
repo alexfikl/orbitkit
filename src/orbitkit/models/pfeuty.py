@@ -145,7 +145,7 @@ class Pfeuty(Model):
         return self.A_inh.shape[0]
 
     @cached_property
-    def M_gap(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:  # noqa: N802
+    def M_gap(self) -> Array1D[np.floating[Any]] | sym.MatrixSymbol:  # ruff:ignore[invalid-function-name]
         """Degree of each of the nodes in the electric synaptic network."""
         return (
             sym.MatrixSymbol("M_gap", (self.n,))
@@ -154,7 +154,7 @@ class Pfeuty(Model):
         )
 
     @property
-    def K_inh(self) -> float | sym.Variable:  # noqa: N802
+    def K_inh(self) -> float | sym.Variable:  # ruff:ignore[invalid-function-name]
         """Average degree of the nodes in the inhibitory synaptic network."""
         return (
             sym.Variable("K_inh")
@@ -163,7 +163,7 @@ class Pfeuty(Model):
         )
 
     @property
-    def K_gap(self) -> float | sym.Variable:  # noqa: N802
+    def K_gap(self) -> float | sym.Variable:  # ruff:ignore[invalid-function-name]
         """Average degree of the nodes in the electric synaptic network."""
         return (
             sym.Variable("K_gap")

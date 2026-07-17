@@ -482,7 +482,7 @@ class JiTCDDETarget(JiTCXDETarget):
             **kwargs,
         )
 
-    def compile_module(  # noqa: PLR6301
+    def compile_module(  # ruff:ignore[no-self-use]
         self,
         de: jitcxde,
         *,
@@ -511,7 +511,7 @@ class JiTCDDETarget(JiTCXDETarget):
         if verbose:
             log.info("Compilation time: %.3fs.", time.time() - t_start)
 
-    def reload_module(  # noqa: PLR6301
+    def reload_module(  # ruff:ignore[no-self-use]
         self,
         de: jitcxde,
         module_location: pathlib.Path | None = None,

@@ -204,7 +204,7 @@ _UNIQUE_CODE_COUNTER = 0
 
 
 def execute_code(code: Code) -> Callable[..., ArrayND[np.floating[Any]]]:
-    global _UNIQUE_CODE_COUNTER  # noqa: PLW0603
+    global _UNIQUE_CODE_COUNTER  # ruff:ignore[global-statement]
 
     filename = f"<generated code for {code.name} [{_UNIQUE_CODE_COUNTER}]>"
     _UNIQUE_CODE_COUNTER += 1

@@ -137,7 +137,7 @@ def test_codegen_jitcode_pickle_roundtrip() -> None:
     pytest.importorskip("pymbolic")
     pytest.importorskip("jitcode")
 
-    import pickle  # noqa: S403
+    import pickle  # ruff:ignore[suspicious-pickle-import]
 
     module_location = pathlib.Path(tempfile.gettempdir()) / "jitcode_orbitkit_pickle.so"
 
@@ -154,7 +154,7 @@ def test_codegen_jitcode_pickle_roundtrip() -> None:
 
     # Round-trip
     data = pickle.dumps(ode)
-    ode2 = pickle.loads(data)  # noqa: S301
+    ode2 = pickle.loads(data)  # ruff:ignore[suspicious-pickle-usage]
 
     # Same metadata
     assert ode2.parameters == ode.parameters
@@ -185,14 +185,14 @@ def test_codegen_jitcode_pickle_no_module_location() -> None:
     pytest.importorskip("pymbolic")
     pytest.importorskip("jitcode")
 
-    import pickle  # noqa: S403
+    import pickle  # ruff:ignore[suspicious-pickle-import]
 
     ode = _make_ode_from_name("hiv", "CulshawRuanWebb2003Figure44")
     d = ode.f.size
 
     # Round-trip without module_location
     data = pickle.dumps(ode)
-    ode2 = pickle.loads(data)  # noqa: S301
+    ode2 = pickle.loads(data)  # ruff:ignore[suspicious-pickle-usage]
 
     # Still functional (Python backend)
     ode2.set_initial_conditions(np.ones(d), 0.0)

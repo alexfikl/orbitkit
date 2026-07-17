@@ -137,7 +137,7 @@ if on_ci():
     raise SystemExit(0)
 
 try:
-    import matplotlib.pyplot as mp  # noqa: F401
+    import matplotlib.pyplot as mp  # ruff:ignore[unused-import]
 except ImportError:
     raise SystemExit(0) from None
 
@@ -182,7 +182,7 @@ with figure(dirname / f"pfeuty_{figname.lower()}_average", overwrite=True) as fi
     ax.axhline(model.param.V_inh, color="k", ls=":")
 
     ax.set_xlabel("$t$ (ms)")
-    ax.set_ylabel(r"$\bar{V}$ (mV)")  # noqa: RUF027
+    ax.set_ylabel(r"$\bar{V}$ (mV)")  # ruff:ignore[missing-f-string-syntax]
     ax.set_xlim(tmin_for_plot, tspan[1])
     ax.set_ylim(ylim)
 

@@ -42,7 +42,7 @@ Call = prim.Call
 class ExpressionNode(prim.ExpressionNode):
     """A base class for ``orbitkit``-specific expression nodes."""
 
-    def make_stringifier(  # noqa: PLR6301
+    def make_stringifier(  # ruff:ignore[no-self-use]
         self,
         originating_stringifier: StringifyMapperBase[Any] | None = None,
     ) -> StringifyMapperBase[Any]:
@@ -193,7 +193,7 @@ class Function(Variable):
     r"""A known special function (e.g. :math:`\sin`, etc.)."""
 
 
-abs = Function("abs")  # noqa: A001
+abs = Function("abs")  # ruff:ignore[builtin-variable-shadowing]
 """Absolute value."""
 sin = Function("sin")
 """The sine function."""

@@ -122,7 +122,7 @@ ADJACENCY_TYPES: Final = frozenset({
 })
 
 
-def make_adjacency_matrix_from_name(  # noqa: PLR0911
+def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
     n: int,
     topology: str,
     *,
@@ -272,7 +272,7 @@ def make_graph_laplacian_directed(
 
         if normalize:
             Dinv = np.where(D > 0, 1.0 / D, 0.0)
-            L = L * Dinv[None, :]  # noqa: PLR6104
+            L = L * Dinv[None, :]  # ruff:ignore[non-augmented-assignment]
 
     assert L.shape == A.shape
     return L
@@ -1193,7 +1193,7 @@ def generate_adjacency_astrocyte_lattice(
             weights = degrees[:i] * np.exp(-dists / rc)
 
             total = np.sum(weights)
-            if total < eps:  # noqa: SIM108
+            if total < eps:  # ruff:ignore[if-else-block-instead-of-if-exp]
                 probability = np.ones(i) / i
             else:
                 probability = weights / total
