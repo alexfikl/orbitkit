@@ -31,7 +31,7 @@ ScalarTypeT = TypeVar("ScalarTypeT", bound=np.generic, default=Any)
 ArrayND = TypeAliasType(
     "ArrayND",
     np.ndarray[ShapeT, np.dtype[ScalarTypeT]],
-    type_params=(ShapeT, ScalarTypeT),
+    type_params=(ScalarTypeT, ShapeT),
 )
 """A type alias for a shape and type generic :class:`numpy.ndarray`."""
 
