@@ -43,6 +43,8 @@ Acknowledgments
 Work on ``orbitkit`` was sponsored, in part, by
 
 * the CNCS-UEFISCDI (Romania), under Project No. ROSUA-2024-0002.
+* the "Romanian Hub for Artificial Intelligence - HRIA", Smart Growth,
+  Digitization and Financial Instruments Program, 2021-2027, MySMIS no. 351416.
 
 The views and opinions expressed herein do not necessarily reflect those of the
 funding agencies.
