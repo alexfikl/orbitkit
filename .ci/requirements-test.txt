@@ -24,11 +24,15 @@ iniconfig==2.3.0
     # via pytest
 jax==0.6.2 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml:backends)
-jax==0.10.2 ; python_full_version >= '3.11'
+jax==0.10.2 ; python_full_version == '3.11.*'
+    # via orbitkit (pyproject.toml:backends)
+jax==0.11.0 ; python_full_version >= '3.12'
     # via orbitkit (pyproject.toml:backends)
 jaxlib==0.6.2 ; python_full_version < '3.11'
     # via jax
-jaxlib==0.10.2 ; python_full_version >= '3.11'
+jaxlib==0.10.2 ; python_full_version == '3.11.*'
+    # via jax
+jaxlib==0.11.0 ; python_full_version >= '3.12'
     # via jax
 jinja2==3.1.6
     # via jitcxde-common
@@ -151,7 +155,7 @@ pytools==2026.1.1
     #   pymbolic
 rich==15.0.0
     # via orbitkit (pyproject.toml)
-ruff==0.15.21
+ruff==0.15.22
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.2
     # via orbitkit (pyproject.toml:visualization)
@@ -196,7 +200,7 @@ texttable==1.7.0
     # via igraph
 tomli==2.4.1 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.59
+ty==0.0.60
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.16.0
     # via
