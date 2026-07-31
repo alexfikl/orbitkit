@@ -863,7 +863,7 @@ def _generate_random_gap_junction_clusters(
     for _ in range(maxiter):
         # generate candidates
         p = rng.dirichlet((alpha,) * m)
-        x = np.rint(p * smax)
+        x = np.rint(p * smax).astype(np.int32)
 
         # ensure they sum up to smax
         extra = smax - np.sum(x)
