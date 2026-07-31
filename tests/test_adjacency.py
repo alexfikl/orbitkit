@@ -898,7 +898,7 @@ def test_generate_graph_laplacian_weights() -> None:
         w_eigs = np.linalg.eigvals(W)
         assert np.all(w_eigs.real > -atol)
 
-        error = np.linalg.norm(W @ x - f_inv(0) * x)
+        error = np.linalg.norm(W @ x - f_inv(np.array([0.0])) * x)
         assert error < atol
 
 

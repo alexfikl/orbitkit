@@ -287,7 +287,7 @@ class JiTCXDETarget(NumpyTarget, ABC):
         code: Code,
         *,
         parameters: Mapping[str, Any] | None = None,
-    ) -> Callable[..., ArrayND[np.floating[Any]]]:
+    ) -> Callable[..., ArrayND[np.inexact[Any]]]:
         # NOTE: if we need extra parameters, just add them as symbols. These
         # will be added properly according to JiTCODE in the compile function.
         parameters = fill_symbolic_parameters(code, parameters)

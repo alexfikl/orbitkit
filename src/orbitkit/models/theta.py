@@ -145,7 +145,7 @@ def _roots_unit_circle(
     rhat = rhat[np.isreal(rhat) & (np.abs(rhat) <= 1.0)]
 
     _, index = np.unique(np.round(rhat, decimals=2), return_index=True)
-    return rhat[index]
+    return rhat[index]  # ty: ignore[invalid-return-type]
 
 
 def find_fixed_points(p: ThetaModel) -> FixedPoints:

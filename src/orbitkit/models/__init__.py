@@ -242,7 +242,7 @@ def constant_past_initial_conditions(
     y0aux: list[Array1D[np.floating]] = []
     if isinstance(model, ExtendedLinearChainTrickModel):
         for eq in model.equations.values():
-            y0aux.append(eq.kernel.mass * evaluate(eq.arg, context=y0))
+            y0aux.append(eq.kernel.mass * evaluate(eq.arg, context=y0))  # ty: ignore[unsupported-operator]
 
     return np.hstack([*y0.values(), *y0aux])
 

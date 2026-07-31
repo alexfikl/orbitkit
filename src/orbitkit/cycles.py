@@ -307,7 +307,7 @@ def detect_cycle_auto_correlation(
 
 
 def is_limit_cycle_auto_correlation(
-    x: Array1D[np.floating[Any]],
+    x: Array1D[np.floating[Any]] | Array2D[np.floating[Any]],
     *,
     eps: float = 5.0e-1,
 ) -> bool:

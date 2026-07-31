@@ -84,10 +84,10 @@ class Kuramoto(Model):
                 f"got {theta.shape} but expected ({K.shape[0]},)"
             )
 
-        result = sym.Sum((
+        result = sym.Sum((  # ty: ignore[invalid-argument-type]
             self.omega,
             sym.Contract(
-                sym.Product((
+                sym.Product((  # ty: ignore[invalid-argument-type]
                     self.K,
                     sym.sin(theta.reshape(1, -1) - theta.reshape(-1, 1) - self.alpha),
                 )),

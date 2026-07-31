@@ -276,7 +276,7 @@ def kemeth_spatial_correlation_measure(
 
     dmax = np.max(dists)
     if atol is None:
-        atol = max(rtol * dmax, np.finfo(V.dtype).eps)
+        atol = max(rtol * dmax, np.finfo(dists.dtype).eps)
 
     g0 = np.empty(n, dtype=dists.dtype)
     for i in range(n):

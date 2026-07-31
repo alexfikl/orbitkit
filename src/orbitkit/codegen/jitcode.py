@@ -6,7 +6,7 @@ from __future__ import annotations
 import pathlib
 import shutil
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -328,8 +328,11 @@ class JiTCODETarget(JiTCXDETarget):
         func = self.lambdify(code, parameters=parameters)
 
         # evaluate to obtain symengine expressions
-        y = make_input_variable(inputs.size)
-        f = func(jitcode.t, y)
+        y = cast("Array1D[Any]", make_input_variable(inputs.size))
+        f = cast("Array1D[Any]", func(jitcode.t, y))
+
+        assert y.ndim == 1
+        assert f.ndim == 1
 
         # get control parameters, if any
         control_pars = tuple(

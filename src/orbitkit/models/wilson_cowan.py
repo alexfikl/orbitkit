@@ -160,12 +160,12 @@ class WilsonCowan(Model):
             # NOTE: pymbolic should be able to do @ here, but we leave it with
             # a dot product so that it supports scalars
             terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
-        Es = sym.Sum((*terms, self.E.forcing))
+        Es = sym.Sum((*terms, self.E.forcing))  # ty: ignore[invalid-argument-type]
 
         terms = []
         for (W_E, W_I), h in zip(self.I.weights, self.I.kernels, strict=True):
             terms.append(sym.DotProduct(W_E, h(E)) - sym.DotProduct(W_I, h(I)))
-        Is = sym.Sum((*terms, self.I.forcing))
+        Is = sym.Sum((*terms, self.I.forcing))  # ty: ignore[invalid-argument-type]
 
         return (
             (-E + (1 - self.E.r * E) * self.E.sigmoid(Es)) / self.E.tau,
@@ -619,16 +619,16 @@ def _get_wilson_cowan_fixed_point(
 
     import scipy.optimize as so
 
-    def root_func_E(E: float, I: float) -> float:  # ruff:ignore[ambiguous-variable-name, invalid-function-name]
-        return E - sE_func(a * E - b * I + p)
+    def root_func_excitatory(Es: float, Is: float) -> float:
+        return Es - sE_func(a * Es - b * Is + p)  # ty: ignore[invalid-return-type]
 
-    def root_jac_E(E: float, I: float) -> float:  # ruff:ignore[ambiguous-variable-name, invalid-function-name]
-        return 1.0 - a * sE_prime(a * E - b * I + p)
+    def root_jac_excitatory(Es: float, Is: float) -> float:
+        return 1.0 - a * sE_prime(a * Es - b * Is + p)  # ty: ignore[invalid-return-type]
 
-    def solve_for_I(E: float) -> float:  # ruff:ignore[invalid-function-name]
+    def solve_for_inhibitory(Es: float) -> float:
         result = so.root_scalar(  # ty: ignore[no-matching-overload]
-            lambda x: x - sI_func(c * E - d * x + q),
-            fprime=lambda x: 1 + d * sI_prime(c * E - d * x + q),
+            lambda x: x - sI_func(c * Es - d * x + q),
+            fprime=lambda x: 1 + d * sI_prime(c * Es - d * x + q),
             method=method,
             bracket=(0, 1),
             x0=0.5,
@@ -640,22 +640,22 @@ def _get_wilson_cowan_fixed_point(
 
     # {{{ root_scalar
 
-    def root_func(E: float) -> float:
-        return root_func_E(E, solve_for_I(E))
+    def root_func(Es: float) -> float:
+        return root_func_excitatory(Es, solve_for_inhibitory(Es))
 
-    def root_jac(E: float) -> float:
-        return root_jac_E(E, solve_for_I(E))
+    def root_jac(Es: float) -> float:
+        return root_jac_excitatory(Es, solve_for_inhibitory(Es))
 
     # }}}
 
     # {{{ minimize_scalar
 
-    def root_func_sqr(E: float) -> float:
-        return 0.5 * root_func_E(E, solve_for_I(E)) ** 2
+    def root_func_sqr(Es: float) -> float:
+        return 0.5 * root_func_excitatory(Es, solve_for_inhibitory(Es)) ** 2
 
-    def root_jac_sqr(E: float) -> float:
-        I = solve_for_I(E)  # ruff:ignore[ambiguous-variable-name]
-        return root_func_E(E, I) * root_jac_E(E, I)
+    def root_jac_sqr(Es: float) -> float:
+        Is = solve_for_inhibitory(Es)
+        return root_func_excitatory(Es, Is) * root_jac_excitatory(Es, Is)
 
     # }}}
 
@@ -698,8 +698,7 @@ def _get_wilson_cowan_fixed_point(
 
         E = result.root
 
-    I = solve_for_I(E)  # ruff:ignore[ambiguous-variable-name]
-    return E, I
+    return E, solve_for_inhibitory(E)
 
 
 def get_wilson_cowan_fixed_points(

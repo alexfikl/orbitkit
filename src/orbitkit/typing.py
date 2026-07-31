@@ -71,6 +71,8 @@ Scalar: TypeAlias = int | float | np.floating[Any]
 ScalarLike: TypeAlias = Scalar | Array0D[np.number[Any]]
 """A scalar-like value, which may include array of shape ``()``."""
 
+FloatingT = TypeVar("FloatingT", bound=np.floating[Any])
+"""A :class:`~typing.TypeVar` for :class:`numpy.floating`."""
 InexactT = TypeVar("InexactT", bound=np.inexact[Any])
 """A :class:`~typing.TypeVar` for :class:`numpy.inexact`."""
 

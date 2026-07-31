@@ -51,7 +51,7 @@ with tictoc("evolve"):
     y = np.empty((nruns, t.size, 2), dtype=y0.dtype)
 
     for i in range(nruns):
-        integrator.set_initial_conditions(y0[:, i], tspan[0])
+        integrator.set_initial_conditions(y0[:, i], tspan[0])  # ty: ignore[invalid-argument-type]
 
         for j in range(t.size):
             y[i, j], _, _ = integrator.integrate(t[j])

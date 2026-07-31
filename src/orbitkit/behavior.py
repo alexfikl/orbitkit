@@ -165,7 +165,7 @@ def determine_behavior(
         x = x.reshape(1, -1)
 
     if nwindow is None:
-        nwindow = int(0.25 * x.shape[1])
+        nwindow = int(0.25 * x.shape[-1])
     xd = x[:, -nwindow:]
 
     if lctol is None:
@@ -259,7 +259,7 @@ def visualize_behavior_probability_entropy(
         ax,
         x,
         y,
-        H,
+        H,  # ty: ignore[invalid-argument-type]
         cmap="Blues",
         linecolor=linecolor,
         xlinewidth=linewidth,

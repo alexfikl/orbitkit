@@ -641,7 +641,7 @@ def soe_gamma_mpm(
 
     dtype = t.dtype
     if p == 1:
-        return np.array([alpha], dtype=dtype), np.array([-alpha], dtype=dtype)
+        return np.array([alpha], dtype=dtype), np.array([-alpha], dtype=dtype)  # ty: ignore[invalid-return-type]
 
     x = t
     y = alpha**p / gamma(p) * t ** (p - 1) * np.exp(-alpha * x)

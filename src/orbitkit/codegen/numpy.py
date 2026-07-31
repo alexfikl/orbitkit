@@ -100,8 +100,8 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
         return f"{self.module}.reshape({aggregate}, shape={expr.shape})"
 
     def map_dot_product(self, expr: sym.DotProduct, /, enclosing_prec: int) -> str:
-        left = self.rec(expr.left, PREC_NONE)
-        right = self.rec(expr.right, PREC_NONE)
+        left = self.rec(expr.left, PREC_NONE)  # ty: ignore[invalid-argument-type]
+        right = self.rec(expr.right, PREC_NONE)  # ty: ignore[invalid-argument-type]
         return f"{self.module}.dot({left}, {right})"
 
     def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]

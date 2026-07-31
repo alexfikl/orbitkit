@@ -204,7 +204,7 @@ def test_compute_participation_coefficient_errors() -> None:
         compute_participation_coefficient(np.ones((3, 4)), str_ok)
 
     with pytest.raises(ValueError, match="not 2 dimensional"):
-        compute_participation_coefficient(mat, np.zeros(n))
+        compute_participation_coefficient(mat, np.zeros(n))  # ty: ignore[invalid-argument-type]
 
     with pytest.raises(ValueError, match="does not match"):
         compute_participation_coefficient(mat, np.zeros((n + 1, 2)))

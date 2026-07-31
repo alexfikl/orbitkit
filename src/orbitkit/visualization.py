@@ -707,7 +707,7 @@ def heatmap(
     ax: mp.Axes,
     x: Array1D[np.floating[Any]],
     y: Array1D[np.floating[Any]],
-    z: Array2D[np.floating[Any]] | Array3D[np.floating[Any]],
+    z: Array2D[np.number[Any]] | Array3D[np.number[Any]],
     *,
     cmap: str = "jet",
     alpha: float | Array2D[np.floating[Any]] | None = None,
@@ -839,7 +839,8 @@ def discrete_colorbar(
         raise ValueError(f"must pass axes for {type(im)} type")
 
     if isinstance(nlevels, int):
-        nlevels = np.arange(nlevels)
+        nlevels = np.arange(nlevels, dtype=np.float64)
+    assert not isinstance(nlevels, int)
 
     cbar = ax.figure.colorbar(im, ax=ax, shrink=shrink, ticks=nlevels)
     cbar.ax.set_yticklabels([str(i) for i in nlevels])

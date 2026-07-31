@@ -100,7 +100,7 @@ eta = rng.standard_normal((n, noise_t.size))
 I_noise_bins = noise_sigma / np.sqrt(noise_dt) * eta
 
 
-def pfeuty_source(t: float, y: Array1D[np.floating[Any]]) -> Array1D[np.floating[Any]]:
+def pfeuty_source(t: float, y: Array1D[np.inexact[Any]]) -> Array1D[np.inexact[Any]]:
     k = min(int(np.digitize(t, noise_t)), noise_t.size - 1)
 
     dy = source(t, y)

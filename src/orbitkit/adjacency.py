@@ -857,15 +857,13 @@ def _generate_random_gap_junction_clusters(
     avgsize: int,
     maxsize: int,
     maxiter: int,
-) -> Array2D[np.floating[Any]]:
-    x = np.array([n // m] * m, dtype=np.int64)
-
+) -> Array1D[np.integer[Any]]:
     # FIXME: this seems like it'll have mean *mean* only if n > mean * m?
     smax = min(n - 1, avgsize * m)
     for _ in range(maxiter):
         # generate candidates
         p = rng.dirichlet((alpha,) * m)
-        x = np.rint(p * smax).astype(x.dtype)
+        x = np.rint(p * smax)
 
         # ensure they sum up to smax
         extra = smax - np.sum(x)
@@ -1001,7 +999,7 @@ def generate_adjacency_gap_junctions(
 
 def _expand_pattern(
     base: str, nlevels: int, dtype: DTypeLike | None = None
-) -> Array2D[np.floating[Any]]:
+) -> Array1D[np.floating[Any]]:
     zeros = "0" * len(base)
     pattern = base
     for _ in range(nlevels - 1):
@@ -1448,7 +1446,7 @@ def generate_symmetric_random_equal_row_sum(
 
 def apply_graph_laplacian(
     mat: Array2D[np.floating[Any]],
-    f: Callable[[Array1D[np.inexact[Any]]], Array1D[np.inexact[Any]]],
+    f: Callable[[Array1D[np.floating[Any]]], Array1D[np.floating[Any]]],
     *,
     out: bool | None = None,
 ) -> Array2D[np.floating[Any]]:
@@ -1480,7 +1478,7 @@ def apply_graph_laplacian(
 
 def generate_graph_laplacian_weights(
     mat: Array2D[np.floating[Any]],
-    f: Callable[[Array1D[np.inexact[Any]]], Array1D[np.inexact[Any]]],
+    f: Callable[[Array1D[np.floating[Any]]], Array1D[np.floating[Any]]],
     *,
     out: bool | None = None,
 ) -> Array2D[np.floating[Any]]:

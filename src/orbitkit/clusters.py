@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-from orbitkit.typing import Array1D, Array2D, InexactT
+from orbitkit.typing import Array1D, Array2D, FloatingT
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -17,8 +17,8 @@ log = module_logger(__name__)
 
 
 def make_mse_weight_matrix(
-    x: Array2D[InexactT], *, alpha: float = 1.0
-) -> Array2D[InexactT]:
+    x: Array2D[FloatingT], *, alpha: float = 1.0
+) -> Array2D[FloatingT]:
     r"""Compute a weight matrix based on the pairwise :math:`\ell_2` errors.
 
     .. math::
@@ -48,7 +48,7 @@ def make_mse_weight_matrix(
 # {{{ make_spearman_weight_matrix
 
 
-def make_spearman_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
+def make_spearman_weight_matrix(x: Array2D[FloatingT]) -> Array2D[FloatingT]:
     r"""Compute a weight matrix based on the Spearman rank coefficient.
 
     .. math::
@@ -82,7 +82,7 @@ def make_spearman_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
 # {{{ make_plv_weight_matrix
 
 
-def make_plv_weight_matrix(x: Array2D[InexactT]) -> Array2D[InexactT]:
+def make_plv_weight_matrix(x: Array2D[FloatingT]) -> Array2D[FloatingT]:
     """Compute a weight matrix using the Phase Locking Value (PLV).
 
     Like :func:`make_spearman_weight_matrix`, this will also only take into

@@ -49,8 +49,8 @@ I_app = {"Figure3a": 1.0, "Figure3b": 1.2, "Figure3c": 1.4}[figname]
 
 
 def wang_buzsaki_source(
-    t: float, y: Array1D[np.floating[Any]]
-) -> Array1D[np.floating[Any]]:
+    t: float, y: Array1D[np.inexact[Any]]
+) -> Array1D[np.inexact[Any]]:
     dy = source(t, y)
     dy[: model.n] += I_app / model.param.C
 
