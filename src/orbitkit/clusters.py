@@ -202,16 +202,64 @@ def find_clusters_from_timeseries(
 # }}}
 
 
-# {{{ leiden_communities_signed
+# {{{ signed_leiden_communitied
 
 
-def leiden_communities_signed(
+def signed_leiden_communitied(
     mat: Array2D[np.floating[Any]],
     *,
     resolution: float = 1.0,
     mode: Literal["undirected", "directed"] = "undirected",
     seed: int | None = None,
 ) -> tuple[set[int], ...]:
+    r"""Detect communities on a signed weighted adjacency matrix.
+
+    The detection uses the Leiden algorithm (see [Traag2019]_) on a two-layer
+    multiplex graph following [Traag2009]_: the positive-weight subgraph uses
+    an ``leidenalg.RBConfigurationVertexPartition`` (modularity null model) to
+    filter out the dense background connectivity pattern, while the
+    negative-weight subgraph uses a ``leidenalg.CPMVertexPartition`` (no null
+    model) to directly penalize anti-correlated nodes placed in the same
+    community.
+
+    With :math:`w_{ij}^+ = \max(w_{ij}, 0)` and
+    :math:`w_{ij}^- = \max(-w_{ij}, 0)`, the multiplex quality function is
+
+    .. math::
+
+        Q = \frac{1}{2 w^+} \sum_{i j}
+                \left( w_{ij}^+ - \gamma \frac{k_i^+ k_j^+}{2 w^+} \right)
+                \delta(c_i, c_j)
+            - \sum_{i j} w_{ij}^- \delta(c_i, c_j),
+
+    where :math:`k_i^+` is the positive weighted degree of node :math:`i`
+    and :math:`2 w^+` is the total positive edge weight.  Larger values of
+    *resolution* favour smaller, more tightly connected communities.
+
+    .. [Traag2009] V. A. Traag, J. Bruggeman,
+        *Community Detection in Networks With Positive and Negative Links*,
+        Physical Review E, Vol. 80, pp. 36115--36115, 2009,
+        `doi:10.1103/physreve.80.036115 <https://doi.org/10.1103/physreve.80.036115>`__.
+
+    :arg mat: a signed symmetric adjacency matrix.
+    :arg resolution: resolution parameter :math:`\gamma` for the null model.
+    :arg mode: whether the graph is ``"undirected"`` or ``"directed"``.
+    :arg seed: random seed for reproducibility.
+
+    :returns: a tuple of :class:`set`\ s of node indices, each set representing
+        a detected community.
+    """
+
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if not np.isfinite(mat).all():
+        raise ValueError("weight matrix contains non-finite values")
+
+    if __debug__ and mode == "undirected" and not np.allclose(mat, mat.T):
+        raise ValueError("weight matrix 'mat' is not symmetric")
+
     try:
         import leidenalg
     except ImportError:
@@ -219,21 +267,19 @@ def leiden_communities_signed(
 
     from igraph import Graph
 
-    # create positive and negative subgraphs
     W_pos = np.where(mat > 0, mat, 0.0)
     W_neg = np.where(mat < 0, -mat, 0.0)
 
     G_pos = Graph.Weighted_Adjacency(W_pos, mode=mode)
     G_neg = Graph.Weighted_Adjacency(W_neg, mode=mode)
 
-    part_pos = leidenalg.CPMVertexPartition(
+    part_pos = leidenalg.RBConfigurationVertexPartition(
         G_pos, weights="weight", resolution_parameter=resolution
     )
     part_neg = leidenalg.CPMVertexPartition(
-        G_neg, weights="weight", resolution_parameter=resolution
+        G_neg, weights="weight", resolution_parameter=0.0
     )
 
-    # optimize
     optimiser = leidenalg.Optimiser()
     if seed is not None:
         optimiser.set_rng_seed(seed)
@@ -244,9 +290,8 @@ def leiden_communities_signed(
     )
     membership = part_pos.membership
 
-    # convert results
-    result = {}
-    for node, c in zip(range(len(membership)), membership, strict=True):
+    result: dict[int, set[int]] = {}
+    for node, c in enumerate(membership):
         result.setdefault(c, set()).add(node)
 
     return tuple(result.values())
