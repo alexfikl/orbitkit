@@ -60,7 +60,7 @@ def compute_weighted_clustering_coefficient_barrat(
             \frac{1}{2} (W_{ij} + W_{ik}) A_{ij} A_{ik} A_{jk}
 
     Note that this clustering coefficient is officially defined for matrices with
-    positive weights. It also assumes that the weight matrix *mat* is symmetric
+    positive weights. We also assume that the weight matrix *mat* is symmetric
     and has zero diagonal.
 
     .. [Barrat2004] A. Barrat, M. Barthélemy, R. Pastor-Satorras, A. Vespignani,
@@ -81,14 +81,23 @@ def compute_weighted_clustering_coefficient_barrat(
     if eps <= 0.0:
         raise ValueError(f"'eps' must be positive: {eps}")
 
-    if __debug__ and np.any(mat < 0):
-        raise ValueError("weight matrix 'mat' has non-positive entries")
+    # NOTE: these are heavy, so we don't normally check
+    if __debug__:
+        if np.any(mat < 0):
+            raise ValueError("weight matrix 'mat' has non-positive entries")
+
+        if np.abs(np.diag(mat)) > eps:
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if np.linalg.norm(mat - mat.T) > eps:
+            raise ValueError("weight matrix 'mat' is not symmetric")
 
     A = (np.abs(mat) > eps).astype(dtype)
     strength = compute_weighted_degree(mat)
     degree = np.sum(A, axis=1)
 
-    result = np.sum((mat * A) * (A @ A), axis=1)
+    # NOTE: since W is symmetric, `(W_ij + W_{ik}) / 2 -> W_{ij}` in the sum
+    result = np.einsum("ij,ij,ik,kj->i", mat, A, A, A)
 
     mask = (degree >= 2) & (np.abs(strength) >= eps)
     wcc = np.zeros(n, dtype=dtype)
@@ -98,6 +107,7 @@ def compute_weighted_clustering_coefficient_barrat(
 
 
 # }}}
+
 
 # {{{ compute_weighted_clustering_coefficient_costantini
 
@@ -109,20 +119,24 @@ def compute_weighted_clustering_coefficient_costantini(
     eps: float | None = None,
     dtype: DTypeLike | None = None,
 ) -> Array1D[np.floating[Any]]:
-    """Compute the weighted clustering coefficients from [Costantini2014]_.
+    r"""Compute the weighted clustering coefficients from [Costantini2014]_.
 
     This function implements the 3 generalization of the clustering coefficient
     to signed weighted graphs given in Equation 6, 7, and 8. The precise coefficient
     can be chosen with the *variant* keyword (matching the equation number).
 
-    All the coefficients assume that: (1) the weight matrix *mat* is symmetric
-    and (2) that its diagonal is 0.
+    All the coefficients assume that: (1) the weight matrix *mat* is symmetric,
+    (2) that its diagonal is 0, and (3) that the weight is normalized such that
+    :math:`\max(|w_{ij}|) = 1`. If the weights are all positive, then variant
+    7 is equivalent to the Onnela et al (2005) definition.
 
     .. [Costantini2014] G. Costantini, M. Perugini,
         *Generalization of Clustering Coefficients to Signed Correlation Networks*,
         PLoS ONE, Vol. 9, pp. e88669--e88669, 2014,
         `doi:10.1371/journal.pone.0088669 <https://doi.org/10.1371/journal.pone.0088669>`__.
 
+    :arg eps: tolerance used to cut off small values from the matrix. If this is
+        not desired, just set it to 0.
     :returns: a local cluster coefficient for each node. If the coefficient is not
         defined for a node (e.g. if it does not have sufficient neighbors), then
         the degree is set to NaN.
@@ -141,8 +155,20 @@ def compute_weighted_clustering_coefficient_costantini(
     if eps <= 0.0:
         raise ValueError(f"'eps' must be positive: {eps}")
 
+    # NOTE: these are heavy, so we don't normally check
+    if __debug__:
+        if (mmax := np.max(np.abs(mat))) > 1 + eps:
+            raise ValueError(f"weight matrix is not normalized: max(abs(W)) = {mmax}")
+
+        if np.abs(np.diag(mat)) > eps:
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if np.linalg.norm(mat - mat.T) > eps:
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
     W = mat.copy()
-    W[np.abs(mat) < eps] = 0.0
+    if eps != 0:
+        W[np.abs(mat) < eps] = 0.0
 
     if variant == 6:
         A = np.sign(W)
