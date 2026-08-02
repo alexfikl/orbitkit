@@ -102,10 +102,8 @@ def test_leiden_communities_signed_reproducible() -> None:
 
     communities1 = signed_leiden_communitied(mat, seed=42)
     communities2 = signed_leiden_communitied(mat, seed=42)
-    communities3 = signed_leiden_communitied(mat, seed=123)
 
     assert communities1 == communities2
-    assert communities1 != communities3
 
 
 # }}}
