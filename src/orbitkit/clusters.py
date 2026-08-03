@@ -53,7 +53,7 @@ def make_spearman_weight_matrix(x: Array2D[FloatingT]) -> Array2D[FloatingT]:
 
     .. math::
 
-        W_{ij} = \max(0, r_{ij}),
+        W_{ij} = r_{ij},
 
     where :math:`r_{ij}` are the rank correlation coefficients. This weight matrix
     will only take into account phase synchronized signal and ignore any amplitude
@@ -63,14 +63,10 @@ def make_spearman_weight_matrix(x: Array2D[FloatingT]) -> Array2D[FloatingT]:
     from scipy.stats import spearmanr
 
     # compute correlation
-    corr = spearmanr(x, axis=1)
-
-    # cut out all the anti-correlated variables
-    # mat = np.clip(corr.statistic, 0.0, np.inf)
-    mat = np.clip(corr.statistic, 0.0, 1.0)
+    corr = spearmanr(x, axis=1).statistic
 
     # make sure matrix is symmetric
-    mat = (mat + mat.T) / 2.0
+    mat = (corr + corr.T) / 2.0
     np.fill_diagonal(mat, 0.0)
 
     return mat
