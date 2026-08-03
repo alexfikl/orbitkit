@@ -30,7 +30,7 @@ def compute_weighted_degree(
 
     Note that, by definition, this also works for signed networks. However,
     cancellation can occur if the weights balance out, so a strength of 0 does
-    not mean that the node is isolated.
+    not mean that the node is isolated. This is also known as the "net degree".
     """
 
     n, m = mat.shape
@@ -39,6 +39,57 @@ def compute_weighted_degree(
 
     return np.sum(mat, axis=1)
 
+
+def compute_positive_weighted_degree(
+    mat: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
+    r"""Compute the weighted degree of :math:`W^+_{ij} = \max(W_{ij}, 0)`."""
+    mat = np.where(mat > 0, mat, 0.0)
+    return compute_weighted_degree(mat)
+
+
+def compute_negative_weighted_degree(
+    mat: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
+    r"""Compute the weighted degree of :math:`W^-_{ij} = \max(-W_{ij}, 0)`."""
+    mat = np.where(mat < 0, -mat, 0.0)
+    return compute_weighted_degree(mat)
+
+
+def compute_total_weighted_degree(
+    mat: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
+    r"""Compute the weighted degree of the absolute value :math:`W_{ij} = |W_{ij}|`."""
+    return compute_weighted_degree(np.abs(mat))
+
+
+def compute_normalized_weighted_degree(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+) -> Array1D[np.floating[Any]]:
+    r"""Compute a normalized weighted degree.
+
+    .. math::
+
+        D_i = \frac{d_i^+ - d_i^-}{d_i^+ + d_i^-}
+            = \frac{\text{net degree}}{\text{total degree}}.
+    """
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    net_d = compute_weighted_degree(mat)
+    tot_d = compute_total_weighted_degree(mat)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(tot_d < eps, 0.0, net_d / tot_d)
 
 # }}}
 
@@ -67,6 +118,10 @@ def compute_weighted_clustering_coefficient_barrat(
         *The Architecture of Complex Weighted Networks*,
         Proceedings of the National Academy of Sciences, Vol. 101, pp. 3747--3752, 2004,
         `doi:10.1073/pnas.0400087101 <https://doi.org/10.1073/pnas.0400087101>`__.
+
+    :arg eps: tolerance used to clip values close to zero in the matrix
+        (when computing the adjacency matrix from *mat*) and for cutting off
+        small values of the weighted degree in the formula.
     """
     n, m = mat.shape
     if n != m:
