@@ -200,6 +200,7 @@ def test_codegen_numpy_array_arguments() -> None:
 
 # }}}
 
+
 # {{{ test_codegen_numpy_parameters
 
 

@@ -207,6 +207,7 @@ def test_detect_cycle_harmonic_nonlinear() -> None:
 
 # }}}
 
+
 # {{{ test_detect_cycle_harmonic_subharmonic
 
 

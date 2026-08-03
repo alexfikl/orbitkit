@@ -362,6 +362,7 @@ def test_uniform_homogeneous_solution() -> None:
 
 # }}}
 
+
 # {{{ test_uniform_dde
 
 

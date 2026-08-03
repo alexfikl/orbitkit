@@ -156,6 +156,8 @@ def test_periodic_behavior_culshaw(figname: str) -> None:
     else:
         raise ValueError(f"unsupported parameters: {figname}")
 
+    # }}}
+
 
 # }}}
 

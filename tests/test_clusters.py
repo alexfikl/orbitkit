@@ -15,10 +15,10 @@ TEST_DIRECTORY = TEST_FILENAME.parent
 
 log = module_logger(__name__)
 
-# {{{ test_leiden_communities_signed_triangle
+# {{{ test_signed_leiden_communities
 
 
-def test_leiden_communities_signed_triangle() -> None:
+def test_signed_leiden_communities_triangle() -> None:
     from orbitkit.clusters import signed_leiden_communities
 
     mat = np.array([
@@ -35,12 +35,7 @@ def test_leiden_communities_signed_triangle() -> None:
     assert membership[0] != membership[2]
 
 
-# }}}
-
-# {{{ test_leiden_communities_signed_two_cliques
-
-
-def test_leiden_communities_signed_two_cliques() -> None:
+def test_signed_leiden_communities_two_cliques() -> None:
     """Two positive cliques separated by negative edges."""
     from orbitkit.clusters import signed_leiden_communities
 
@@ -64,12 +59,7 @@ def test_leiden_communities_signed_two_cliques() -> None:
     assert membership[0] != membership[3]
 
 
-# }}}
-
-# {{{ test_leiden_communities_signed_resolution
-
-
-def test_leiden_communities_signed_resolution() -> None:
+def test_signed_leiden_communities_resolution() -> None:
     """Resolution parameter affects community granularity."""
     from orbitkit.clusters import signed_leiden_communities
 
@@ -86,12 +76,7 @@ def test_leiden_communities_signed_resolution() -> None:
     assert n_low <= n_high
 
 
-# }}}
-
-# {{{ test_leiden_communities_signed_reproducible
-
-
-def test_leiden_communities_signed_reproducible() -> None:
+def test_signed_leiden_communities_reproducible() -> None:
     """Same seed gives the same partition."""
     from orbitkit.clusters import signed_leiden_communities
 
@@ -106,12 +91,7 @@ def test_leiden_communities_signed_reproducible() -> None:
     assert communities1 == communities2
 
 
-# }}}
-
-# {{{ test_leiden_communities_signed_edge_cases
-
-
-def test_leiden_communities_signed_edge_cases() -> None:
+def test_signed_leiden_communities_edge_cases() -> None:
     from orbitkit.clusters import signed_leiden_communities
 
     # single node
@@ -132,12 +112,7 @@ def test_leiden_communities_signed_edge_cases() -> None:
     assert len(communities) == 1
 
 
-# }}}
-
-# {{{ test_leiden_communities_signed_validation
-
-
-def test_leiden_communities_signed_validation() -> None:
+def test_signed_leiden_communities_validation() -> None:
     from orbitkit.clusters import signed_leiden_communities
 
     with pytest.raises(ValueError, match="not square"):
@@ -193,11 +168,6 @@ def test_signed_stochastic_block_model() -> None:
 
     log.info("Correct %d / %d", n_correct, n)
     assert n_correct >= 3 * n // 4
-
-
-# }}}
-
-# {{{ test_signed_hierarchical_communities
 
 
 def test_signed_hierarchical_communities() -> None:

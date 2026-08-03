@@ -276,7 +276,7 @@ def test_compute_participation_coefficient_isolated_nodes() -> None:
 # }}}
 
 
-# {{{ test_compute_modularity_single_community
+# {{{ test_compute_modularity
 
 
 def test_compute_modularity_single_community() -> None:
@@ -290,11 +290,6 @@ def test_compute_modularity_single_community() -> None:
     ])
     communities = ({0, 1, 2},)
     assert compute_modularity(mat, communities) == pytest.approx(0.0)
-
-
-# }}}
-
-# {{{ test_compute_modularity_unsigned_recovery
 
 
 def test_compute_modularity_unsigned_recovery() -> None:
@@ -313,11 +308,6 @@ def test_compute_modularity_unsigned_recovery() -> None:
     assert result == pytest.approx(expected)
 
 
-# }}}
-
-# {{{ test_compute_modularity_signed_known_value
-
-
 def test_compute_modularity_signed_known_value() -> None:
     """Hand-calculated signed modularity for a 3-node signed graph."""
     from orbitkit.metrics import compute_modularity
@@ -333,11 +323,6 @@ def test_compute_modularity_signed_known_value() -> None:
     assert result == pytest.approx(1.0 / 3.0)
 
 
-# }}}
-
-# {{{ test_compute_modularity_all_zero
-
-
 def test_compute_modularity_all_zero() -> None:
     """Modularity is zero for an all-zero matrix."""
     from orbitkit.metrics import compute_modularity
@@ -345,11 +330,6 @@ def test_compute_modularity_all_zero() -> None:
     mat = np.zeros((4, 4))
     communities = ({0, 1}, {2, 3})
     assert compute_modularity(mat, communities) == pytest.approx(0.0)
-
-
-# }}}
-
-# {{{ test_compute_modularity_validation
 
 
 def test_compute_modularity_validation() -> None:
