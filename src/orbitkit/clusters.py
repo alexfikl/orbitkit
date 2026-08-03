@@ -202,10 +202,10 @@ def find_clusters_from_timeseries(
 # }}}
 
 
-# {{{ signed_leiden_communitied
+# {{{ signed_leiden_communities
 
 
-def signed_leiden_communitied(
+def signed_leiden_communities(
     mat: Array2D[np.floating[Any]],
     *,
     resolution: float = 1.0,
