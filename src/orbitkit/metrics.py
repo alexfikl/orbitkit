@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import numpy as np
 
@@ -568,6 +568,75 @@ def compute_modularity(
 
 
 # {{{ compute_eigenvector_centrality
+
+
+class EigenvectorCentrality(NamedTuple):
+    max_lambda: float
+    """The largest real eigenvalue."""
+    score: Array1D[np.floating[Any]]
+    """An unsigned eigenvector centrality score."""
+    eigenbasis: Array2D[np.floating[Any]]
+    """The corresponding basis for the eigenspace spanned by the eigenvalue
+    :attr:`max_lambda`. If the eigenvalue is simple, then this will just be a
+    single vector that carries sign information (unlike :attr:`score`)
+    """
+
+
+def compute_eigenvector_centrality(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+) -> EigenvectorCentrality:
+    r"""Compute a signed version of eigenvector centrality based on [Bonacich2004]_.
+
+    We solve the standard eigenproblem :math:`W v = \lambda v`. Unlike the
+    unsigned case, [Bonacich2004]_ picks the largest eigenvalue directly, not the
+    eigenvalue with the largest magnitude.
+
+    It is also not guaranteed that the largest eigenvalue is simple, so we
+    return the whole eigenspace for higher multiplicity.
+
+    .. [Bonacich2004] P. Bonacich, P. Lloyd,
+        *Calculating Status With Negative Relations*,
+        Social Networks, Vol. 26, pp. 331--338, 2004,
+        `doi:10.1016/j.socnet.2004.08.007 <https://doi.org/10.1016/j.socnet.2004.08.007>`__.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:  # ruff: ignore[collapsible-if]
+        if not np.allclose(mat, mat.T):
+            raise ValueError("'mat' is not a symmetric weight matrix")
+
+    # gen the eigendecomposition
+    eigvals, eigvecs = np.linalg.eigh(mat)
+
+    # find multiplicity
+    eps *= max(np.abs(eigvals[0]), np.abs(eigvals[-1]), 1.0)
+    mask = eigvals > (eigvals[-1] - eps)
+    k = np.sum(mask)
+
+    # find eigenspace
+    V = eigvecs[:, mask]
+    score = np.einsum("ij,ij->i", V, V)
+
+    # NOTE: both v and -v are eigenvectors for the eigenvalue. We fix
+    # the sign so that the largest entry in v is positive, for consistency
+    if k == 1 and V[np.argmax(np.abs(V)), 0] < 0:
+        V = -V
+
+    return EigenvectorCentrality(max_lambda=eigvals[-1], score=score, eigenbasis=V)
+
 
 # }}}
 
