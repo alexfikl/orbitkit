@@ -205,6 +205,7 @@ def signed_leiden_communities(
     mat: Array2D[np.floating[Any]],
     *,
     resolution: float = 1.0,
+    weight: float | None = None,
     mode: Literal["undirected", "directed"] = "undirected",
     seed: int | None = None,
 ) -> tuple[set[int], ...]:
@@ -250,7 +251,7 @@ def signed_leiden_communities(
     if n != m:
         raise ValueError(f"matrix not square: {mat.shape}")
 
-    if not np.isfinite(mat).all():
+    if not np.all(np.isfinite(mat)):
         raise ValueError("weight matrix contains non-finite values")
 
     if __debug__ and mode == "undirected" and not np.allclose(mat, mat.T):
@@ -265,6 +266,13 @@ def signed_leiden_communities(
 
     W_pos = np.where(mat > 0, mat, 0.0)
     W_neg = np.where(mat < 0, -mat, 0.0)
+
+    if weight is None:
+        weight = np.sum(W_neg)
+        weight = 1.0 / weight if weight > 0.0 else 0.0
+
+    if weight <= 0:
+        raise ValueError(f"'weight' must be positive: {weight}")
 
     G_pos = Graph.Weighted_Adjacency(W_pos, mode=mode)
     G_neg = Graph.Weighted_Adjacency(W_neg, mode=mode)
@@ -282,7 +290,7 @@ def signed_leiden_communities(
 
     optimiser.optimise_partition_multiplex(
         [part_pos, part_neg],
-        layer_weights=[1, -1],
+        layer_weights=[1, -weight],
     )
     membership = part_pos.membership
 
