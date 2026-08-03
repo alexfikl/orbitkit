@@ -191,7 +191,7 @@ def test_signed_hierarchical_communities() -> None:
             else:
                 mat[i, j] = mat[j, i] = -2.0
 
-    # low resolution → 2 super-communities
+    # low resolution -> 2 super-communities
     comms_low = signed_leiden_communities(mat, resolution=0.01, seed=42)
     assert len(comms_low) == 2
     mem_low = {node: i for i, c in enumerate(comms_low) for node in c}
@@ -199,7 +199,7 @@ def test_signed_hierarchical_communities() -> None:
     assert len({mem_low[i] for i in range(10, 20)}) == 1
     assert mem_low[0] != mem_low[10]
 
-    # high resolution → 4 sub-communities
+    # high resolution -> 4 sub-communities
     comms_high = signed_leiden_communities(mat, resolution=1.0, seed=42)
     assert len(comms_high) == 4
     mem_high = {node: i for i, c in enumerate(comms_high) for node in c}

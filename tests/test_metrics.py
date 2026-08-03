@@ -45,7 +45,7 @@ def test_compute_weighted_clustering_coefficient_barrat() -> None:
     with pytest.raises(ValueError, match="'eps' must be positive"):
         compute_weighted_clustering_coefficient_barrat(np.eye(3), eps=-1.0)
 
-    # isolated nodes (no edges) → coefficient is 0 for all nodes
+    # isolated nodes (no edges) -> coefficient is 0 for all nodes
     n = 5
     W = np.zeros((n, n))
     wcc = compute_weighted_clustering_coefficient_barrat(W)
@@ -388,11 +388,11 @@ def test_compute_eigenvector_centrality_signed() -> None:
     # largest eigenvalue is sqrt(5)
     assert result.lambda_max == pytest.approx(np.sqrt(5))
 
-    # node 1 is the bridge — highest centrality
+    # node 1 is the bridge - highest centrality
     assert result.score[1] > result.score[0]
     assert result.score[1] > result.score[2]
 
-    # positive edge (0,1) → same sign; negative edge (1,2) → opposite sign
+    # positive edge (0,1) -> same sign; negative edge (1,2) -> opposite sign
     v = result.eigenbasis[:, 0]
     assert np.sign(v[0]) == np.sign(v[1])
     assert np.sign(v[1]) != np.sign(v[2])

@@ -283,7 +283,7 @@ class GlutamateDePittaParameter(DePittaParameter):
     k_p: float
     """:math:`\text{Ca}^{2+}`/PKC-dependent inhibition factor."""
     k_pi: float
-    """:matr:`\text{Ca}^{2+}` afﬁnity of PKC."""
+    """:math:`\text{Ca}^{2+}` affinity of PKC."""
 
 
 @dataclass(frozen=True)
