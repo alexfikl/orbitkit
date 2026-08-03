@@ -534,10 +534,17 @@ def compute_modularity(
     if eps <= 0.0:
         raise ValueError(f"'eps' must be positive: {eps}")
 
+    if __debug__:  # ruff: ignore[collapsible-if]
+        if not np.allclose(mat, mat.T):
+            raise ValueError("'mat' is not a symmetric weight matrix")
+
+    w_pos = compute_positive_weighted_degree(mat)
     from orbitkit.clusters import community_labels
 
-    labels = community_labels(communities)
-    w_pos = compute_positive_weighted_degree(mat)
+    labels = community_labels(communities, n)
+    if np.any(labels < 0):
+        raise ValueError("not all nodes are in 'communities'")
+
     w_neg = compute_negative_weighted_degree(mat)
 
     W_pos = np.sum(w_pos)
