@@ -91,6 +91,7 @@ def compute_normalized_weighted_degree(
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(tot_d < eps, 0.0, net_d / tot_d)
 
+
 # }}}
 
 
@@ -482,5 +483,88 @@ def compute_participation_coefficient(
 
     return p
 
+
+# }}}
+
+
+# {{{ compute_modularity
+
+
+def compute_modularity(
+    mat: Array2D[np.floating[Any]],
+    communities: Sequence[set[int]],
+    *,
+    eps: float | None = None,
+) -> float:
+    r"""Compute the signed modularity from [Gomez2009]_.
+
+    .. math::
+
+        M = \frac{1}{w^+ + w^-} \sum_{i = 0}^n \sum_{j = 0}^n \left[
+            W_{ij} - \left(\frac{w_i^+ w_j^+}{w^+} - \frac{w_i^- w_j^-}{w^-}\right)
+        \right] \delta(C_i, C_j)
+
+    where :math:`W` is the weight matrix, :math:`w^\pm_i` are the node strengths
+    for the positive and negative subnetworks and :math:`\delta(C_i, C_j)`
+    is 1 when the nodes :math:`(i, j)` are in the same community and 0 otherwise.
+
+    Note that, by construction, this recovers the unsigned modularity when the
+    network has only positive weights. The modularity is also zero when there
+    is only one community.
+
+    .. [Gomez2009] S. Gómez, P. Jensen, A. Arenas,
+        *Analysis of Community Structure in Networks of Correlated Data*,
+        Physical Review E, Vol. 80, pp. 16114--16114, 2009,
+        `doi:10.1103/physreve.80.016114 <https://doi.org/10.1103/physreve.80.016114>`__.
+    """
+
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if not communities:
+        raise ValueError("'communities' cannot be an empty sequence")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    from orbitkit.clusters import community_labels
+
+    labels = community_labels(communities)
+    w_pos = compute_positive_weighted_degree(mat)
+    w_neg = compute_negative_weighted_degree(mat)
+
+    W_pos = np.sum(w_pos)
+    W_neg = np.sum(w_neg)
+
+    total_W = W_pos + W_neg
+    if total_W < eps:
+        return 0.0
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        w_pos /= np.sqrt(W_pos) if W_pos > eps else 1.0
+        w_neg /= np.sqrt(W_neg) if W_neg > eps else 1.0
+
+    W = mat - (np.outer(w_pos, w_pos) - np.outer(w_neg, w_neg))
+    C = labels[:, None] == labels[None, :]
+
+    return np.sum(W * C) / total_W
+
+
+# }}}
+
+
+# {{{ compute_eigenvector_centrality
+
+# }}}
+
+
+# {{{ compute_assortativity
 
 # }}}
