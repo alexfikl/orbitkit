@@ -328,7 +328,7 @@ def community_labels(
         # FIXME: this will raise if we have a list of empty communities
         n = max(node for community in communities for node in community) + 1
 
-    result = np.empty(n, dtype=dtype)
+    result = np.full(n, -1, dtype=dtype)
     for label, community in enumerate(communities):
         for node in community:
             result[node] = label
