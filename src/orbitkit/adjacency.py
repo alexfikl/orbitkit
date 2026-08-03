@@ -1287,21 +1287,24 @@ def generate_adjacency_configuration(
 
 def generate_adjacency_stochastic_block(
     n: int,
-    m: int | None = None,
     *,
     p: float | tuple[float, float] | Array2D[np.floating[Any]] = 0.75,
+    labels: int | Array1D[np.integer[Any]] | None = None,
     signed: bool = False,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
 ) -> Array2D[np.floating[Any]]:
     r"""Generate an adjacency matrix for a Stochastic Block Model.
 
-    The graph has *m* blocks of equal size. Edges within the blocks appear with
-    probability *p*. Note that setting :math:`p = (p, p)` (same probability for
-    in-block and between-block) will just recover the Erdős-Rényi model.
+    The graph blocks defined by the *labels* node to block assignment. Edges
+    within the blocks appear with probability *p*. Note that setting :math:`p =
+    (p, p)` (same probability for in-block and between-block) will just recover
+    the Erdős-Rényi model.
 
-    :arg n: number of nodes, must be divisible by *m*.
-    :arg m: number of equal-sized blocks.
+    :arg labels: a label for each node: (1) If None, then we take *m*
+        approximately :math:`\sqrt{n}`; (2) if integer *m*, then it should exactly
+        divide *n* and the labels are ``arange(n) // (n // m)``; (3) if an array,
+        then each ``labels[i]`` should define the block it belongs to.
     :arg p: edge probabilities: (1) if float, :math:`p` in the same block and
         :math:`(1 - p)` between blocks; (2) if a tuple, then :math:`p[0]` in the
         same block and :math:`p[1]` between blocks; (3) if a symmetric matrix,
@@ -1322,15 +1325,31 @@ def generate_adjacency_stochastic_block(
     if rng is None:
         rng = np.random.default_rng()
 
-    if m is None:
+    if labels is None:
         # NOTE: by default we try to do about "m" blocks with "m" elements per block
         m = min(*_find_equal_factors(n))
+        labels = np.arange(n) // (n // m)
+    elif isinstance(labels, int):
+        m = labels
+        if m <= 0:
+            raise ValueError(f"block labels 'labels' must be positive: '{m}'")
 
-    if m <= 0:
-        raise ValueError(f"block count 'm' must be positive: '{m}'")
+        if n % m != 0:
+            raise ValueError(f"'n' must be divisible by 'labels': n={n} and m={m}")
 
-    if n % m != 0:
-        raise ValueError(f"'n' must be divisible by 'm': n={n} and m={m}")
+        labels = np.arange(n) // (n // m)
+    elif isinstance(labels, np.ndarray):
+        if labels.shape != (n,):
+            raise ValueError(
+                f"'labels' has incorrect shape: {labels.shape} (expected ({n},))"
+            )
+
+        # FIXME: does this need to be contiguous? probably not..
+        m = int(np.max(labels)) + 1
+        if not np.array_equal(np.unique(labels), np.arange(m)):
+            raise ValueError("'labels' must be contiguous integers starting from 0")
+    else:
+        raise TypeError(f"'labels' must be int, ndarray, or None: {type(labels)}")
 
     if isinstance(p, (int, float)):
         q = p
@@ -1354,9 +1373,6 @@ def generate_adjacency_stochastic_block(
 
     if np.min(p) < 0.0 or np.max(p) > 1.0:
         raise ValueError("probability 'p' not in [0, 1]")
-
-    block_size = n // m
-    labels = np.arange(n) // block_size
 
     # create lower triangular blocks
     rows, cols = np.tril_indices(n, k=-1)

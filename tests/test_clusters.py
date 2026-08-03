@@ -165,15 +165,15 @@ def test_signed_stochastic_block_model() -> None:
     size = 5
     n = n_communities * size
 
+    labels = np.arange(n) // size
     mat = generate_adjacency_stochastic_block(
         n,
-        n_communities,
         p=0.8,
+        labels=labels,
         signed=True,
         dtype=np.float64,
         rng=rng,
     )
-    labels = np.arange(n) // size
 
     from orbitkit.clusters import signed_leiden_communities
 
