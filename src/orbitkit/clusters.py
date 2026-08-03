@@ -3,12 +3,16 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D, FloatingT
 from orbitkit.utils import module_logger
+
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike
 
 log = module_logger(__name__)
 
@@ -299,6 +303,37 @@ def signed_leiden_communities(
         result.setdefault(c, set()).add(node)
 
     return tuple(result.values())
+
+
+# }}}
+
+
+# {{{ communities_asarray
+
+
+def community_labels(
+    communities: Sequence[set[int]],
+    n: int | None = None,
+    *,
+    dtype: DTypeLike | None = None,
+) -> Array1D[np.integer[Any]]:
+    if dtype is None:
+        dtype = np.dtype(np.int32)
+    dtype = np.dtype(dtype)
+
+    if not communities:
+        return np.zeros((), dtype=dtype)
+
+    if n is None:
+        # FIXME: this will raise if we have a list of empty communities
+        n = max(node for community in communities for node in community) + 1
+
+    result = np.empty(n, dtype=dtype)
+    for label, community in enumerate(communities):
+        for node in community:
+            result[node] = label
+
+    return result
 
 
 # }}}
