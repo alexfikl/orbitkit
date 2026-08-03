@@ -1285,7 +1285,7 @@ def generate_adjacency_configuration(
     return result
 
 
-def generate_adjacency_stochastic_block(
+def generate_adjacency_stochastic_block_model(
     n: int,
     *,
     p: float | tuple[float, float] | Array2D[np.floating[Any]] = 0.75,
@@ -1298,8 +1298,8 @@ def generate_adjacency_stochastic_block(
 
     The graph blocks defined by the *labels* node to block assignment. Edges
     within the blocks appear with probability *p*. Note that setting :math:`p =
-    (p, p)` (same probability for in-block and between-block) will just recover
-    the Erdős-Rényi model.
+    (p, p)` (same probability for in-block and between-block) and *signed* to *True*
+    will just recover the Erdős-Rényi model.
 
     :arg labels: a label for each node: (1) If None, then we take *m*
         approximately :math:`\sqrt{n}`; (2) if integer *m*, then it should exactly
@@ -1324,6 +1324,8 @@ def generate_adjacency_stochastic_block(
 
     if rng is None:
         rng = np.random.default_rng()
+
+    # {{{ labels
 
     if labels is None:
         # NOTE: by default we try to do about "m" blocks with "m" elements per block
@@ -1351,6 +1353,10 @@ def generate_adjacency_stochastic_block(
     else:
         raise TypeError(f"'labels' must be int, ndarray, or None: {type(labels)}")
 
+    # }}}
+
+    # {{{ probabilities
+
     if isinstance(p, (int, float)):
         q = p
         p = np.full((m, m), 1 - q, dtype=np.float64)
@@ -1374,6 +1380,10 @@ def generate_adjacency_stochastic_block(
     if np.min(p) < 0.0 or np.max(p) > 1.0:
         raise ValueError("probability 'p' not in [0, 1]")
 
+    # }}}
+
+    # {{{ generate
+
     # create lower triangular blocks
     rows, cols = np.tril_indices(n, k=-1)
     block_i = labels[rows]
@@ -1396,6 +1406,8 @@ def generate_adjacency_stochastic_block(
     else:
         result[rows[mask], cols[mask]] = 1
         result[cols[mask], rows[mask]] = 1
+
+    # }}}
 
     # make sure the groups are connected
     for i in range(n):

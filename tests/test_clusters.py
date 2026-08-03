@@ -158,7 +158,7 @@ def test_leiden_communities_signed_validation() -> None:
 
 def test_signed_stochastic_block_model() -> None:
     """Signed SBM: positive within-group edges, negative between-group noise."""
-    from orbitkit.adjacency import generate_adjacency_stochastic_block
+    from orbitkit.adjacency import generate_adjacency_stochastic_block_model
 
     rng = np.random.default_rng(42)
     n_communities = 4
@@ -166,7 +166,7 @@ def test_signed_stochastic_block_model() -> None:
     n = n_communities * size
 
     labels = np.arange(n) // size
-    mat = generate_adjacency_stochastic_block(
+    mat = generate_adjacency_stochastic_block_model(
         n,
         p=0.8,
         labels=labels,
