@@ -86,7 +86,7 @@ def compute_weighted_clustering_coefficient_barrat(
         if np.any(mat < 0):
             raise ValueError("weight matrix 'mat' has non-positive entries")
 
-        if np.abs(np.diag(mat)) > eps:
+        if np.any(np.abs(np.diag(mat)) > eps):
             raise ValueError("weight matrix 'mat' does not have a zero diagonal")
 
         if np.linalg.norm(mat - mat.T) > eps:
@@ -160,7 +160,7 @@ def compute_weighted_clustering_coefficient_costantini(
         if (mmax := np.max(np.abs(mat))) > 1 + eps:
             raise ValueError(f"weight matrix is not normalized: max(abs(W)) = {mmax}")
 
-        if np.abs(np.diag(mat)) > eps:
+        if np.any(np.abs(np.diag(mat)) > eps):
             raise ValueError("weight matrix 'mat' does not have a zero diagonal")
 
         if np.linalg.norm(mat - mat.T) > eps:
