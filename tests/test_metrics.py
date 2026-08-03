@@ -276,6 +276,96 @@ def test_compute_participation_coefficient_isolated_nodes() -> None:
 # }}}
 
 
+# {{{ test_compute_modularity_single_community
+
+
+def test_compute_modularity_single_community() -> None:
+    """Signed modularity is zero when all nodes are in one community."""
+    from orbitkit.metrics import compute_modularity
+
+    mat = np.array([
+        [0.0, 1.0, -1.0],
+        [1.0, 0.0, -1.0],
+        [-1.0, -1.0, 0.0],
+    ])
+    communities = ({0, 1, 2},)
+    assert compute_modularity(mat, communities) == pytest.approx(0.0)
+
+
+# }}}
+
+# {{{ test_compute_modularity_unsigned_recovery
+
+
+def test_compute_modularity_unsigned_recovery() -> None:
+    """Signed modularity recovers the Newman modularity for positive-only graphs."""
+    from orbitkit.metrics import compute_modularity
+
+    mat = np.array([
+        [0.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0],
+        [1.0, 1.0, 0.0],
+    ])
+    communities = ({0, 1}, {2})
+
+    result = compute_modularity(mat, communities)
+    expected = -2.0 / 9.0
+    assert result == pytest.approx(expected)
+
+
+# }}}
+
+# {{{ test_compute_modularity_signed_known_value
+
+
+def test_compute_modularity_signed_known_value() -> None:
+    """Hand-calculated signed modularity for a 3-node signed graph."""
+    from orbitkit.metrics import compute_modularity
+
+    mat = np.array([
+        [0.0, 1.0, -1.0],
+        [1.0, 0.0, -1.0],
+        [-1.0, -1.0, 0.0],
+    ])
+    communities = ({0, 1}, {2})
+
+    result = compute_modularity(mat, communities)
+    assert result == pytest.approx(1.0 / 3.0)
+
+
+# }}}
+
+# {{{ test_compute_modularity_all_zero
+
+
+def test_compute_modularity_all_zero() -> None:
+    """Modularity is zero for an all-zero matrix."""
+    from orbitkit.metrics import compute_modularity
+
+    mat = np.zeros((4, 4))
+    communities = ({0, 1}, {2, 3})
+    assert compute_modularity(mat, communities) == pytest.approx(0.0)
+
+
+# }}}
+
+# {{{ test_compute_modularity_validation
+
+
+def test_compute_modularity_validation() -> None:
+    """Input validation for compute_modularity."""
+    from orbitkit.metrics import compute_modularity
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_modularity(np.ones((3, 4)), ({0, 1},))
+
+    with pytest.raises(ValueError, match="'communities' cannot be an empty sequence"):
+        compute_modularity(np.eye(3), ())
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
