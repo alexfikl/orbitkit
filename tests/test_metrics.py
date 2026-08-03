@@ -346,6 +346,113 @@ def test_compute_modularity_validation() -> None:
 # }}}
 
 
+# {{{ test_compute_eigenvector_centrality
+
+
+def test_compute_eigenvector_centrality_positive() -> None:
+    """Known eigenvector centrality for a 3-node positive chain."""
+    from orbitkit.metrics import compute_eigenvector_centrality
+
+    mat = np.array([
+        [0.0, 1.0, 0.0],
+        [1.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0],
+    ])
+
+    result = compute_eigenvector_centrality(mat)
+
+    # largest eigenvalue of the chain is sqrt(2)
+    assert result.lambda_max == pytest.approx(np.sqrt(2))
+
+    # middle node (1) is the most central
+    assert result.score[1] == pytest.approx(0.5)
+    assert result.score[0] == pytest.approx(0.25)
+    assert result.score[2] == pytest.approx(0.25)
+
+    # all signs in eigenbasis are the same (positive chain)
+    assert np.all(result.eigenbasis > 0)
+
+
+def test_compute_eigenvector_centrality_signed() -> None:
+    """Signed centrality: bridge node between positive and negative edges."""
+    from orbitkit.metrics import compute_eigenvector_centrality
+
+    mat = np.array([
+        [0.0, 2.0, 0.0],
+        [2.0, 0.0, -1.0],
+        [0.0, -1.0, 0.0],
+    ])
+
+    result = compute_eigenvector_centrality(mat)
+
+    # largest eigenvalue is sqrt(5)
+    assert result.lambda_max == pytest.approx(np.sqrt(5))
+
+    # node 1 is the bridge — highest centrality
+    assert result.score[1] > result.score[0]
+    assert result.score[1] > result.score[2]
+
+    # positive edge (0,1) → same sign; negative edge (1,2) → opposite sign
+    v = result.eigenbasis[:, 0]
+    assert np.sign(v[0]) == np.sign(v[1])
+    assert np.sign(v[1]) != np.sign(v[2])
+
+
+def test_compute_eigenvector_centrality_negative() -> None:
+    """Purely negative edge gives opposite signs in the eigenbasis."""
+    from orbitkit.metrics import compute_eigenvector_centrality
+
+    mat = np.array([
+        [0.0, -1.0],
+        [-1.0, 0.0],
+    ])
+
+    result = compute_eigenvector_centrality(mat)
+
+    assert result.lambda_max == pytest.approx(1.0)
+    assert np.allclose(result.score, [0.5, 0.5])
+    assert np.sign(result.eigenbasis[0, 0]) != np.sign(result.eigenbasis[1, 0])
+
+
+def test_compute_eigenvector_centrality_validation() -> None:
+    """Input validation for compute_eigenvector_centrality."""
+    from orbitkit.metrics import compute_eigenvector_centrality
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_eigenvector_centrality(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="not a symmetric"):
+        compute_eigenvector_centrality(np.array([[0.0, 1.0], [0.0, 0.0]]))
+
+
+# }}}
+
+
+# {{{ test_compute_eigenvector_centrality_degenerate
+
+
+def test_compute_eigenvector_centrality_degenerate() -> None:
+    """Largest eigenvalue with multiplicity > 1 across disconnected blocks."""
+    from orbitkit.metrics import compute_eigenvector_centrality
+
+    # two disconnected signed 2-node blocks, each with eigenvalues {+1, -1}
+    mat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, -1.0],
+        [0.0, 0.0, -1.0, 0.0],
+    ])
+
+    result = compute_eigenvector_centrality(mat)
+
+    assert result.lambda_max == pytest.approx(1.0)
+    assert result.eigenbasis.shape[1] >= 2
+    assert np.allclose(result.score, 0.5)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
