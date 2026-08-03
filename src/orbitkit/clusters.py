@@ -271,8 +271,8 @@ def signed_leiden_communities(
         weight = np.sum(W_neg)
         weight = 1.0 / weight if weight > 0.0 else 0.0
 
-    if weight <= 0:
-        raise ValueError(f"'weight' must be positive: {weight}")
+    if weight < 0:
+        raise ValueError(f"'weight' must be non-negative: {weight}")
 
     G_pos = Graph.Weighted_Adjacency(W_pos, mode=mode)
     G_neg = Graph.Weighted_Adjacency(W_neg, mode=mode)
