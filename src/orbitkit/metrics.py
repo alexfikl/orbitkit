@@ -571,7 +571,7 @@ def compute_modularity(
 
 
 class EigenvectorCentrality(NamedTuple):
-    max_lambda: float
+    lambda_max: float
     """The largest real eigenvalue."""
     score: Array1D[np.floating[Any]]
     """An unsigned eigenvector centrality score."""
@@ -635,7 +635,7 @@ def compute_eigenvector_centrality(
     if k == 1 and V[np.argmax(np.abs(V)), 0] < 0:
         V = -V
 
-    return EigenvectorCentrality(max_lambda=eigvals[-1], score=score, eigenbasis=V)
+    return EigenvectorCentrality(lambda_max=eigvals[-1], score=score, eigenbasis=V)
 
 
 # }}}
