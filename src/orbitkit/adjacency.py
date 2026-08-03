@@ -1285,6 +1285,113 @@ def generate_adjacency_configuration(
     return result
 
 
+def generate_adjacency_stochastic_block(
+    n: int,
+    m: int | None = None,
+    *,
+    p: float | tuple[float, float] | Array2D[np.floating[Any]] = 0.75,
+    signed: bool = False,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    r"""Generate an adjacency matrix for a Stochastic Block Model.
+
+    The graph has *m* blocks of equal size. Edges within the blocks appear with
+    probability *p*. Note that setting :math:`p = (p, p)` (same probability for
+    in-block and between-block) will just recover the Erdős-Rényi model.
+
+    :arg n: number of nodes, must be divisible by *m*.
+    :arg m: number of equal-sized blocks.
+    :arg p: edge probabilities: (1) if float, :math:`p` in the same block and
+        :math:`(1 - p)` between blocks; (2) if a tuple, then :math:`p[0]` in the
+        same block and :math:`p[1]` between blocks; (3) if a symmetric matrix,
+        then it should have a size :math:`m \times m` and each entry is the
+        probability between a block *i* and *j*.
+    :arg signed: if *True*, the the edges between blocks get a value of -1.
+    """
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
+    if dtype is None:
+        dtype = np.int32
+    dtype = np.dtype(dtype)
+
+    if n <= 1:
+        return np.zeros((n, n), dtype=dtype)
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if m is None:
+        # NOTE: by default we try to do about "m" blocks with "m" elements per block
+        m = min(*_find_equal_factors(n))
+
+    if m <= 0:
+        raise ValueError(f"block count 'm' must be positive: '{m}'")
+
+    if n % m != 0:
+        raise ValueError(f"'n' must be divisible by 'm': n={n} and m={m}")
+
+    if isinstance(p, (int, float)):
+        q = p
+        p = np.full((m, m), 1 - q, dtype=np.float64)
+        np.fill_diagonal(p, q)
+    elif isinstance(p, tuple):
+        if len(p) != 2:
+            raise ValueError(f"unsupported tuple for 'p': {p}")
+
+        q = p[0]
+        p = np.full((m, m), p[1], dtype=np.float64)
+        np.fill_diagonal(p, q)
+    elif isinstance(p, np.ndarray):
+        if p.shape != (m, m):
+            raise ValueError(f"'p' matrix must have shape ({m}, {m}): {p.shape}")
+
+        if not np.allclose(p, p.T):
+            raise ValueError("'p' matrix must be symmetric")
+    else:
+        raise TypeError(f"'p' must be a float, tuple or ndarray: {type(p)}")
+
+    if np.min(p) < 0.0 or np.max(p) > 1.0:
+        raise ValueError("probability 'p' not in [0, 1]")
+
+    block_size = n // m
+    labels = np.arange(n) // block_size
+
+    # create lower triangular blocks
+    rows, cols = np.tril_indices(n, k=-1)
+    block_i = labels[rows]
+    block_j = labels[cols]
+    is_same = block_i == block_j
+
+    # create mask based on probabilities
+    r = rng.random(size=rows.size)
+    mask = r < p[block_i, block_j]
+
+    # set up adjacency
+    result = np.zeros((n, n), dtype=dtype)
+    if signed:
+        same_mask = is_same & mask
+        diff_mask = ~is_same & mask
+        result[rows[same_mask], cols[same_mask]] = 1
+        result[cols[same_mask], rows[same_mask]] = 1
+        result[rows[diff_mask], cols[diff_mask]] = -1
+        result[cols[diff_mask], rows[diff_mask]] = -1
+    else:
+        result[rows[mask], cols[mask]] = 1
+        result[cols[mask], rows[mask]] = 1
+
+    # make sure the groups are connected
+    for i in range(n):
+        if np.all(result[i] == 0):
+            # NOTE: isolated nodes are always added within the block
+            j = rng.choice([k for k in range(n) if k != i and labels[i] == labels[k]])
+            result[i, j] = 1
+            result[j, i] = 1
+
+    return result
+
+
 # }}}
 
 
