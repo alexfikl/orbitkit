@@ -7,7 +7,7 @@ import enum
 import pathlib
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
 import numpy as np
 
@@ -654,6 +654,27 @@ def set_uniform_ticks(
 # }}}
 
 
+# {{{ make_colorbar_axes
+
+
+def make_colorbar_axes(
+    ax: mp.Axes,
+    *,
+    position: str = "right",
+    size: str = "5%",
+    pad: float = 0.1,
+) -> mp.Axes:
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes(position, size=size, pad=pad)
+
+    return cax
+
+
+# }}}
+
+
 # {{{ make_alpha_line_collection
 
 
@@ -718,6 +739,7 @@ def heatmap(
     ylinewidth: float | None = 1.0,
     xrotation: float = 45.0,
     tickdensity: float = 0.1,
+    origin: Literal["upper", "lower"] = "lower",
 ) -> AxesImage:
     """Plot a heatmap for a given array.
 
@@ -765,7 +787,7 @@ def heatmap(
         alpha=alpha,
         vmin=vmin,
         vmax=vmax,
-        origin="lower",
+        origin=origin,
     )
 
     set_uniform_ticks(ax, xs, which="x", density=tickdensity, rotation=xrotation)
