@@ -641,6 +641,126 @@ def compute_eigenvector_centrality(
 # }}}
 
 
-# {{{ compute_assortativity
+# {{{ compute_assortativity_li
+
+
+def compute_assortativity_li(
+    mat: Array2D[np.floating[Any]],
+    *,
+    variant: Literal[2, 3, 4, 5, 6, 7] = 2,
+    eps: float | None = None,
+) -> float:
+    """Computes the assortativity measures from [Li2020]_.
+
+    All the measures assume that: (1) the weight matrix *mat* is symmetric,
+    (2) that it's diagonal is zero, and (3) that it is undirected.
+
+    .. [Li2020] A.-W. Li, J. Xiao, X.-K. Xu,
+        *The Family of Assortativity Coefficients in Signed Social Networks*,
+        IEEE Transactions on Computational Social Systems, Vol. 7, pp. 1460--1468, 2020,
+        `doi:10.1109/tcss.2020.3023729 <https://doi.org/10.1109/tcss.2020.3023729>`__.
+
+    :arg variant: one of the 6 variants of assortativity from the paper. They are
+        named after the equation numbers.
+    :returns: assortativity coefficient in :math:`[-1, 1]`. It can also return
+        *NaN* if the weight variance is zero (i.e. every edge has the same weight).
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if n == 0:
+        raise ValueError(f"assortativity not defined for empty matrices: {mat}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if not 2 <= variant <= 7:
+        raise ValueError(f"unknown 'variant': {variant!r} (not in 2-7)")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+    if variant in {2, 3, 4, 6, 7} and np.max(mat) < eps:
+        raise ValueError("there are no edges with positive weights in 'mat'")
+
+    if variant in {3, 4, 5, 6, 7} and np.min(mat) > -eps:
+        raise ValueError("there are no edges with negative weights in 'mat'")
+
+    if variant == 2:  # r+(+, +)
+        A_pos = (mat > eps).astype(mat.dtype)
+
+        j_pos = np.sum(A_pos, axis=1)
+        i, j = np.where(np.triu(A_pos, k=1))
+
+        a, b = j_pos[i], j_pos[j]
+    elif variant == 3:  # r-(+, +)
+        A_pos = (mat > eps).astype(mat.dtype)
+        A_neg = (mat < -eps).astype(mat.dtype)
+
+        j_pos = np.sum(A_pos, axis=1)
+        i, j = np.where(np.triu(A_neg, k=1))
+
+        a, b = j_pos[i], j_pos[j]
+    elif variant == 4:  # r+(-, -)
+        A_pos = (mat > eps).astype(mat.dtype)
+        A_neg = (mat < -eps).astype(mat.dtype)
+
+        j_neg = np.sum(A_neg, axis=1)
+        i, j = np.where(np.triu(A_pos, k=1))
+
+        a, b = j_neg[i], j_neg[j]
+    elif variant == 5:  # r-(-, -)
+        A_neg = (mat < -eps).astype(mat.dtype)
+
+        j_neg = np.sum(A_neg, axis=1)
+        i, j = np.where(np.triu(A_neg, k=1))
+
+        a, b = j_neg[i], j_neg[j]
+    elif variant == 6:  # r+(+, -)
+        A_pos = (mat > eps).astype(mat.dtype)
+        A_neg = (mat < -eps).astype(mat.dtype)
+
+        j_pos = np.sum(A_pos, axis=1)
+        j_neg = np.sum(A_neg, axis=1)
+        i, j = np.where(np.triu(A_pos, k=1))
+
+        # NOTE: sample both directions to not depend on node indexing
+        a = np.concatenate([j_pos[i], j_pos[j]])
+        b = np.concatenate([j_neg[j], j_neg[i]])
+    elif variant == 7:  # r-(+, -)
+        A_pos = (mat > eps).astype(mat.dtype)
+        A_neg = (mat < -eps).astype(mat.dtype)
+
+        j_pos = np.sum(A_pos, axis=1)
+        j_neg = np.sum(A_neg, axis=1)
+        i, j = np.where(np.triu(A_neg, k=1))
+
+        a = np.concatenate([j_pos[i], j_pos[j]])
+        b = np.concatenate([j_neg[j], j_neg[i]])
+    else:
+        raise AssertionError
+
+    term1 = np.sum(a * b) / a.size
+    term2 = (0.5 * np.sum(a + b) / a.size) ** 2
+    term3 = 0.5 * np.sum(a**2 + b**2) / a.size
+
+    # NOTE: return nan rather than returning infinity to keep the assortativity in
+    # [-1, 1] for all valid inputs.
+    if term3 - term2 == 0:
+        return np.nan
+
+    return (term1 - term2) / (term3 - term2)
+
 
 # }}}
