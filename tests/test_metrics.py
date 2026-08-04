@@ -453,6 +453,160 @@ def test_compute_eigenvector_centrality_degenerate() -> None:
 # }}}
 
 
+# {{{ test_compute_assortativity_li
+
+
+def test_compute_assortativity_li_validation() -> None:
+    """Input validation for compute_assortativity_li."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    # signed matrix with both a positive and a negative edge
+    mat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, -1.0, 0.0],
+        [0.0, -1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ])
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_assortativity_li(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="not defined for empty matrices"):
+        compute_assortativity_li(np.zeros((0, 0)))
+
+    with pytest.raises(ValueError, match="'eps' must be positive"):
+        compute_assortativity_li(mat, eps=-1.0)
+
+    with pytest.raises(ValueError, match="unknown 'variant'"):
+        compute_assortativity_li(mat, variant=1)  # ty: ignore[invalid-argument-type]
+
+    with pytest.raises(ValueError, match="zero diagonal"):
+        compute_assortativity_li(np.array([[1.0, 1.0], [1.0, 0.0]]), variant=2)
+
+    with pytest.raises(ValueError, match="not symmetric"):
+        compute_assortativity_li(
+            np.array([
+                [0.0, 1.0, -1.0],
+                [0.0, 0.0, -1.0],
+                [0.0, 0.0, 0.0],
+            ]),
+            variant=2,
+        )
+
+    # variant 2 requires at least one positive edge
+    with pytest.raises(ValueError, match="no edges with positive weights"):
+        compute_assortativity_li(-np.abs(mat), variant=2)
+
+    # variant 5 requires at least one negative edge
+    with pytest.raises(ValueError, match="no edges with negative weights"):
+        compute_assortativity_li(np.abs(mat), variant=5)
+
+
+def test_compute_assortativity_li_variant2_known_value() -> None:
+    """Hand-computed r+(+,+) on a 4-node positive graph."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    assert compute_assortativity_li(mat, variant=2) == pytest.approx(-5.0 / 7.0)
+    assert compute_assortativity_li(-mat, variant=5) == pytest.approx(-5.0 / 7.0)
+
+
+def test_compute_assortativity_li_signed_path() -> None:
+    """Hand-computed coefficients for all variants on a signed 4-node graph."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    mat = np.array([
+        [0.0, 1.0, -1.0, 0.0],
+        [1.0, 0.0, 1.0, -1.0],
+        [-1.0, 1.0, 0.0, 1.0],
+        [0.0, -1.0, 1.0, 0.0],
+    ])
+    assert compute_assortativity_li(mat, variant=2) == pytest.approx(-0.5)
+    assert compute_assortativity_li(mat, variant=3) == pytest.approx(-1.0)
+    assert compute_assortativity_li(mat, variant=6) == pytest.approx(-0.5)
+    assert compute_assortativity_li(mat, variant=7) == pytest.approx(-1.0 / 3.0)
+    assert np.isnan(compute_assortativity_li(mat, variant=4))
+    assert np.isnan(compute_assortativity_li(mat, variant=5))
+
+
+def test_compute_assortativity_li_integer_dtype() -> None:
+    """Integer matrices exercise the 'eps' fallback when finfo fails."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    mat = np.array([
+        [0, 1, 1, 1],
+        [1, 0, 1, 0],
+        [1, 1, 0, 0],
+        [1, 0, 0, 0],
+    ])
+    assert compute_assortativity_li(mat, variant=2) == pytest.approx(-5.0 / 7.0)
+
+
+def test_compute_assortativity_li_explicit_eps_matches_default() -> None:
+    """Passing eps explicitly does not change the result for well-separated weights."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    mat = np.array([
+        [0.0, 1.0, -1.0, 0.0],
+        [1.0, 0.0, 1.0, -1.0],
+        [-1.0, 1.0, 0.0, 1.0],
+        [0.0, -1.0, 1.0, 0.0],
+    ])
+    for variant in (2, 3, 6, 7):
+        r_default = compute_assortativity_li(mat, variant=variant)
+        r_explicit = compute_assortativity_li(mat, variant=variant, eps=1.0e-8)
+        assert r_default == pytest.approx(r_explicit)
+
+
+def test_compute_assortativity_li_permutation_invariance() -> None:
+    """Relabeling nodes must not change any of the coefficients."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    rng = np.random.default_rng(42)
+    mat = np.array([
+        [0.0, 1.0, -1.0, 0.0],
+        [1.0, 0.0, 1.0, -1.0],
+        [-1.0, 1.0, 0.0, 1.0],
+        [0.0, -1.0, 1.0, 0.0],
+    ])
+    perm = rng.permutation(mat.shape[0])
+    matp = mat[perm][:, perm]
+
+    for variant in (2, 3, 4, 5, 6, 7):
+        r = compute_assortativity_li(mat, variant=variant)
+        rp = compute_assortativity_li(matp, variant=variant)
+        if np.isnan(r):
+            assert np.isnan(rp)
+        else:
+            assert r == pytest.approx(rp)
+
+
+def test_compute_assortativity_li_in_range() -> None:
+    """Coefficients stay in [-1, 1] (or NaN) on random signed graphs."""
+    from orbitkit.metrics import compute_assortativity_li
+
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        n = int(rng.integers(4, 12))
+        mat = rng.uniform(-1.0, 1.0, size=(n, n))
+        mat = (mat + mat.T) / 2.0
+        np.fill_diagonal(mat, 0.0)
+        if np.max(mat) <= 0.0 or np.min(mat) >= 0.0:
+            continue
+
+        for variant in (2, 3, 4, 5, 6, 7):
+            r = compute_assortativity_li(mat, variant=variant)
+            assert np.isnan(r) or -1.0 <= r <= 1.0
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
