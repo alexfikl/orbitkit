@@ -607,6 +607,169 @@ def test_compute_assortativity_li_in_range() -> None:
 # }}}
 
 
+# {{{ test_compute_assortativity_arcagni
+
+
+def test_compute_assortativity_arcagni_validation() -> None:
+    """Input validation for compute_assortativity_arcagni."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    mat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ])
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_assortativity_arcagni(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="not defined for empty matrices"):
+        compute_assortativity_arcagni(np.zeros((0, 0)))
+
+    with pytest.raises(ValueError, match="'eps' must be positive"):
+        compute_assortativity_arcagni(mat, eps=-1.0)
+
+    with pytest.raises(ValueError, match="zero diagonal"):
+        compute_assortativity_arcagni(np.array([[1.0, 1.0], [1.0, 0.0]]))
+
+    with pytest.raises(ValueError, match="negative entries"):
+        compute_assortativity_arcagni(
+            np.array([
+                [0.0, 1.0, -1.0],
+                [1.0, 0.0, 1.0],
+                [-1.0, 1.0, 0.0],
+            ])
+        )
+
+    with pytest.raises(ValueError, match="not symmetric"):
+        compute_assortativity_arcagni(
+            np.array([
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0],
+            ])
+        )
+
+
+def test_compute_assortativity_arcagni_known_value() -> None:
+    """Hand-computed coefficient on a 4-node positive graph."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    assert compute_assortativity_arcagni(mat) == pytest.approx(-5.0 / 7.0)
+
+
+def test_compute_assortativity_arcagni_star_is_disassortative() -> None:
+    """A star graph is perfectly disassortative (rho = -1)."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    assert compute_assortativity_arcagni(mat) == pytest.approx(-1.0)
+
+
+def test_compute_assortativity_arcagni_undefined_nan() -> None:
+    """Assortativity is NaN for zero and uniform-strength graphs."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    # all-zero matrix: omega == 0
+    assert np.isnan(compute_assortativity_arcagni(np.zeros((3, 3))))
+
+    # complete graph with uniform weights: all strengths equal
+    mat = np.ones((4, 4)) - np.eye(4)
+    assert np.isnan(compute_assortativity_arcagni(mat))
+
+
+def test_compute_assortativity_arcagni_integer_dtype() -> None:
+    """Integer matrices exercise the 'eps' fallback when finfo fails."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    mat = np.array([
+        [0, 1, 1, 1],
+        [1, 0, 1, 0],
+        [1, 1, 0, 0],
+        [1, 0, 0, 0],
+    ])
+    assert compute_assortativity_arcagni(mat) == pytest.approx(-5.0 / 7.0)
+
+
+def test_compute_assortativity_arcagni_explicit_eps_matches_default() -> None:
+    """Passing eps explicitly does not change the result."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    r_default = compute_assortativity_arcagni(mat)
+    r_explicit = compute_assortativity_arcagni(mat, eps=1.0e-8)
+    assert r_default == pytest.approx(r_explicit)
+
+
+def test_compute_assortativity_arcagni_scale_invariance() -> None:
+    """Scaling all weights by a positive constant leaves rho unchanged."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    r = compute_assortativity_arcagni(mat)
+    r_scaled = compute_assortativity_arcagni(5.0 * mat)
+    assert r == pytest.approx(r_scaled)
+
+
+def test_compute_assortativity_arcagni_permutation_invariance() -> None:
+    """Relabeling nodes must not change the coefficient."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    rng = np.random.default_rng(42)
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    perm = rng.permutation(mat.shape[0])
+    matp = mat[perm][:, perm]
+
+    r = compute_assortativity_arcagni(mat)
+    rp = compute_assortativity_arcagni(matp)
+    assert r == pytest.approx(rp)
+
+
+def test_compute_assortativity_arcagni_in_range() -> None:
+    """Coefficient stays in [-1, 1] (or NaN) on random weighted graphs."""
+    from orbitkit.metrics import compute_assortativity_arcagni
+
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        n = int(rng.integers(4, 12))
+        mat = rng.uniform(0.0, 1.0, size=(n, n))
+        mat = (mat + mat.T) / 2.0
+        np.fill_diagonal(mat, 0.0)
+
+        r = compute_assortativity_arcagni(mat)
+        assert np.isnan(r) or -1.0 <= r <= 1.0
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
