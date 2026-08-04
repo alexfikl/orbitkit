@@ -779,8 +779,10 @@ def compute_assortativity_arcagni(
     .. math::
 
         \rho(\mathbf{s}, \mathbf{E})
-            = \frac{\mathbf{s}^T (E - \mathbf{q} \mathbf{q}^T) \mathbf{s}}
-                   {\mathbf{s}^T (\mathbf{D}_q - \mathbf{q} \mathbf{q}^T) \mathbf{s}},
+        = \frac{\mathbf{s}^T (\mathbf{E} - \mathbf{q} \mathbf{q}^T) \mathbf{s}}
+               {\mathbf{s}^T (\mathbf{D}_q - \mathbf{q} \mathbf{q}^T) \mathbf{s}}
+        = \frac{\mathbf{s}^T \mathbf{E} \mathbf{s} - (\mathbf{s}^T \mathbf{q})^2}
+            {\mathbf{s}^T (\mathbf{q} \odot \mathbf{s}) - (\mathbf{s}^T \mathbf{q})^2},
 
     where :math:`\mathbf{s}` is the node strength, :math:`\mathbf{E} = \mathbf{W}
     / \omega` is the normalized weight matrix, :math:`\mathbf{q} = \mathbf{E} 1`,
