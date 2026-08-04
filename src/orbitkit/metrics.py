@@ -140,7 +140,7 @@ def compute_weighted_clustering_coefficient_barrat(
     # NOTE: these are heavy, so we don't normally check
     if __debug__:
         if np.any(mat < 0):
-            raise ValueError("weight matrix 'mat' has non-positive entries")
+            raise ValueError("weight matrix 'mat' has negative entries")
 
         if np.any(np.abs(np.diag(mat)) > eps):
             raise ValueError("weight matrix 'mat' does not have a zero diagonal")
@@ -299,7 +299,7 @@ def compute_disparity_serrano(
         raise ValueError(f"'eps' must be positive: {eps}")
 
     if __debug__ and np.any(mat < 0):
-        raise ValueError("weight matrix 'mat' has non-positive entries")
+        raise ValueError("weight matrix 'mat' has negative entries")
 
     strength = compute_weighted_degree(mat)
     mask = strength < eps
@@ -761,6 +761,84 @@ def compute_assortativity_li(
         return np.nan
 
     return (term1 - term2) / (term3 - term2)
+
+
+# }}}
+
+
+# {{{ compute_assortativity_arcagni
+
+
+def compute_assortativity_arcagni(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+) -> float:
+    r"""Computes the assortativity measure from [Arcagni2021]_.
+
+    .. math::
+
+        \rho(\mathbf{s}, \mathbf{E})
+            = \frac{\mathbf{s}^T (E - \mathbf{q} \mathbf{q}^T) \mathbf{s}}
+                   {\mathbf{s}^T (\mathbf{D}_q - \mathbf{q} \mathbf{q}^T) \mathbf{s}},
+
+    where :math:`\mathbf{s}` is the node strength, :math:`\mathbf{E} = \mathbf{W}
+    / \omega` is the normalized weight matrix, :math:`\mathbf{q} = \mathbf{E} 1`,
+    and :math:`\mathbf{D}_q` is a diagonal matrix with :math:`\mathbf{q}` on the
+    diagonal.
+
+    All the measures assume that: (1) the weight matrix *mat* is symmetric,
+    (2) that it's diagonal is zero, and (3) that the weights are positive.
+
+    .. [Arcagni2021] A. Arcagni, R. Grassi, S. Stefani, A. Torriero,
+        *Extending Assortativity: An Application to Weighted Social Networks*,
+        Journal of Business Research, Vol. 129, pp. 774--783, 2021,
+        `doi:10.1016/j.jbusres.2019.10.008 <https://doi.org/10.1016/j.jbusres.2019.10.008>`__.
+
+    :returns: assortativity coefficient in :math:`[-1, 1]`. It can also return
+        *NaN* if assortativity is not defined.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if n == 0:
+        raise ValueError(f"assortativity not defined for empty matrices: {mat}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if np.any(mat < 0):
+            raise ValueError("weight matrix 'mat' has negative entries")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+    omega = np.sum(mat)
+    if omega == 0:
+        return np.nan
+
+    E = mat / omega
+    q = np.sum(E, axis=1)
+    c = np.sum(mat, axis=1)
+
+    cq = (c @ q) ** 2
+    denominator = c @ (c * q) - cq
+    if denominator == 0:
+        return np.nan
+
+    numerator = c @ (E @ c) - cq
+    return numerator / denominator
 
 
 # }}}
