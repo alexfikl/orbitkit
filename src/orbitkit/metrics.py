@@ -577,7 +577,7 @@ class EigenvectorCentrality(NamedTuple):
     """An unsigned eigenvector centrality score."""
     eigenbasis: Array2D[np.floating[Any]]
     """The corresponding basis for the eigenspace spanned by the eigenvalue
-    :attr:`max_lambda`. If the eigenvalue is simple, then this will just be a
+    :attr:`lambda_max`. If the eigenvalue is simple, then this will just be a
     single vector that carries sign information (unlike :attr:`score`)
     """
 
