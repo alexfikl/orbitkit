@@ -145,7 +145,7 @@ def compute_weighted_clustering_coefficient_barrat(
         if np.any(np.abs(np.diag(mat)) > eps):
             raise ValueError("weight matrix 'mat' does not have a zero diagonal")
 
-        if np.linalg.norm(mat - mat.T) > eps:
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("weight matrix 'mat' is not symmetric")
 
     A = (np.abs(mat) > eps).astype(dtype)
@@ -219,7 +219,7 @@ def compute_weighted_clustering_coefficient_costantini(
         if np.any(np.abs(np.diag(mat)) > eps):
             raise ValueError("weight matrix 'mat' does not have a zero diagonal")
 
-        if np.linalg.norm(mat - mat.T) > eps:
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("weight matrix 'mat' is not symmetric")
 
     W = mat.copy()
@@ -535,7 +535,7 @@ def compute_modularity(
         raise ValueError(f"'eps' must be positive: {eps}")
 
     if __debug__:  # ruff: ignore[collapsible-if]
-        if not np.allclose(mat, mat.T):
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("'mat' is not a symmetric weight matrix")
 
     w_pos = compute_positive_weighted_degree(mat)
@@ -615,7 +615,7 @@ def compute_eigenvector_centrality(
         raise ValueError(f"'eps' must be positive: {eps}")
 
     if __debug__:  # ruff: ignore[collapsible-if]
-        if not np.allclose(mat, mat.T):
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("'mat' is not a symmetric weight matrix")
 
     # gen the eigendecomposition
