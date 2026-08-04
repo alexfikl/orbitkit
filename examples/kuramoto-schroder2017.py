@@ -92,7 +92,7 @@ assert isinstance(model.omega, np.ndarray)
 write_dot_from_adjacency(
     dirname / f"kuramoto_{figname.lower()}.dot",
     model.K,  # ty: ignore[invalid-argument-type]
-    nodenames=tuple(f"{omega:g}" for omega in model.omega),  # ty: ignore[not-iterable]
+    nodenames=tuple(f"{omega:g}" for omega in model.omega),
     nodecolors=to_color(model.omega),  # ty: ignore[invalid-argument-type]
     overwrite=True,
 )
