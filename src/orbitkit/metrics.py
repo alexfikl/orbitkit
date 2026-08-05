@@ -927,6 +927,9 @@ def compute_local_assortativity_sabek(
         if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("weight matrix 'mat' is not symmetric")
 
+    # NOTE: bincount always returns np.float64, so we need to be careful about dtypes
+    dtype = mat.dtype if np.issubdtype(mat.dtype, np.floating) else np.dtype(np.float64)
+
     # get upper triangular elements
     iu, ju = np.triu_indices(n, k=1)
     w = mat[iu, ju]
@@ -946,18 +949,18 @@ def compute_local_assortativity_sabek(
 
     Omega = np.sum(w_beta)
     if Omega == 0:
-        return np.full(n, np.nan, dtype=mat.dtype)
+        return np.full(n, np.nan, dtype=dtype)
 
     U = np.sum(w_beta * (l_e + m_e)) / (2 * Omega)
     sigma_sqr = np.sum(w_beta * (l_e**2 + m_e**2)) / (2 * Omega) - U**2
     if sigma_sqr <= 0:
-        return np.full(n, np.nan, dtype=mat.dtype)
+        return np.full(n, np.nan, dtype=dtype)
 
     # compute local assortativity
     rho_e = w_beta * (l_e - U) * (m_e - U) / (Omega * sigma_sqr)
     rho_v = np.bincount(i, rho_e, minlength=n) + np.bincount(j, rho_e, minlength=n)
 
-    return rho_v  # ty: ignore[invalid-return-type]
+    return rho_v.astype(dtype, copy=False)
 
 
 # }}}
