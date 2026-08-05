@@ -949,6 +949,18 @@ def test_compute_local_assortativity_sabek_integer_dtype() -> None:
     assert rho[0] == pytest.approx(-1.0)
     assert np.allclose(rho[1:], -1.0 / 3.0)
 
+    # degenerate integer graph (uniform strengths): the NaN return must be a real
+    # float64 NaN, not the garbage from casting NaN into an integer dtype.
+    mat = np.array([
+        [0, 1, 1, 1],
+        [1, 0, 1, 1],
+        [1, 1, 0, 1],
+        [1, 1, 1, 0],
+    ])
+    rho = compute_local_assortativity_sabek(mat)
+    assert rho.dtype == np.float64
+    assert np.all(np.isnan(rho))
+
 
 def test_compute_local_assortativity_sabek_global_in_range() -> None:
     """The global value r = (1/2) sum rho_v stays in [-1, 1] (or is NaN)."""
