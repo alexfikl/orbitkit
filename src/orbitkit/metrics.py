@@ -437,7 +437,7 @@ def compute_nx_community_strengths(
 
 def compute_participation_coefficient(
     mat: Array2D[np.floating[Any]],
-    community_strengths: Array2D[np.floating[Any]],
+    communities: Array1D[np.integer[Any]],
 ) -> Array1D[np.floating[Any]]:
     r"""Compute a weighted participation coefficient from [Guimera2005]_.
 
@@ -445,19 +445,22 @@ def compute_participation_coefficient(
 
         P_i = 1 - \sum_{j \in c} \left(\frac{\kappa_{ij}}{k_i}\right)^2,
 
-    where :math:`\kappa` is the community strength and :math:`k` is total degree.
-    Note that the the participation coefficient is only defined for unsigned
-    weighted graphs. This is mainly due to the fact that community algorithms
-    only work on unsigned graphs.
+    where :math:`\kappa` is the community strength and :math:`k` is total
+    degree. Note that the the participation coefficient is only defined for
+    unsigned weighted graphs.
+
+    Note that the formula works for signed networks too, but it should not be
+    interpreted as given a meaningful result, since the strengths in both
+    :math:`\kappa_{ij}` and :math:`k_i` can cancel, even when the nodes have
+    strong "participation".
 
     .. [Guimera2005] R. Guimerà, L. A. N. Amaral,
         *Cartography of Complex Networks: Modules and Universal Roles*,
         Journal of Statistical Mechanics: Theory and Experiment, 2005,
         `doi:10.1088/1742-5468/2005/02/p02001 <https://doi.org/10.1088/1742-5468/2005/02/p02001>`__.
 
-    :arg community_strengths: an array of shape ``(nnodes, ncommunities)`` that
-        describes the strength (weighted degree) of each node to a set of
-        communities. See :func:`compute_nx_community_strengths`.
+    :arg communities: an array of shape ``(nnodes,)`` that gives the node-to-community
+        assignment for each node in the network.
     """
     if mat.ndim != 2:
         raise ValueError(f"adjacency matrix is not 2 dimensional: {mat.shape}")
@@ -466,16 +469,16 @@ def compute_participation_coefficient(
     if n != m:
         raise ValueError(f"adjacency matrix is not square: {mat.shape}")
 
-    if community_strengths.ndim != 2:
-        raise ValueError(f"strength is not 2 dimensional: {community_strengths.shape}")
+    if communities.shape != (n,):
+        raise ValueError(f"'communities' should have shape (n,): {communities.shape}")
 
-    if community_strengths.shape[0] != n:
-        raise ValueError(
-            f"'mat' does not match 'community_strengths': expected {n} nodes "
-            f"(got {community_strengths.shape[0]} strengths)"
-        )
+    # NOTE: doing np.unique both to get the number of communities and to allow
+    # non-contiguous community ids from the caller, so they don't worry about it
+    community_ids, inverse = np.unique(communities, return_inverse=True)
+    membership = np.zeros((n, len(community_ids)), dtype=mat.dtype)
+    membership[np.arange(n), inverse] = 1
 
-    kappa = np.sum(community_strengths**2, axis=1)
+    kappa = np.sum((mat @ membership) ** 2, axis=1)
     degree = np.sum(mat, axis=1)
 
     with np.errstate(invalid="ignore", divide="ignore"):
