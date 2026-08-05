@@ -890,6 +890,9 @@ def compute_local_assortativity_sabek(
     :arg beta: parameter in :math:`[0, 1]` used in the formula from [Sabek2023]_.
         A value of 0 uses an unweighted correlation, while a value of 1 uses a
         fully weighted correlation.
+    :arg returns: an array of shape ``(n,)`` per node in the network. If the
+        local assortativity cannot be computed (e.g. zero variance), then the
+        array will be *NaN*.
     """
 
     n, m = mat.shape
@@ -942,8 +945,13 @@ def compute_local_assortativity_sabek(
     m_e = s_star[j] - w_alpha
 
     Omega = np.sum(w_beta)
+    if Omega == 0:
+        return np.full(n, np.nan, dtype=mat.dtype)
+
     U = np.sum(w_beta * (l_e + m_e)) / (2 * Omega)
     sigma_sqr = np.sum(w_beta * (l_e**2 + m_e**2)) / (2 * Omega) - U**2
+    if sigma_sqr <= 0:
+        return np.full(n, np.nan, dtype=mat.dtype)
 
     # compute local assortativity
     rho_e = w_beta * (l_e - U) * (m_e - U) / (Omega * sigma_sqr)
