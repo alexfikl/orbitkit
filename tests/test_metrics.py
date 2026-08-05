@@ -770,6 +770,205 @@ def test_compute_assortativity_arcagni_in_range() -> None:
 # }}}
 
 
+# {{{ test_compute_local_assortativity_sabek
+
+
+def test_compute_local_assortativity_sabek_validation() -> None:
+    """Input validation for compute_local_assortativity_sabek."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    mat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ])
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_local_assortativity_sabek(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="not defined for empty matrices"):
+        compute_local_assortativity_sabek(np.zeros((0, 0)))
+
+    with pytest.raises(ValueError, match="'alpha' must be in"):
+        compute_local_assortativity_sabek(mat, alpha=-0.5)
+
+    with pytest.raises(ValueError, match="'alpha' must be in"):
+        compute_local_assortativity_sabek(mat, alpha=1.5)
+
+    with pytest.raises(ValueError, match="'beta' must be in"):
+        compute_local_assortativity_sabek(mat, beta=-1.0)
+
+    with pytest.raises(ValueError, match="'beta' must be in"):
+        compute_local_assortativity_sabek(mat, beta=2.0)
+
+    with pytest.raises(ValueError, match="'eps' must be positive"):
+        compute_local_assortativity_sabek(mat, eps=0.0)
+
+    with pytest.raises(ValueError, match="zero diagonal"):
+        compute_local_assortativity_sabek(np.array([[1.0, 1.0], [1.0, 0.0]]))
+
+    with pytest.raises(ValueError, match="negative entries"):
+        compute_local_assortativity_sabek(
+            np.array([
+                [0.0, 1.0, -1.0],
+                [1.0, 0.0, 1.0],
+                [-1.0, 1.0, 0.0],
+            ]),
+        )
+
+    with pytest.raises(ValueError, match="not symmetric"):
+        compute_local_assortativity_sabek(
+            np.array([
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0],
+            ]),
+        )
+
+
+def test_compute_local_assortativity_sabek_star_known_value() -> None:
+    """Hand-computed local assortativity for a 4-node star at (alpha, beta) = (1, 1).
+
+    Edges (0, k) with weight 1: center strength 3, leaf strength 1, so the
+    excesses are 2 at the center and 0 at each leaf. This gives U = 1 and
+    sigma^2 = 1, hence rho_e = -1/3 per edge, rho_v[0] = -1 (three edges) and
+    rho_v[leaf] = -1/3. The global value r = (1/2) sum rho_v = -1, i.e. the star
+    is perfectly disassortative.
+    """
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+
+    rho = compute_local_assortativity_sabek(mat)
+    assert rho.shape == (4,)
+    assert rho[0] == pytest.approx(-1.0)
+    assert np.allclose(rho[1:], -1.0 / 3.0)
+    assert 0.5 * np.sum(rho) == pytest.approx(-1.0)
+
+
+def test_compute_local_assortativity_sabek_undefined_nan() -> None:
+    """Assortativity is NaN for graphs with no edges or degenerate variance."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    # all-zero matrix: Omega == 0
+    rho = compute_local_assortativity_sabek(np.zeros((3, 3)))
+    assert rho.shape == (3,)
+    assert np.all(np.isnan(rho))
+
+    # complete graph with uniform weights: all strengths equal -> sigma^2 == 0
+    mat = np.ones((4, 4)) - np.eye(4)
+    rho = compute_local_assortativity_sabek(mat)
+    assert rho.shape == (4,)
+    assert np.all(np.isnan(rho))
+
+    # alpha = 0 collapses weights to 1, so any complete graph has uniform degree
+    # and the variance vanishes even with non-uniform weights.
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    rho = compute_local_assortativity_sabek(mat, alpha=0.0)
+    assert np.all(np.isnan(rho))
+
+
+def test_compute_local_assortativity_sabek_alpha_beta_boundaries() -> None:
+    """All boundary values (alpha, beta) in {0, 1} are accepted."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+
+    # on an unweighted graph all four combinations coincide
+    values = [
+        compute_local_assortativity_sabek(mat, alpha=a, beta=b)
+        for a in (0.0, 1.0)
+        for b in (0.0, 1.0)
+    ]
+    for v in values:
+        assert np.allclose(v, values[0])
+
+
+def test_compute_local_assortativity_sabek_scale_invariance() -> None:
+    """Scaling all weights by a positive constant leaves rho unchanged at (1, 1)."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    rho = compute_local_assortativity_sabek(mat)
+    rho_scaled = compute_local_assortativity_sabek(5.0 * mat)
+    assert np.allclose(rho, rho_scaled)
+
+
+def test_compute_local_assortativity_sabek_permutation_invariance() -> None:
+    """Relabeling nodes permutes the local assortativity accordingly."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    rng = np.random.default_rng(42)
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    perm = rng.permutation(mat.shape[0])
+    matp = mat[perm][:, perm]
+
+    rho = compute_local_assortativity_sabek(mat)
+    rho_p = compute_local_assortativity_sabek(matp)
+    assert np.allclose(rho_p, rho[perm])
+    assert 0.5 * np.sum(rho_p) == pytest.approx(0.5 * np.sum(rho))
+
+
+def test_compute_local_assortativity_sabek_integer_dtype() -> None:
+    """Integer matrices exercise the 'eps' fallback when finfo fails."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    mat = np.array([
+        [0, 1, 1, 1],
+        [1, 0, 0, 0],
+        [1, 0, 0, 0],
+        [1, 0, 0, 0],
+    ])
+    rho = compute_local_assortativity_sabek(mat)
+    assert rho[0] == pytest.approx(-1.0)
+    assert np.allclose(rho[1:], -1.0 / 3.0)
+
+
+def test_compute_local_assortativity_sabek_global_in_range() -> None:
+    """The global value r = (1/2) sum rho_v stays in [-1, 1] (or is NaN)."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        n = int(rng.integers(4, 12))
+        mat = rng.uniform(0.0, 1.0, size=(n, n))
+        mat = (mat + mat.T) / 2.0
+        np.fill_diagonal(mat, 0.0)
+
+        rho = compute_local_assortativity_sabek(mat)
+        g = 0.5 * np.sum(rho)
+        assert np.isnan(g) or -1.0 <= g <= 1.0
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
