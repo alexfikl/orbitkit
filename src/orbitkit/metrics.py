@@ -844,3 +844,112 @@ def compute_assortativity_arcagni(
 
 
 # }}}
+
+
+# {{{ compute_local_assortativity_sabek
+
+
+def compute_local_assortativity_sabek(
+    mat: Array2D[np.floating[Any]],
+    *,
+    alpha: float = 1.0,
+    beta: float = 1.0,
+    eps: float | None = None,
+) -> Array1D[np.floating[Any]]:
+    r"""Compute the weighted local assortativity from [Sabek2023]_.
+
+    .. math::
+
+        \rho_i(\alpha, \beta) =
+            \frac{\omega_e^\beta [l_e - U(\alpha, \beta)] [m_e - U(\alpha, \beta)]}
+                 {\Omega \sigma^2(\alpha, \beta)},
+
+    where the parameters are described in Equation (18) from [Sabek2023]_.
+    Furthermore, the associated global assortativity can be directly obtained as
+
+    .. math::
+
+        r(\alpha, \beta) = \frac{1}{2} \sum \rho_i(\alpha, \beta).
+
+    Note that the parameters :math:`(\alpha, \beta)` are allowed to vary in
+    :math:`[0, 1]`. However, only the boundary values are easily interpretable
+    (e.g. degree vs strength used in formulas). See [Sabek2023]_ for details.
+
+    The formula assumes that: (1) the weight matrix *mat* is symmetric,
+    (2) that it's diagonal is zero, and (3) that the weights are positive.
+
+    .. [Sabek2023] M. Sabek, U. Pigorsch,
+        *Local Assortativity in Weighted and Directed Complex Networks*,
+        Physica A: Statistical Mechanics and Its Applications, Vol. 630,
+        pp. 129231--129231, 2023,
+        `doi:10.1016/j.physa.2023.129231 <https://doi.org/10.1016/j.physa.2023.129231>`__.
+
+    :arg alpha: parameter in :math:`[0, 1]` used in the formula from [Sabek2023]_.
+        A value of 0 uses the degree (unweighted), while a value of 1 uses the
+        strength (weighted degree).
+    :arg beta: parameter in :math:`[0, 1]` used in the formula from [Sabek2023]_.
+        A value of 0 uses an unweighted correlation, while a value of 1 uses a
+        fully weighted correlation.
+    """
+
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if n == 0:
+        raise ValueError(f"assortativity not defined for empty matrices: {mat}")
+
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError(f"'alpha' must be in [0, 1]: {alpha!r}")
+
+    if not 0.0 <= beta <= 1.0:
+        raise ValueError(f"'beta' must be in [0, 1]: {beta!r}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if np.any(mat < 0):
+            raise ValueError("weight matrix 'mat' has negative entries")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+    # get upper triangular elements
+    iu, ju = np.triu_indices(n, k=1)
+    w = mat[iu, ju]
+
+    # mask out zero elements
+    mask = w > 0
+    i, j, w = iu[mask], ju[mask], w[mask]
+
+    # compute degree strength
+    w_alpha = w**alpha
+    w_beta = w**beta
+    s_star = np.bincount(i, w_alpha, minlength=n) + np.bincount(j, w_alpha, minlength=n)
+
+    # compute variables
+    l_e = s_star[i] - w_alpha
+    m_e = s_star[j] - w_alpha
+
+    Omega = np.sum(w_beta)
+    U = np.sum(w_beta * (l_e + m_e)) / (2 * Omega)
+    sigma_sqr = np.sum(w_beta * (l_e**2 + m_e**2)) / (2 * Omega) - U**2
+
+    # compute local assortativity
+    rho_e = w_beta * (l_e - U) * (m_e - U) / (Omega * sigma_sqr)
+    rho_v = np.bincount(i, rho_e, minlength=n) + np.bincount(j, rho_e, minlength=n)
+
+    return rho_v  # ty: ignore[invalid-return-type]
+
+
+# }}}
