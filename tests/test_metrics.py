@@ -969,6 +969,117 @@ def test_compute_local_assortativity_sabek_global_in_range() -> None:
 # }}}
 
 
+# {{{ networkx cross-checks
+
+
+def test_costantini_clustering_matches_networkx() -> None:
+    """Costantini variant 7 equals nx.clustering(weight=...) on signed graphs."""
+    from orbitkit.metrics import compute_weighted_clustering_coefficient_costantini
+
+    nx = pytest.importorskip("networkx")
+    cases = [
+        # signed triangle: one negative edge, max positive weight = 1
+        np.array([
+            [0.0, 1.0, -0.5],
+            [1.0, 0.0, 1.0],
+            [-0.5, 1.0, 0.0],
+        ]),
+        # positive weighted graph with a weight-1 edge
+        np.array([
+            [0.0, 1.0, 0.5, 0.3],
+            [1.0, 0.0, 0.8, 0.0],
+            [0.5, 0.8, 0.0, 1.0],
+            [0.3, 0.0, 1.0, 0.0],
+        ]),
+    ]
+
+    for mat in cases:
+        c_ok = compute_weighted_clustering_coefficient_costantini(mat, variant=7)
+        G = nx.from_numpy_array(mat)
+        c_nx = np.array([
+            nx.clustering(G, weight="weight")[i] for i in range(mat.shape[0])
+        ])
+
+        # accept positions where both are NaN; compare the rest exactly
+        both_nan = np.isnan(c_ok) & np.isnan(c_nx)
+        assert np.allclose(c_ok[~both_nan], c_nx[~both_nan])
+
+
+def test_local_assortativity_sabek_global_matches_networkx() -> None:
+    """On unweighted graphs the global [Sabek2023] value matches nx."""
+    from orbitkit.metrics import compute_local_assortativity_sabek
+
+    nx = pytest.importorskip("networkx")
+    cases = [
+        # star: perfectly disassortative (r = -1)
+        np.array(
+            [
+                [0, 1, 1, 1],
+                [1, 0, 0, 0],
+                [1, 0, 0, 0],
+                [1, 0, 0, 0],
+            ],
+            dtype=float,
+        ),
+        # triangle with a pendant node (r = -5/7)
+        np.array(
+            [
+                [0, 1, 1, 0],
+                [1, 0, 1, 0],
+                [1, 1, 0, 1],
+                [0, 0, 1, 0],
+            ],
+            dtype=float,
+        ),
+        # path on 5 nodes (r = -1/3)
+        np.array(
+            [
+                [0, 1, 0, 0, 0],
+                [1, 0, 1, 0, 0],
+                [0, 1, 0, 1, 0],
+                [0, 0, 1, 0, 1],
+                [0, 0, 0, 1, 0],
+            ],
+            dtype=float,
+        ),
+    ]
+
+    for mat in cases:
+        rho = compute_local_assortativity_sabek(mat, alpha=1.0, beta=1.0)
+        r_ok = 0.5 * np.sum(rho)
+        G = nx.from_numpy_array(mat)
+        r_nx = nx.degree_assortativity_coefficient(G)
+        if np.isnan(r_ok):
+            assert np.isnan(r_nx)
+        else:
+            assert r_ok == pytest.approx(r_nx)
+
+    # seeded random unweighted graphs: both methods must agree (or both NaN,
+    # which happens for regular graphs where the variance vanishes)
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+
+    rng = np.random.default_rng(42)
+    for _ in range(25):
+        n = int(rng.integers(4, 10))
+        p = float(rng.uniform(0.3, 0.9))
+        mat = generate_adjacency_erdos_renyi(
+            n, p=p, symmetric=True, dtype=float, rng=rng
+        )
+        if np.sum(mat) == 0:
+            continue
+
+        r_ok = 0.5 * np.sum(compute_local_assortativity_sabek(mat, alpha=1.0, beta=1.0))
+        r_nx = nx.degree_assortativity_coefficient(nx.from_numpy_array(mat))
+
+        if np.isnan(r_ok):
+            assert np.isnan(r_nx)
+        else:
+            assert r_ok == pytest.approx(r_nx)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
