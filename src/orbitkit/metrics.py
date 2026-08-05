@@ -487,6 +487,23 @@ def compute_participation_coefficient(
     return p
 
 
+def compute_participation_coefficient_split(
+    mat: Array2D[np.floating[Any]],
+    communities: Array1D[np.integer[Any]],
+) -> tuple[Array1D[np.floating[Any]], Array1D[np.floating[Any]]]:
+    """Compute the participation coefficient separately on the positive and
+    negative subnetworks from *mat*.
+
+    See :func:`compute_participation_coefficient` for the implementation. This
+    function is just a thin wrapper. To compute the communities, prefer a signed
+    algorithm such as :func:`~orbitkit.clusters.signed_leiden_communities`.
+    """
+    pcp = compute_participation_coefficient(np.where(mat > 0, mat, 0.0), communities)
+    pcm = compute_participation_coefficient(np.where(mat < 0, -mat, 0.0), communities)
+
+    return pcp, pcm
+
+
 # }}}
 
 
