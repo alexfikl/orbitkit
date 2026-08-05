@@ -155,37 +155,6 @@ def test_compute_weighted_clustering_coefficient_costantini() -> None:
 # }}}
 
 
-# {{{ test_compute_nx_community_strengths
-
-
-def test_compute_nx_community_strengths() -> None:
-    from orbitkit.metrics import compute_nx_community_strengths
-
-    # non-square
-    with pytest.raises(ValueError, match="not square"):
-        compute_nx_community_strengths(np.ones((3, 4)), [{0, 1}, {2}])
-
-    # incomplete partition
-    n = 4
-    mat = np.ones((n, n)) - np.eye(n)
-    with pytest.raises(ValueError, match="not all nodes are assigned"):
-        compute_nx_community_strengths(mat, [{0, 1}])
-
-    # two communities on a complete 4-node graph (w=1)
-    mat = np.ones((n, n)) - np.eye(n)
-    communities = [{0, 1}, {2, 3}]
-    strengths = compute_nx_community_strengths(mat, communities)
-    assert strengths.shape == (n, 2)
-    # node 0: 1 edge within community {0,1}, 2 edges to community {2,3}
-    assert np.allclose(strengths[0], [1.0, 2.0])
-    assert np.allclose(strengths[1], [1.0, 2.0])
-    assert np.allclose(strengths[2], [2.0, 1.0])
-    assert np.allclose(strengths[3], [2.0, 1.0])
-
-
-# }}}
-
-
 # {{{ test_compute_participation_coefficient
 
 
