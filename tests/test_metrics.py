@@ -198,38 +198,29 @@ def test_compute_participation_coefficient_errors() -> None:
 
     n = 4
     mat = _make_complete(n)
-    str_ok = np.zeros((n, 2))
-
-    with pytest.raises(ValueError, match="not square"):
-        compute_participation_coefficient(np.ones((3, 4)), str_ok)
 
     with pytest.raises(ValueError, match="not 2 dimensional"):
-        compute_participation_coefficient(mat, np.zeros(n))  # ty: ignore[invalid-argument-type]
+        compute_participation_coefficient(np.zeros(n), np.zeros(n, dtype=int))  # ty: ignore[invalid-argument-type]
 
-    with pytest.raises(ValueError, match="does not match"):
-        compute_participation_coefficient(mat, np.zeros((n + 1, 2)))
+    with pytest.raises(ValueError, match="not square"):
+        compute_participation_coefficient(np.ones((3, 4)), np.zeros(3, dtype=int))
+
+    with pytest.raises(ValueError, match="should have shape"):
+        compute_participation_coefficient(mat, np.zeros(n + 1, dtype=int))
 
 
 def test_compute_participation_coefficient_single_community() -> None:
-    from orbitkit.metrics import (
-        compute_nx_community_strengths,
-        compute_participation_coefficient,
-    )
+    from orbitkit.metrics import compute_participation_coefficient
 
     n = 6
     mat = _make_complete(n)
-    communities = [set(range(n))]
-    strengths = compute_nx_community_strengths(mat, communities)
-    p = compute_participation_coefficient(mat, strengths)
+    p = compute_participation_coefficient(mat, np.zeros(n, dtype=int))
     assert p.shape == (n,)
     assert np.allclose(p, 0.0)
 
 
 def test_compute_participation_coefficient_balanced() -> None:
-    from orbitkit.metrics import (
-        compute_nx_community_strengths,
-        compute_participation_coefficient,
-    )
+    from orbitkit.metrics import compute_participation_coefficient
 
     # 6 nodes, 3 communities of 2 each, complete graph (w=1)
     # Each node: degree = 5
@@ -238,18 +229,14 @@ def test_compute_participation_coefficient_balanced() -> None:
     # P = 1 - ((1/5)^2 + (2/5)^2 + (2/5)^2) = 1 - 9/25 = 16/25
     n = 6
     mat = _make_complete(n)
-    communities = [{0, 1}, {2, 3}, {4, 5}]
-    strengths = compute_nx_community_strengths(mat, communities)
-    p = compute_participation_coefficient(mat, strengths)
+    labels = np.repeat(np.arange(3), 2)
+    p = compute_participation_coefficient(mat, labels)
     assert p.shape == (n,)
     assert np.allclose(p, 16.0 / 25.0)
 
 
 def test_compute_participation_coefficient_isolated_nodes() -> None:
-    from orbitkit.metrics import (
-        compute_nx_community_strengths,
-        compute_participation_coefficient,
-    )
+    from orbitkit.metrics import compute_participation_coefficient
 
     # 2 isolated nodes, 2 connected nodes, each in their own community
     n = 4
@@ -261,9 +248,7 @@ def test_compute_participation_coefficient_isolated_nodes() -> None:
             [0.0, 0.0, 1.0, 0.0],
         ],
     )
-    communities = [{0}, {1}, {2}, {3}]
-    strengths = compute_nx_community_strengths(mat, communities)
-    p = compute_participation_coefficient(mat, strengths)
+    p = compute_participation_coefficient(mat, np.arange(n, dtype=int))
     assert p.shape == (n,)
     assert np.allclose(p[0], 0.0)
     assert np.allclose(p[1], 0.0)
