@@ -212,7 +212,7 @@ def _make_wang_rinzel_1992_model(g_PIR: float, theta_syn: float) -> WangRinzel:
 
     return WangRinzel(
         # NOTE: WangRinzel1992 uses a simple 2D system of 4 equation
-        A=np.array([[0, 1], [1, 0]], dtype=np.int32),
+        A=np.array([[0, 1], [1, 0]], dtype=np.int32),  # ty: ignore[invalid-argument-type]
         param=WangRinzelParameter(
             C=1.0,
             g_PIR=g_PIR,
@@ -240,7 +240,7 @@ WANG_RINZEL_MODEL: Final = {
     "WangRinzel1992Figure3c": _make_wang_rinzel_1992_model(1.5, -44.0),
     # NOTE: Figure 4 uses an extended system with an explicit equation for s
     "WangRinzel1992Figure4a": WangRinzelExt(
-        A=np.array([[0, 1], [1, 0]], dtype=np.int32),
+        A=np.array([[0, 1], [1, 0]], dtype=np.int32),  # ty: ignore[invalid-argument-type]
         param=WangRinzelExtParameter(
             C=1.0,
             g_PIR=0.5,
