@@ -1454,28 +1454,34 @@ def generate_weighted_random_graph_garlaschelli(
         New Journal of Physics, Vol. 11, pp. 73005--73005, 2009,
         `doi:10.1088/1367-2630/11/7/073005 <https://doi.org/10.1088/1367-2630/11/7/073005>`__.
 
-    :arg p: probability of an edge
+    :arg p: geometric parameter in [0, 1) (default: 0.25).
+    :arg omega: target mean weight, which must be positive (so that :math:`p \ge 0`)
+        and finite (so that :math:`p < 1`).
     """
+    import math
+
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if p is not None and omega is not None:
         raise ValueError("cannot pass both 'p' and 'omega'")
 
-    if p is not None and not 0.0 <= p <= 1.0:
-        raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
+    if p is not None and not 0.0 <= p < 1.0:
+        raise ValueError(f"probability 'p' not in [0, 1): '{p}'")
 
-    if omega is not None and omega < 0:
-        raise ValueError(f"mean edge weight 'omega' must be positive: '{omega}'")
+    if omega is not None and (omega < 0 or not math.isfinite(omega)):
+        raise ValueError(
+            f"mean edge weight 'omega' must be positive and finite: '{omega}'"
+        )
 
     if p is None:
-        p = 0.25 if omega is None else omega / (1 + omega)
+        p = 0.25 if omega is None else (omega / (1 + omega))
 
     if dtype is None:
         dtype = np.int32
     dtype = np.dtype(dtype)
 
-    if n == 1:
+    if n <= 1:
         return np.zeros((n, n), dtype=dtype)
 
     if p == 0:
