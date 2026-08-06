@@ -1057,6 +1057,98 @@ def test_generate_adjacency_astrocyte_lattice_edge_cases() -> None:
 # }}}
 
 
+# {{{ test_generate_weighted_random_graph_garlaschelli
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 32, 100])
+def test_generate_weighted_random_graph_garlaschelli_shape(n: int) -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_garlaschelli
+
+    rng = np.random.default_rng(seed=42)
+    mat = generate_weighted_random_graph_garlaschelli(n, rng=rng)
+
+    assert mat.shape == (n, n)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+    assert np.all(mat >= 0)
+
+    dtype = np.dtype(np.float64)
+    mat = generate_weighted_random_graph_garlaschelli(32, dtype=dtype, rng=rng)
+    assert mat.dtype == dtype
+
+
+@pytest.mark.parametrize("p", [0.0, 0.1, 0.5, 0.9])
+def test_generate_weighted_random_graph_garlaschelli_mean_weight(p: float) -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_garlaschelli
+
+    n = 200
+    rng = np.random.default_rng(seed=42)
+
+    mat = generate_weighted_random_graph_garlaschelli(n, p=p, rng=rng)
+    assert mat.shape == (n, n)
+    assert np.array_equal(mat, mat.T)
+
+    if p == 0:
+        assert np.all(mat == 0)
+        return
+
+    iu = np.triu_indices(n, k=1)
+    omega_hat = float(np.mean(mat[iu]))
+    omega = p / (1.0 - p)
+
+    M = n * (n - 1) // 2
+    sigma = np.sqrt(omega * (1.0 + omega) / M)
+    zscore = abs(omega_hat - omega) / sigma
+
+    log.info(
+        "p %.2f omega %.3f omega_hat %.5f zscore %.8e", p, omega, omega_hat, zscore
+    )
+    assert zscore < 6.0
+
+
+@pytest.mark.parametrize("omega", [0.0, 0.5, 1.0, 3.0])
+def test_generate_weighted_random_graph_garlaschelli_omega(omega: float) -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_garlaschelli
+
+    n = 64
+    rng = np.random.default_rng(seed=42)
+
+    mat = generate_weighted_random_graph_garlaschelli(n, omega=omega, rng=rng)
+    assert mat.shape == (n, n)
+    assert np.array_equal(mat, mat.T)
+    assert np.all(np.diag(mat) == 0)
+
+    if omega == 0:
+        assert np.all(mat == 0)
+
+
+def test_generate_weighted_random_graph_garlaschelli_edge_cases() -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_garlaschelli
+
+    rng = np.random.default_rng(seed=42)
+    n = 32
+
+    with pytest.raises(ValueError, match="negative dimensions"):
+        _ = generate_weighted_random_graph_garlaschelli(-1, rng=rng)
+
+    with pytest.raises(ValueError, match="both"):
+        _ = generate_weighted_random_graph_garlaschelli(n, p=0.1, omega=1.0, rng=rng)
+
+    with pytest.raises(ValueError, match="not in"):
+        _ = generate_weighted_random_graph_garlaschelli(n, p=1.0, rng=rng)
+
+    with pytest.raises(ValueError, match="not in"):
+        _ = generate_weighted_random_graph_garlaschelli(n, p=-0.1, rng=rng)
+
+    for omega in (float("inf"), float("nan"), -1.0):
+        with pytest.raises(ValueError, match="positive"):
+            _ = generate_weighted_random_graph_garlaschelli(n, omega=omega, rng=rng)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
