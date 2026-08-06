@@ -123,7 +123,7 @@ optype==0.17.1 ; python_full_version == '3.11.*'
     # via scipy-stubs
 optype==0.18.0 ; python_full_version >= '3.12'
     # via scipy-stubs
-packaging==26.2
+packaging==26.3
     # via
     #   matplotlib
     #   pytest
@@ -200,7 +200,7 @@ texttable==1.7.0
     # via igraph
 tomli==2.4.1 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.66
+ty==0.0.68
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.16.0
     # via
