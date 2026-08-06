@@ -95,6 +95,35 @@ def compute_normalized_weighted_degree(
 # }}}
 
 
+# {{{ compute_average_excess_strength
+
+
+def compute_average_excess_strength(
+    mat: Array2D[np.floating[Any]],
+) -> Array1D[np.floating[Any]]:
+    r"""Computes the average excess weight for each node.
+
+    .. math::
+
+        \hat{s}_i = s_i - \frac{s_i}{d_i},
+
+    where :math:`s_i` is the weighted degree (or strength) and :math:`d_i`
+    is the unweighted degree of the node. This essentially just removes the mean
+    from the node strengths to see how they vary.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    s = np.sum(mat, axis=1)
+    degree = np.sum(mat > 0, axis=1)
+
+    return s - s / degree
+
+
+# }}}
+
+
 # {{{ compute_weighted_clustering_coefficient_barrat
 
 
