@@ -353,7 +353,7 @@ def generate_adjacency_ring(
     dtype = np.dtype(dtype)
 
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if n == 1:
         return np.zeros((n, n), dtype=dtype)
@@ -387,7 +387,7 @@ def generate_adjacency_bus(
     dtype = np.dtype(dtype)
 
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if n == 1:
         return np.zeros((n, n), dtype=dtype)
@@ -420,7 +420,7 @@ def generate_adjacency_star(
     dtype = np.dtype(dtype)
 
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     result = np.zeros((n, n), dtype=dtype)
     result[0, 1:] = 1
@@ -454,13 +454,13 @@ def generate_adjacency_star_tree(
     dtype = np.dtype(dtype)
 
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if n == 0 or nhubs == 1:
         return generate_adjacency_star(n, dtype=dtype)
 
     if nhubs < 0:
-        raise ValueError(f"negative number of hubs is now allowed: '{nhubs}'")
+        raise ValueError(f"negative number of hubs is not allowed: '{nhubs}'")
 
     if nhubs == 0:
         raise ValueError("zero hubs are not allowed")
@@ -577,7 +577,7 @@ def generate_adjacency_erdos_renyi(
     :arg symmetric: if *True*, the adjacency matrix will be symmetric.
     """
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if p is not None and k is not None:
         raise ValueError("cannot pass both 'p' and 'k'")
@@ -724,10 +724,10 @@ def generate_adjacency_barabasi_albert(
     :arg m: number of edges each new node should attach to :math:`m < n`.
     """
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if m < 0:
-        raise ValueError(f"negative number of edges is now allowed: '{m}'")
+        raise ValueError(f"negative number of edges is not allowed: '{m}'")
 
     if m >= n:
         raise ValueError(f"invalid sizes (m >= n): {m} >= {n}")
@@ -799,7 +799,7 @@ def generate_adjacency_distance_decay(
         isolated nodes for small graphs.
     """
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if not 0.0 < beta <= 1.0:
         raise ValueError(f"'beta' must be in (0, 1]: {beta}")
@@ -952,10 +952,10 @@ def generate_adjacency_gap_junctions(
     """
 
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if m < 0:
-        raise ValueError(f"negative cluster counts are now allowed: '{m}'")
+        raise ValueError(f"negative cluster counts are not allowed: '{m}'")
 
     if dtype is None:
         dtype = np.int32
@@ -1225,7 +1225,7 @@ def generate_adjacency_configuration(
         number.
     """
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if dtype is None:
         dtype = np.int32
@@ -1313,7 +1313,7 @@ def generate_adjacency_stochastic_block_model(
     :arg signed: if *True*, the the edges between blocks get a value of -1.
     """
     if n < 0:
-        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if dtype is None:
         dtype = np.int32
