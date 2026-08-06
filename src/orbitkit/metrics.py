@@ -21,6 +21,7 @@ log = module_logger(__name__)
 
 def compute_weighted_degree(
     mat: Array2D[np.floating[Any]],
+    /,
 ) -> Array1D[np.floating[Any]]:
     r"""Compute the weighted degree (or strength) of each node in the graph.
 
@@ -42,6 +43,7 @@ def compute_weighted_degree(
 
 def compute_positive_weighted_degree(
     mat: Array2D[np.floating[Any]],
+    /,
 ) -> Array1D[np.floating[Any]]:
     r"""Compute the weighted degree of :math:`W^+_{ij} = \max(W_{ij}, 0)`."""
     mat = np.where(mat > 0, mat, 0.0)
@@ -50,6 +52,7 @@ def compute_positive_weighted_degree(
 
 def compute_negative_weighted_degree(
     mat: Array2D[np.floating[Any]],
+    /,
 ) -> Array1D[np.floating[Any]]:
     r"""Compute the weighted degree of :math:`W^-_{ij} = \max(-W_{ij}, 0)`."""
     mat = np.where(mat < 0, -mat, 0.0)
@@ -58,6 +61,7 @@ def compute_negative_weighted_degree(
 
 def compute_total_weighted_degree(
     mat: Array2D[np.floating[Any]],
+    /,
 ) -> Array1D[np.floating[Any]]:
     r"""Compute the weighted degree of the absolute value :math:`W_{ij} = |W_{ij}|`."""
     return compute_weighted_degree(np.abs(mat))
