@@ -1423,6 +1423,81 @@ def generate_adjacency_stochastic_block_model(
 # }}}
 
 
+# {{{ weighted matrices
+
+
+def generate_weighted_random_graph_garlaschelli(
+    n: int,
+    *,
+    p: float | None = None,
+    omega: float | None = None,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    r"""Generate a Weighted Random Graph (WRG) as described in [Garlaschelli2009]_.
+
+    The WRG from [Garlaschelli2009]_ is an extension of the Erdős-Rényi
+    construction to weighted graphs. If the adjacency matrix from this is
+    extracted, it will be equivalent to the Erdős-Rényi adjacency
+    (statistically, of course).
+
+    By construction, the resulting WRG will have integer weights in :math:`\{
+    0, 1, \dots\}` drawn from a geometric distribution. The expected edge
+    weight is given by
+
+    .. math::
+
+        \omega = \frac{p}{1 - p} \implies p = \frac{\omega}{1 + \omega}.
+
+    .. [Garlaschelli2009] D. Garlaschelli,
+        *The Weighted Random Graph Model*,
+        New Journal of Physics, Vol. 11, pp. 73005--73005, 2009,
+        `doi:10.1088/1367-2630/11/7/073005 <https://doi.org/10.1088/1367-2630/11/7/073005>`__.
+
+    :arg p: probability of an edge
+    """
+    if n < 0:
+        raise ValueError(f"negative dimensions are now allowed: '{n}'")
+
+    if p is not None and omega is not None:
+        raise ValueError("cannot pass both 'p' and 'omega'")
+
+    if p is not None and not 0.0 <= p <= 1.0:
+        raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
+
+    if omega is not None and omega < 0:
+        raise ValueError(f"mean edge weight 'omega' must be positive: '{omega}'")
+
+    if p is None:
+        p = 0.25 if omega is None else omega / (1 + omega)
+
+    if dtype is None:
+        dtype = np.int32
+    dtype = np.dtype(dtype)
+
+    if n == 1:
+        return np.zeros((n, n), dtype=dtype)
+
+    if p == 0:
+        return np.zeros((n, n), dtype=dtype)
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    weights = rng.geometric(1 - p, size=n * (n - 1) // 2) - 1
+
+    idx = np.triu_indices(n, k=1)
+    result = np.zeros((n, n), dtype=dtype)
+    result[idx] = weights
+    result += result.T
+
+    # FIXME: ensure that this is actually connected
+    return result
+
+
+# }}}
+
+
 # {{{ weights
 
 
