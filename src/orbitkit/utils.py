@@ -969,3 +969,23 @@ def generate_random_points_in_square(
 
 
 # }}}
+
+
+# {{{ increment_mean_and_var
+
+
+def increment_mean_and_var(
+    n: int,
+    x: T,
+    prev_mean: T,
+    prev_var: T,
+) -> tuple[T, T]:
+    delta = x - prev_mean  # ty: ignore[unsupported-operator]
+    next_mean = prev_mean + delta / (n + 1)
+    delta2 = x - next_mean
+    next_var = prev_var + delta * delta2
+
+    return next_mean, next_var
+
+
+# }}}
