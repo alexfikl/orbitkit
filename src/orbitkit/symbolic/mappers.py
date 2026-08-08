@@ -300,7 +300,7 @@ def rename_variables(
     result = RenameMapper(mapping)(expr)
     assert isinstance(result, tuple)
 
-    return result  # ty: ignore[invalid-return-type]
+    return result
 
 
 # }}}

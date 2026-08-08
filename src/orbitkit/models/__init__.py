@@ -58,7 +58,7 @@ def ds_symbolic(
             if rec or any(fname.startswith(rattr) for rattr in rattrs):
                 return {
                     k: _ds_field_symbolic(
-                        attr[k],  # ty: ignore[invalid-argument-type]
+                        attr[k],
                         f"{fname}_{k}",
                         rec=rec,
                         rattrs=rattrs,

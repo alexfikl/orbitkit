@@ -522,7 +522,7 @@ def solve_scaling_line(
     if len(order) != 2:
         raise ValueError(f"'order' not a pair (p, q): {order}")
 
-    p, q = cast("tuple[Scalar, Scalar]", order)
+    p, q = order
 
     if p < 0 or q < 0:
         raise ValueError(f"'order' must be non-negative: {order}")
