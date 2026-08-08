@@ -27,6 +27,8 @@ ShapeT = TypeVar("ShapeT", bound=tuple[int, ...], default=tuple[Any, ...])
 """An invariant type alias for ``tuple[int, ...]``."""
 ScalarTypeT = TypeVar("ScalarTypeT", bound=np.generic, default=Any)
 """An invariant type alias for :mod:`numpy` scalars."""
+DTypeT = TypeVar("DTypeT", bound=np.dtype[Any], default=Any)
+"""An invariant type alias for ``np.dtype``."""
 
 ArrayND = TypeAliasType(
     "ArrayND",

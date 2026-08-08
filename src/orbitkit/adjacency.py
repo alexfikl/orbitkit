@@ -5,16 +5,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Final, Literal
 
+import array_api_compat
 import numpy as np
 import numpy.linalg as la
 
-from orbitkit.typing import Array1D, Array2D
+from orbitkit.array_api_extras import AArray1D, AArray2D, DTypeLike
 from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    from numpy.typing import DTypeLike
 
 log = module_logger(__name__)
 
@@ -23,11 +22,11 @@ log = module_logger(__name__)
 
 
 def stringify_adjacency(
-    mat: Array2D[np.floating[Any]],
+    mat: AArray2D[np.floating[Any]],
     *,
     fmt: str | None = None,
 ) -> str:
-    """Stringify a (preferably binary) adjacency matrix.
+    r"""Stringify a (preferably binary) adjacency matrix.
 
     The supported formats are:
 
@@ -41,6 +40,9 @@ def stringify_adjacency(
     * ``latex``: a ``bmatrix`` environment with the matrix entries, written out
       verbatim.
     """
+    if not array_api_compat.is_numpy(mat):
+        raise TypeError(f"'mat' must be a 'numpy' array: {type(mat)}")
+
     if fmt is None:
         n = max(mat.shape)
         if n < 50:
@@ -67,9 +69,9 @@ def stringify_adjacency(
     elif fmt == "braille":
         height = (mat.shape[0] // 4) * 4
         width = (mat.shape[1] // 4) * 4
-        mat = (mat[:height, :width] != 0).astype(np.uint8)
+        mat = np.astype(mat[:height, :width] != 0, np.uint8)
 
-        def braille(block: Array2D[np.uint8]) -> str:
+        def braille(block: np.ndarray[tuple[int, int], np.dtype[np.uint8]]) -> str:
             offset = sum(int(b) << i for i, b in enumerate(block.flat))
             return " " if offset == 0 else chr(0x2800 + offset)
 
@@ -142,72 +144,77 @@ def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
     k: int | None = None,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """
     :arg k: number of neighbor connections in a ring, bus, or Strogatz-Watts
         network; average number of neighbors in a Erdős-Rényi network; number of
         gap junction clusters; number of levels in a fractal network.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if dtype is None:
-        dtype = np.float64 if topology in WEIGHTED_ADJACENCY_TYPES else np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.float64 if topology in WEIGHTED_ADJACENCY_TYPES else xp.int32
 
     if rng is None:
         rng = np.random.default_rng()
 
     if topology == "feedforward":
-        return generate_adjacency_feed_forward(n, dtype=dtype)
+        return generate_adjacency_feed_forward(n, dtype=dtype, xp=xp)
     elif topology == "ring":
         k = 1 if k is None else k
-        return generate_adjacency_ring(n, k=k, dtype=dtype)
+        return generate_adjacency_ring(n, k=k, dtype=dtype, xp=xp)
     elif topology == "ring1":
-        return generate_adjacency_ring(n, k=1, dtype=dtype)
+        return generate_adjacency_ring(n, k=1, dtype=dtype, xp=xp)
     elif topology == "ring2":
-        return generate_adjacency_ring(n, k=2, dtype=dtype)
+        return generate_adjacency_ring(n, k=2, dtype=dtype, xp=xp)
     elif topology == "bus":
         k = 1 if k is None else k
-        return generate_adjacency_bus(n, k=k, dtype=dtype)
+        return generate_adjacency_bus(n, k=k, dtype=dtype, xp=xp)
     elif topology == "bus1":
-        return generate_adjacency_bus(n, k=1, dtype=dtype)
+        return generate_adjacency_bus(n, k=1, dtype=dtype, xp=xp)
     elif topology == "bus2":
-        return generate_adjacency_bus(n, k=2, dtype=dtype)
+        return generate_adjacency_bus(n, k=2, dtype=dtype, xp=xp)
     elif topology == "star":
-        return generate_adjacency_star(n, dtype=dtype)
+        return generate_adjacency_star(n, dtype=dtype, xp=xp)
     elif topology == "startree":
-        return generate_adjacency_star_tree(n, dtype=dtype)
+        return generate_adjacency_star_tree(n, dtype=dtype, xp=xp)
     elif topology == "lattice":
-        return generate_adjacency_lattice(n, dtype=dtype)
+        return generate_adjacency_lattice(n, dtype=dtype, xp=xp)
     elif topology == "erdosrenyi":
-        return generate_adjacency_erdos_renyi(n, k=k, dtype=dtype, rng=rng)
+        return generate_adjacency_erdos_renyi(n, k=k, dtype=dtype, rng=rng, xp=xp)
     elif topology == "strogatzwatts":
         k = 1 if k is None else k
-        return generate_adjacency_strogatz_watts(n, k=k, dtype=dtype, rng=rng)
+        return generate_adjacency_strogatz_watts(n, k=k, dtype=dtype, rng=rng, xp=xp)
     elif topology == "barabasialbert":
         k = 2 if k is None else k
-        return generate_adjacency_barabasi_albert(n, k, dtype=dtype, rng=rng)
+        return generate_adjacency_barabasi_albert(n, k, dtype=dtype, rng=rng, xp=xp)
     elif topology == "barabasialbert2":
-        return generate_adjacency_barabasi_albert(n, 2, dtype=dtype, rng=rng)
+        return generate_adjacency_barabasi_albert(n, 2, dtype=dtype, rng=rng, xp=xp)
     elif topology == "barabasialbert4":
-        return generate_adjacency_barabasi_albert(n, 4, dtype=dtype, rng=rng)
+        return generate_adjacency_barabasi_albert(n, 4, dtype=dtype, rng=rng, xp=xp)
     elif topology == "distancedecay":
-        return generate_adjacency_distance_decay(n, dtype=dtype, rng=rng)
+        return generate_adjacency_distance_decay(n, dtype=dtype, rng=rng, xp=xp)
     elif topology == "configuration":
-        return generate_adjacency_configuration(n, dtype=dtype, rng=rng)
+        return generate_adjacency_configuration(n, dtype=dtype, rng=rng, xp=xp)
     elif topology == "chunglu":
-        return generate_adjacency_chung_lu(n, dtype=dtype, rng=rng)
+        return generate_adjacency_chung_lu(n, dtype=dtype, rng=rng, xp=xp)
     elif topology == "garlaschelli":
-        return generate_weighted_random_graph_garlaschelli(n, dtype=dtype, rng=rng)
+        return generate_weighted_random_graph_garlaschelli(
+            n, dtype=dtype, rng=rng, xp=xp
+        )
     elif topology == "serrano":
-        return generate_weighted_random_graph_serrano(n, dtype=dtype, rng=rng)
+        return generate_weighted_random_graph_serrano(n, dtype=dtype, rng=rng, xp=xp)
     elif topology == "gapjunctions":
         k = max(int(n // 9) - 1, 1) if k is None else k
-        return generate_adjacency_gap_junctions(n, k, dtype=dtype, rng=rng)
+        return generate_adjacency_gap_junctions(n, k, dtype=dtype, rng=rng, xp=xp)
     elif topology == "fractal":
         # NOTE: for k levels, we have n = p**{k + 1} nodes in the network
         k = 4 if k is None else k
         p = round(n ** (1 / (k + 1)))
         base = "".join(f"{rng.integers(2)}" for _ in range(p))
-        return generate_adjacency_fractal(base, nlevels=k, dtype=dtype)
+        return generate_adjacency_fractal(base, nlevels=k, dtype=dtype, xp=xp)
     else:
         raise ValueError(f"unknown topology: '{topology}'")
 
@@ -219,8 +226,11 @@ def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
 
 
 def make_graph_laplacian_undirected(
-    A: Array2D[np.floating[Any]], *, normalize: bool = False
-) -> Array2D[np.floating[Any]]:
+    A: AArray2D[np.floating[Any]],
+    *,
+    normalize: bool = False,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Compute the graph Laplacian for the adjacency matrix *A*.
 
     .. math::
@@ -240,26 +250,35 @@ def make_graph_laplacian_undirected(
 
         L_{\text{norm}} = D^{-\frac{1}{2}} L D^{-\frac{1}{2}}.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(A)
 
-    assert np.allclose(A, A.T)
+    if A.ndim != 2:
+        raise ValueError(f"'A' matrix is not 2D: {A.shape}")
 
-    D = np.sum(A, axis=1)
+    if A.shape[0] != A.shape[1]:
+        raise ValueError(f"'A' matrix is not square: {A.shape}")
+
+    if __debug__ and not xp.allclose(A, A.T):
+        raise ValueError("'A' matrix is not symmetric")
+
+    D = xp.sum(A, axis=1)
     L = -A
-    np.fill_diagonal(L, D)
+    xp.fill_diagonal(L, D)
     if normalize:
-        Dinv = np.where(D > 0, 1.0 / np.sqrt(D), 0.0)
+        Dinv = xp.where(D > 0, 1.0 / xp.sqrt(D), 0.0)
         L = Dinv[:, None] * L * Dinv[None, :]
 
-    assert L.shape == A.shape
     return L
 
 
 def make_graph_laplacian_directed(
-    A: Array2D[np.floating[Any]],
+    A: AArray2D[np.floating[Any]],
     *,
     out: bool = True,
     normalize: bool = False,
-) -> Array2D[np.floating[Any]]:
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Compute the graph Laplacian for the adjacency matrix *A*.
 
     For the normalization, we use left or right normalization, depending on the
@@ -276,21 +295,23 @@ def make_graph_laplacian_directed(
     :arg out: if *True*, we compute the out-degree Laplacian. Otherwise, we
         compute the in-degree Laplacian.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(A)
 
     L = -A
     if out:
-        D = np.sum(A, axis=1)
-        np.fill_diagonal(L, D)
+        D = xp.sum(A, axis=1)
+        xp.fill_diagonal(L, D)
 
         if normalize:
-            Dinv = np.where(D > 0, 1.0 / D, 0.0)
+            Dinv = xp.where(D > 0, 1.0 / D, 0.0)
             L = Dinv[:, None] * L
     else:
-        D = np.sum(A, axis=0)
-        np.fill_diagonal(L, D)
+        D = xp.sum(A, axis=0)
+        xp.fill_diagonal(L, D)
 
         if normalize:
-            Dinv = np.where(D > 0, 1.0 / D, 0.0)
+            Dinv = xp.where(D > 0, 1.0 / D, 0.0)
             L = L * Dinv[None, :]  # ruff:ignore[non-augmented-assignment]
 
     assert L.shape == A.shape
@@ -309,13 +330,18 @@ def make_adjacency_from_edges(
     *,
     symmetrize: bool = False,
     dtype: DTypeLike | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Construct an adjacency matrix from a given mapping of edges.
 
     :arg edges: a mapping from ``(i, j)`` node tuples to the weight of the edge.
     :arg symmetrize: if *True*, both ``(i, j)`` and ``(j, i)`` edges are added.
     """
-    result = np.zeros((n, n), dtype=dtype)
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
+    result = xp.zeros((n, n), dtype=dtype, device=device)
     for (i, j), w in edges.items():
         if not 0 <= i < n or not 0 <= j < n:
             raise ValueError(f"Edges out of bounds for {n} nodes: ({i}, {j})")
@@ -334,114 +360,146 @@ def make_adjacency_from_edges(
 
 
 def generate_adjacency_all(
-    n: int, *, dtype: DTypeLike | None = None
-) -> Array2D[np.floating[Any]]:
+    n: int,
+    *,
+    dtype: DTypeLike | None = None,
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Generate a all-to-all :math:`n \times n` adjacency matrix."""
-    if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
 
-    result = np.ones((n, n), dtype=dtype)
-    np.fill_diagonal(result, 0)
+    if dtype is None:
+        dtype = xp.int32
+
+    result = xp.ones((n, n), dtype=dtype, device=device)
+    xp.fill_diagonal(result, 0)
 
     return result
 
 
 def generate_adjacency_feed_forward(
-    n: int, *, dtype: DTypeLike | None = None
-) -> Array2D[np.floating[Any]]:
+    n: int,
+    *,
+    dtype: DTypeLike | None = None,
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Generate a :math:`n \times n` lower triangular adjacency matrix."""
-    if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
 
-    result = np.ones((n, n), dtype=dtype)
-    return np.tril(result, k=-1)
+    if dtype is None:
+        dtype = xp.int32
+
+    result = xp.ones((n, n), dtype=dtype, device=device)
+    return xp.tril(result, k=-1)
 
 
 def generate_adjacency_ring(
-    n: int, *, k: int = 1, dtype: DTypeLike | None = None
-) -> Array2D[np.floating[Any]]:
+    n: int,
+    *,
+    k: int = 1,
+    dtype: DTypeLike | None = None,
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a *k*-ring network with :math:`n` nodes.
 
     In this network, each node is connected to its :math:`k` nearest neighbors
     with periodicity. For a non-periodic version see :func:`generate_adjacency_bus`.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if n == 1:
-        return np.zeros((n, n), dtype=dtype)
+        return xp.zeros((n, n), dtype=dtype)
 
     if not 0 <= k < n:
         raise ValueError(f"number of neighbors 'm' is invalid: '{k}' (not in [0, {n})")
 
     # NOTE: this is essentially just a periodic banded matrix
-    eye = np.eye(n, dtype=dtype)
-    result = np.zeros((n, n), dtype=dtype)
+    eye = xp.eye(n, dtype=dtype, device=device)
+    result = xp.zeros((n, n), dtype=dtype, device=device)
 
     for i in range(-k, k + 1):
         if i == 0:
             continue
 
-        result += np.roll(eye, i, axis=1)
+        result += xp.roll(eye, i, axis=1)
 
     return result
 
 
 def generate_adjacency_bus(
-    n: int, *, k: int = 1, dtype: DTypeLike | None = None
-) -> Array2D[np.floating[Any]]:
+    n: int,
+    *,
+    k: int = 1,
+    dtype: DTypeLike | None = None,
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a bus network with :math:`n` nodes.
 
     In this network, each node is connected to its :math:`k` nearest neighbors
     in a non-periodic fashion.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
     if n == 1:
-        return np.zeros((n, n), dtype=dtype)
+        return xp.zeros((n, n), dtype=dtype)
 
     if not 0 <= k < n:
         raise ValueError(f"number of neighbors 'k' is invalid: '{k}' (not in [0, {n}])")
 
     # NOTE: this is essentially just a non-periodic banded matrix
-    ones = np.ones(n, dtype=dtype)
-    result = np.zeros((n, n), dtype=dtype)
+    ones = xp.ones(n, dtype=dtype, device=device)
+    result = xp.zeros((n, n), dtype=dtype, device=device)
 
     for i in range(-k, k + 1):
         if i == 0:
             continue
 
-        result += np.diag(ones[abs(i) :], k=i)
+        result += device.diag(ones[abs(i) :], k=i)
 
     return result
 
 
 def generate_adjacency_star(
-    n: int, *, dtype: DTypeLike | None = None
-) -> Array2D[np.floating[Any]]:
+    n: int,
+    *,
+    dtype: DTypeLike | None = None,
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a star network with :math:`n` nodes.
 
     In this network, there is a central node connected to all nodes.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
-    result = np.zeros((n, n), dtype=dtype)
+    result = xp.zeros((n, n), dtype=dtype, device=device)
     result[0, 1:] = 1
     result[1:, 0] = 1
 
@@ -453,7 +511,9 @@ def generate_adjacency_star_tree(
     *,
     nhubs: int | None = None,
     dtype: DTypeLike | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a star of stars network with :math:`n` nodes.
 
     In this setup, the network will have:
@@ -464,13 +524,14 @@ def generate_adjacency_star_tree(
     :arg nhubs: number of hubs connected to the central hub node. By default,
         this depends on *n*.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
 
     if nhubs is None:
         nhubs = max(n // 5, 1)
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
@@ -495,9 +556,11 @@ def generate_adjacency_star_tree(
     # - remaining nodes get divided between hubs
     # FIXME: this could be made nicely recursive for additional fanciness
     n_hub_nodes = n - nhubs - 1
-    partitions = 1 + nhubs + np.linspace(0, n_hub_nodes, nhubs + 1, dtype=dtype)
+    partitions = (
+        1 + nhubs + xp.linspace(0, n_hub_nodes, nhubs + 1, dtype=dtype, device=device)
+    )
 
-    result = np.zeros((n, n), dtype=dtype)
+    result = xp.zeros((n, n), dtype=dtype, device=device)
     for m in range(nhubs):
         # connect root note to current hub
         result[0, m + 1] = result[m + 1, 0] = 1
@@ -522,11 +585,13 @@ def _find_equal_factors(n: int) -> tuple[int, int]:
 
 
 def generate_adjacency_lattice(
-    dims: int | np.integer[Any] | tuple[int, ...],
+    dims: int | tuple[int, ...],
     *,
     k: int = 1,
     dtype: DTypeLike | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Generate an :math:`d`-dimensional lattice adjacency matrix.
 
     The lattice is defined by *dims*, which can be a single integer (creating
@@ -542,11 +607,13 @@ def generate_adjacency_lattice(
         :math:`\sqrt{n} \times \sqrt{n}` is created.
     :arg k: number of nearest neighbors to connect in each dimension.
     """
-    if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
 
-    if isinstance(dims, (int, np.integer)):
+    if dtype is None:
+        dtype = xp.int32
+
+    if isinstance(dims, int):
         dims = _find_equal_factors(int(dims))
 
     if not dims:
@@ -562,17 +629,19 @@ def generate_adjacency_lattice(
     for d in dims:
         n *= d
 
-    result = np.zeros((n, n), dtype=dtype)
+    result = xp.zeros((n, n), dtype=dtype)
     if n == 1:
         return result
 
     for i, d in enumerate(dims):
-        factors = [np.eye(dj, dtype=dtype) for dj in dims]
-        factors[i] = generate_adjacency_bus(d, k=min(k, d - 1), dtype=dtype)
+        factors = [xp.eye(dj, dtype=dtype) for dj in dims]
+        factors[i] = generate_adjacency_bus(
+            d, k=min(k, d - 1), dtype=dtype, device=device, xp=xp
+        )
 
         kron = factors[0]
         for f in factors[1:]:
-            kron = np.kron(kron, f)
+            kron = xp.kron(kron, f)
 
         result += kron
 
@@ -587,7 +656,9 @@ def generate_adjacency_erdos_renyi(
     dtype: DTypeLike | None = None,
     symmetric: bool = True,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Generate a random Erdős-Rényi :math:`n \times n` adjacency matrix.
 
     :arg p: probability of an edge between two nodes (defaults to *0.25*).
@@ -595,6 +666,9 @@ def generate_adjacency_erdos_renyi(
         not given, it is computed as :math:`p = k / (n - 1)`.
     :arg symmetric: if *True*, the adjacency matrix will be symmetric.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
@@ -608,36 +682,35 @@ def generate_adjacency_erdos_renyi(
         raise ValueError(f"cannot have more edges 'k' than nodes 'n': {k} > {n}")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if n == 1:
-        return np.zeros((n, n), dtype=dtype)
+        return xp.zeros((n, n), dtype=dtype)
 
     if p is None:
         p = 0.25 if k is None else (k / (n - 1))
 
     if p == 0:
-        return np.zeros((n, n), dtype=dtype)
+        return xp.zeros((n, n), dtype=dtype)
 
     if rng is None:
         rng = np.random.default_rng()
 
     if symmetric:
-        rows, cols = np.tril_indices(n, k=-1)
-        mask = rng.random(size=rows.size) < p
+        rows, cols = xp.tril_indices(n, k=-1)
+        mask = xp.asarray(rng.random(size=rows.size) < p)
 
-        result = np.zeros((n, n), dtype=dtype)
+        result = xp.zeros((n, n), dtype=dtype)
         result[rows[mask], cols[mask]] = 1
         result[cols[mask], rows[mask]] = 1
     else:
         # NOTE: setting the diagonal to zero should not change the statistics
-        result = (rng.random(size=(n, n)) < p).astype(dtype)
-        np.fill_diagonal(result, 0)
+        result = xp.astype(xp.asarray(rng.random(size=(n, n)) < p), dtype)
+        xp.fill_diagonal(result, 0)
 
     # NOTE: reconnect any isolated nodes to ensure no zero rows
     for i in range(n):
-        if np.all(result[i] == 0):
+        if xp.all(result[i] == 0):
             j = rng.choice([j for j in range(n) if j != i])
             result[i, j] = 1
             if symmetric:
@@ -647,12 +720,13 @@ def generate_adjacency_erdos_renyi(
 
 
 def rewire_adjacency_small_world(
-    mat: Array2D[np.floating[Any]],
+    mat: AArray2D[np.floating[Any]],
     *,
     p: float = 0.1,
     forward_only: bool = True,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Rewire edges of an adjacency matrix with probability *p*.
 
     For each edge, with probability *p*, the edge is removed and replaced by
@@ -664,6 +738,9 @@ def rewire_adjacency_small_world(
     :arg p: rewiring probability.
     :arg forward_only: if ``True``, only upper-triangle edges are visited.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(mat)
+
     if not 0.0 <= p <= 1.0:
         raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
 
@@ -673,14 +750,14 @@ def rewire_adjacency_small_world(
     assert mat.ndim == 2
     assert mat.shape[0] == mat.shape[1]
 
-    result = mat.copy()
+    result = xp.copy(mat)
     n = result.shape[0]
 
     for i in range(n):
         if forward_only:
-            edges = np.flatnonzero(result[i, i + 1 :]) + i + 1
+            edges = xp.flatnonzero(result[i, i + 1 :]) + i + 1
         else:
-            edges = np.flatnonzero(result[i])
+            edges = xp.flatnonzero(result[i])
 
         for j in edges:
             if not rng.random() < p:
@@ -689,7 +766,7 @@ def rewire_adjacency_small_world(
             # find all candidate edges to rewrite
             connected = result[i] != 0
             connected[i] = True
-            choices = np.flatnonzero(~connected)
+            choices = xp.flatnonzero(~connected)
 
             if choices.size == 0:
                 continue
@@ -711,24 +788,28 @@ def generate_adjacency_strogatz_watts(
     p: float = 0.1,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Generate a random Strogatz-Watts :math:`n \times n` adjacency matrix.
 
     :arg k: number of neighboring nodes.
     :arg p: rewiring probability.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if not 0.0 <= p <= 1.0:
         raise ValueError(f"probability 'p' not in [0, 1]: '{p}'")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if rng is None:
         rng = np.random.default_rng()
 
-    result = generate_adjacency_ring(n, k=k, dtype=dtype)
-    return rewire_adjacency_small_world(result, p=p, forward_only=True, rng=rng)
+    result = generate_adjacency_ring(n, k=k, dtype=dtype, device=device, xp=xp)
+    return rewire_adjacency_small_world(result, p=p, forward_only=True, rng=rng, xp=xp)
 
 
 def generate_adjacency_barabasi_albert(
@@ -737,11 +818,16 @@ def generate_adjacency_barabasi_albert(
     *,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a random Barabási-Albert adjacency matrix.
 
     :arg m: number of edges each new node should attach to :math:`m < n`.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
@@ -752,27 +838,26 @@ def generate_adjacency_barabasi_albert(
         raise ValueError(f"invalid sizes (m >= n): {m} >= {n}")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if rng is None:
         rng = np.random.default_rng()
 
-    mat = np.zeros((n, n), dtype=dtype)
+    mat = xp.zeros((n, n), dtype=dtype, device=device)
 
     # construct an initial dense block of m + 1 nodes with m edges
     mat[: m + 1, : m + 1] = 1
-    np.fill_diagonal(mat, 0)
+    xp.fill_diagonal(mat, 0)
 
-    degrees = np.zeros(n, dtype=np.int64)
+    degrees = xp.zeros(n, dtype=xp.int64, device=device)
     degrees[: m + 1] = m
 
     # iteratively add more nodes
     for i in range(m + 1, n):
         # construct probability based on degree: larger degree nodes get a larger
         # probability of additional connections => even bigger group!
-        d = np.sum(mat[:i, :i], axis=1)
-        p = d / np.sum(d)
+        d = xp.sum(mat[:i, :i], axis=1)
+        p = d / xp.sum(d)
 
         # randomly choose some connections
         j = rng.choice(i, size=m, replace=False, p=p)
@@ -795,7 +880,9 @@ def generate_adjacency_distance_decay(
     symmetric: bool = False,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Construct a random adjacency matrix based on distance.
 
     This function generates (uniform) random points in the given limits *xlim*
@@ -817,6 +904,9 @@ def generate_adjacency_distance_decay(
         ``log(max(n, 4))``, which scales with the number of vertices to avoid
         isolated nodes for small graphs.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
+
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
 
@@ -833,35 +923,34 @@ def generate_adjacency_distance_decay(
         ylim = (ylim[1], ylim[0])
 
     if sigma is None:
-        sigma = 1.4 * np.hypot(xlim[1] - xlim[0], ylim[1] - ylim[0]) / np.log(max(n, 4))
+        sigma = 1.4 * xp.hypot(xlim[1] - xlim[0], ylim[1] - ylim[0]) / xp.log(max(n, 4))
 
     if sigma <= 0.0:
         raise ValueError(f"'sigma' cannot be negative: {sigma}")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if rng is None:
         rng = np.random.default_rng()
 
     # generate some random points
-    x = np.stack([
-        rng.uniform(xlim[0], xlim[1], size=n),
-        rng.uniform(ylim[0], ylim[1], size=n),
+    x = xp.stack([
+        xp.asarray(rng.uniform(xlim[0], xlim[1], size=n), device=device),
+        xp.asarray(rng.uniform(ylim[0], ylim[1], size=n), device=device),
     ])
-    d = np.sqrt(np.sum((x[:, None, :] - x[:, :, None]) ** 2, axis=0))
+    d = xp.sqrt(xp.sum((x[:, None, :] - x[:, :, None]) ** 2, axis=0))
 
     # probabilities
-    p = beta * np.exp(-d / sigma)
+    p = beta * xp.exp(-d / sigma)
 
     # adjacency
     mat = rng.random((n, n))
     mat = (mat < p).astype(dtype)
 
-    np.fill_diagonal(mat, 0)
+    xp.fill_diagonal(mat, 0)
     if symmetric:
-        tril = np.tril_indices(n, k=-1)
+        tril = xp.tril_indices(n, k=-1)
         mat[tril] = mat.T[tril]
 
     return mat
@@ -876,43 +965,52 @@ def _generate_random_gap_junction_clusters(
     avgsize: int,
     maxsize: int,
     maxiter: int,
-) -> Array1D[np.integer[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray1D[np.integer[Any]]:
     # FIXME: this seems like it'll have mean *mean* only if n > mean * m?
     smax = min(n - 1, avgsize * m)
     for _ in range(maxiter):
         # generate candidates
-        p = rng.dirichlet((alpha,) * m)
-        x = np.rint(p * smax).astype(np.int32)
+        p = xp.asarray(rng.dirichlet((alpha,) * m))
+        x = xp.astype(xp.rint(p * smax), xp.int32)
 
         # ensure they sum up to smax
-        extra = smax - np.sum(x)
+        extra = smax - xp.sum(x)
         if extra != 0:
             idx = rng.choice(m, size=abs(extra), replace=True)
-            x[idx] += np.sign(extra)
+            x[idx] += xp.sign(extra)
 
         # check that the maximum size is respected
-        if np.max(x) <= maxsize and np.min(x) >= 1:
+        if xp.max(x) <= maxsize and xp.min(x) >= 1:
             break
 
     return x
 
 
 def _make_adjacency_from_groups(
-    groups: Array1D[np.integer[Any]],
-    gaps: int | Array1D[np.integer[Any]],
+    groups: AArray1D[np.integer[Any]],
+    gaps: int | AArray1D[np.integer[Any]],
     *,
     dtype: DTypeLike | None = None,
+    xp: Any = None,
 ) -> tuple[
-    Array2D[np.floating[Any]], Array1D[np.integer[Any]], Array1D[np.integer[Any]]
+    AArray2D[np.floating[Any]], AArray1D[np.integer[Any]], AArray1D[np.integer[Any]]
 ]:
+    device = array_api_compat.device(groups)
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if isinstance(gaps, int):
-        gaps = np.array([gaps] * groups.size)
+        if xp is None:
+            xp = array_api_compat.array_namespace(groups)
 
-    n = int(np.sum(groups) + np.sum(gaps))
+        gaps = xp.asarray([gaps] * groups.size, device=device)
+
+    if xp is None:
+        xp = array_api_compat.array_namespace(groups, gaps)
+
+    n = int(xp.sum(groups) + xp.sum(gaps))
     if groups.shape != gaps.shape:
         raise ValueError(
             "cluster sizes and gap sizes must have the same shape: "
@@ -920,13 +1018,13 @@ def _make_adjacency_from_groups(
         )
 
     i = 0
-    result = np.zeros((n, n), dtype=dtype)
+    result = xp.zeros((n, n), dtype=dtype, device=device)
 
     for m, g in zip(groups, gaps, strict=True):
         result[i : i + m, i : i + m] = 1.0
         i += m + g
 
-    np.fill_diagonal(result, 0)
+    xp.fill_diagonal(result, 0)
     return result, groups, gaps
 
 
@@ -940,7 +1038,9 @@ def generate_adjacency_gap_junctions(
     maxsize: int = 21,
     maxiter: int = 512,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     r"""Generate an adjacency matrix for gap junctions in a neuron network.
 
     A neuron network with gap junctions is generally represented as a set of
@@ -969,6 +1069,8 @@ def generate_adjacency_gap_junctions(
     :arg maxiter: the gap junction clusters are generated by an iterative algorithm.
         This defines the maximum number of iterations that can be used.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
 
     if n < 0:
         raise ValueError(f"negative dimensions are not allowed: '{n}'")
@@ -977,8 +1079,7 @@ def generate_adjacency_gap_junctions(
         raise ValueError(f"negative cluster counts are not allowed: '{m}'")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if rng is None:
         rng = np.random.default_rng()
@@ -989,7 +1090,7 @@ def generate_adjacency_gap_junctions(
         )
 
     if m == 0 or n <= 1:
-        return np.zeros((n, n), dtype=dtype)
+        return xp.zeros((n, n), dtype=dtype, device=device)
 
     # generate gap junction clusters
     groups = _generate_random_gap_junction_clusters(
@@ -1000,14 +1101,18 @@ def generate_adjacency_gap_junctions(
         avgsize=avgsize,
         maxsize=maxsize,
         maxiter=maxiter,
+        device=device,
+        xp=xp,
     )
-    leftover = n - np.sum(groups)
+    leftover = n - xp.sum(groups)
 
     # generate random gaps
-    cuts = rng.choice(np.arange(1, leftover), size=m - 1, replace=False)
-    pts = np.concatenate(([0], np.sort(cuts), [leftover]))
-    gaps = np.diff(pts)
-    assert (np.sum(groups) + np.sum(gaps)) == n
+    cuts = xp.asarray(
+        rng.choice(np.arange(1, leftover), size=m - 1, replace=False), device=device
+    )
+    pts = xp.concatenate(([0], xp.sort(cuts), [leftover]))
+    gaps = xp.diff(pts)
+    assert (xp.sum(groups) + xp.sum(gaps)) == n
 
     # create adjacency matrix
     result, _, _ = _make_adjacency_from_groups(groups, gaps, dtype=dtype)
@@ -1017,15 +1122,15 @@ def generate_adjacency_gap_junctions(
 
 
 def _expand_pattern(
-    base: str, nlevels: int, dtype: DTypeLike | None = None
-) -> Array1D[np.floating[Any]]:
+    base: str, nlevels: int, dtype: DTypeLike | None = None, *, xp: Any
+) -> AArray1D[np.floating[Any]]:
     zeros = "0" * len(base)
     pattern = base
     for _ in range(nlevels - 1):
         pattern = "".join([(base if i == "1" else zeros) for i in pattern])
 
     # transform pattern to 0/1 array
-    return np.fromiter(pattern, dtype=dtype)
+    return xp.asarray(np.fromiter(pattern, dtype=dtype))
 
 
 def generate_adjacency_fractal(
@@ -1033,7 +1138,9 @@ def generate_adjacency_fractal(
     *,
     nlevels: int = 4,
     dtype: DTypeLike | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a Cantor set-like connectivity based on the *base* pattern.
 
     This function generates the network described in [Omelchenko2015]_. It takes
@@ -1053,6 +1160,8 @@ def generate_adjacency_fractal(
 
     :arg nlevels: number of levels the pattern is subdivided.
     """
+    if xp is None:
+        xp = array_api_compat.array_namespace(np.empty(0))
 
     if not set(base) <= {"0", "1"}:
         raise ValueError(f"'base' pattern must be binary only: '{base}'")
@@ -1061,25 +1170,24 @@ def generate_adjacency_fractal(
         raise ValueError(f"'nlevels' must be non-negative: {nlevels}")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if nlevels == 0:
         # FIXME: what size do we actually expect here? this chose was mostly
         # made to fit match `len(base) ** 0`
-        return np.zeros((1, 1), dtype=dtype)
+        return xp.zeros((1, 1), dtype=dtype, device=device)
 
     from scipy.linalg import circulant
 
-    x = _expand_pattern(base, nlevels, dtype=dtype)
+    x = _expand_pattern(base, nlevels, dtype=dtype, xp=xp)
     mat = circulant(x).T
-    np.fill_diagonal(mat, 0)
+    xp.fill_diagonal(mat, 0)
 
     return mat
 
 
 def generate_adjacency_astrocyte_lattice(
-    points: Array2D[np.floating[Any]],
+    points: AArray2D[np.floating[Any]],
     *,
     variant: Literal[
         "regular-degree", "link-radius", "shortcut", "scale-free", "erdos-renyi"
@@ -1091,7 +1199,9 @@ def generate_adjacency_astrocyte_lattice(
     rc: float = 1.0,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate lattice-based astrocyte networks from [Lallouette2014]_.
 
     The supported variants are described in [Lallouette2014]_. Briefly, they are
@@ -1113,6 +1223,16 @@ def generate_adjacency_astrocyte_lattice(
     :arg m_sf: number of links added in the "scale-free" network.
     :arg rc: spatial decay constant used in the "scale-free" network.
     """
+    if not array_api_compat.is_numpy(points):
+        raise TypeError(
+            "'generate_adjacency_astrocyte_lattice' only supports 'numpy' arrays: "
+            f"{type(points)}"
+        )
+
+    if xp is None:
+        xp = array_api_compat.array_namespace(points)
+
+    device = array_api_compat.device(points)
     if rng is None:
         rng = np.random.default_rng()
 
@@ -1124,7 +1244,7 @@ def generate_adjacency_astrocyte_lattice(
         raise ValueError(f"'points' must have at least one dimension: {points.shape}")
 
     if n <= 1:
-        return np.zeros((n, n), dtype=dtype)
+        return xp.zeros((n, n), dtype=dtype, device=device)
 
     m_latt = int(n ** (1.0 / dim))
     if not 0 < k_nearest_neighbors <= n:
@@ -1147,8 +1267,7 @@ def generate_adjacency_astrocyte_lattice(
         raise ValueError(f"'rc' must be positive: {rc}")
 
     if dtype is None:
-        dtype = np.int32
-    dtype = np.dtype(dtype)
+        dtype = xp.int32
 
     if variant == "regular-degree":
         from scipy.spatial import KDTree
@@ -1157,7 +1276,7 @@ def generate_adjacency_astrocyte_lattice(
         _, indices = tree.query(points, k=k_nearest_neighbors + 1)
         indices = indices[:, 1:]
 
-        mat = np.zeros((n, n), dtype=dtype)
+        mat = xp.zeros((n, n), dtype=dtype, device=device)
         for i, j in enumerate(indices):
             mat[i, j] = 1
             mat[j, i] = 1
@@ -1167,10 +1286,10 @@ def generate_adjacency_astrocyte_lattice(
         tree = KDTree(points)
         indices = tree.query_ball_point(points, r=max_neighbor_distance)
 
-        mat = np.zeros((n, n), dtype=dtype)
+        mat = xp.zeros((n, n), dtype=dtype, device=device)
         for i, nbrs in enumerate(indices):
             # filter out self
-            j = np.array(nbrs)
+            j = xp.array(nbrs, device=device)
             j = j[j != i]
 
             mat[i, j] = 1
@@ -1192,26 +1311,26 @@ def generate_adjacency_astrocyte_lattice(
     elif variant == "scale-free":
         # NOTE: this is basically a Barabási-Albert on a lattice with slightly
         # fancier probabilities: they depend on degree and distance
-        mat = np.zeros((n, n), dtype=dtype)
+        mat = xp.zeros((n, n), dtype=dtype, device=device)
 
         # fully connect the first m nodes
         mat[: m_sf + 1, : m_sf + 1] = 1
-        np.fill_diagonal(mat[: m_sf + 1, : m_sf + 1], 0)
+        xp.fill_diagonal(mat[: m_sf + 1, : m_sf + 1], 0)
 
         # keep track of degrees
-        degrees = np.zeros(n, dtype=np.int64)
+        degrees = xp.zeros(n, dtype=xp.int64, device=device)
         degrees[: m_sf + 1] = m_sf
 
-        eps = 100 * np.finfo(points.dtype).eps
+        eps = 100 * xp.finfo(points.dtype).eps
         for i in range(m_sf + 1, n):
             # construct probability based on degree:
             #   p_i ~ degree * exp(-||x_j - x_i|| / rc)
-            dists = np.linalg.norm(points[:i] - points[i], axis=1)
-            weights = degrees[:i] * np.exp(-dists / rc)
+            dists = xp.linalg.norm(points[:i] - points[i], axis=1)
+            weights = degrees[:i] * xp.exp(-dists / rc)
 
-            total = np.sum(weights)
+            total = xp.sum(weights)
             if total < eps:  # ruff:ignore[if-else-block-instead-of-if-exp]
-                probability = np.ones(i) / i
+                probability = xp.ones(i) / i
             else:
                 probability = weights / total
 
@@ -1233,10 +1352,12 @@ def generate_adjacency_astrocyte_lattice(
 def generate_adjacency_configuration(
     n: int,
     *,
-    degrees: Array1D[np.integer[Any]] | int | None = None,
+    degrees: AArray1D[np.integer[Any]] | int | None = None,
     dtype: DTypeLike | None = None,
     rng: np.random.Generator | None = None,
-) -> Array2D[np.floating[Any]]:
+    device: Any = None,
+    xp: Any = None,
+) -> AArray2D[np.floating[Any]]:
     """Generate a random :math:`n \times n` adjacency matrix for a configuration
     model.
 
