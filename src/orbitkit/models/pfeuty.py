@@ -159,7 +159,7 @@ class Pfeuty(Model):
         return (
             sym.Variable("K_inh")
             if isinstance(self.A_inh, sym.MatrixSymbol)
-            else np.mean(np.sum(self.A_inh, axis=1))
+            else np.mean(np.sum(self.A_inh, axis=1)).item()
         )
 
     @property
@@ -168,7 +168,7 @@ class Pfeuty(Model):
         return (
             sym.Variable("K_gap")
             if isinstance(self.A_gap, sym.MatrixSymbol)
-            else np.mean(np.sum(self.A_gap, axis=1))
+            else np.mean(np.sum(self.A_gap, axis=1)).item()
         )
 
     def hinf(self, V: sym.Expression) -> sym.Expression:

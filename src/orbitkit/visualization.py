@@ -391,10 +391,10 @@ def to_color(
     from matplotlib.pyplot import get_cmap
 
     if vmin is None:
-        vmin = np.min(w)
+        vmin = np.min(w).item()
 
     if vmax is None:
-        vmax = np.max(w)
+        vmax = np.max(w).item()
 
     cmap = get_cmap(colormap)
     norm = Normalize(vmin=vmin, vmax=vmax)
@@ -820,10 +820,10 @@ def discrete_heatmap(
     vmax: int | None = None,
 ) -> AxesImage:
     if vmin is None:
-        vmin = np.min(z)
+        vmin = np.min(z).item()
 
     if vmax is None:
-        vmax = np.max(z)
+        vmax = np.max(z).item()
 
     from matplotlib.colors import BoundaryNorm
 

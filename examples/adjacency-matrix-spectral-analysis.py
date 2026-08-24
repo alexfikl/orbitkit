@@ -29,7 +29,7 @@ participation_ratios = np.empty((ns.size, nrepeats))
 
 for i, n in enumerate(ns):
     for j in range(nrepeats):
-        mat = make_adjacency_matrix_from_name(n, topology, k=None, rng=rng)
+        mat = make_adjacency_matrix_from_name(int(n), topology, k=None, rng=rng)
         W = generate_random_equal_row_sum(mat, alpha=1.0, rng=rng)
 
         # get sorted eigenvalues and eigenvectors

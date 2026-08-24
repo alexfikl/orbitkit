@@ -104,7 +104,7 @@ def is_fixed_point(
         gtol,
     )
 
-    return (std < atol or std < xtol) and (slope < atol or slope < gtol)
+    return bool(std < atol or std < xtol) and bool(slope < atol or slope < gtol)
 
 
 def is_periodic(
