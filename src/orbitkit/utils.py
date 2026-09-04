@@ -887,7 +887,7 @@ def load_from_mat(filename: pathlib.Path) -> Any:
 
     from scipy.io import loadmat
 
-    data = loadmat(filename)
+    data = loadmat(filename)  # ty: ignore[deprecated]
     data = {key: value for key, value in data.items() if not key.startswith("__")}
 
     Contents = make_dataclass(
