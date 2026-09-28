@@ -652,7 +652,7 @@ def soe_gamma_mpm(
 
     # construct Hankel matrix SVD
     L = y.size // 2
-    H = sla.hankel(y[:L], y[L - 1 : -1])
+    H = sla.hankel(y[:L], y[L - 1 :])
     U, S, _ = sla.svd(H)
 
     # determine number of terms from singular values and tolerance
