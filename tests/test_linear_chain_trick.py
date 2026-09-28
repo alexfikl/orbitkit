@@ -320,7 +320,7 @@ def test_sum_of_exponentials(method: str, p: float, alpha: float) -> None:
             assert error < 2.0e-3
         else:
             # NOTE: https://github.com/alexfikl/orbitkit/issues/9
-            assert error < 200.0 * soe_eps
+            assert error < 80.0 * soe_eps
     else:
         raise AssertionError
 
