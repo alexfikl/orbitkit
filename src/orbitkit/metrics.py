@@ -1049,17 +1049,13 @@ def compute_local_assortativity_sabek(
     # NOTE: bincount always returns np.float64, so we need to be careful about dtypes
     dtype = mat.dtype if np.issubdtype(mat.dtype, np.floating) else np.dtype(np.float64)
 
-    # get upper triangular elements
-    iu, ju = np.triu_indices(n, k=1)
-    w = mat[iu, ju]
+    # get upper triangular non-zero elements
+    i, j = np.nonzero(np.triu(mat > 0, k=1))
+    w = mat[i, j]
 
-    # mask out zero elements
-    mask = w > 0
-    i, j, w = iu[mask], ju[mask], w[mask]
-
-    # compute degree strength
-    w_alpha = w**alpha
-    w_beta = w**beta
+    # compute degree strength (avoid pow evaluation for boundary values 0 and 1)
+    w_alpha = w if alpha == 1.0 else (np.ones_like(w) if alpha == 0.0 else w**alpha)
+    w_beta = w if beta == 1.0 else (np.ones_like(w) if beta == 0.0 else w**beta)
     s_star = np.bincount(i, w_alpha, minlength=n) + np.bincount(j, w_alpha, minlength=n)
 
     # compute variables
