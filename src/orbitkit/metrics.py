@@ -433,7 +433,7 @@ def compute_graph_triangles(mat: Array2D[np.floating[Any]]) -> int:
     # so that we can handle matrices with self-loops as well.
     d = np.diag(mat)
     mat2 = mat @ mat
-    trmat3 = np.trace(mat2 @ mat)
+    trmat3 = np.sum(mat2 * mat.T)
     trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
 
     return int(trmat3) // 6
