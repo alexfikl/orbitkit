@@ -296,9 +296,9 @@ def compute_weighted_clustering_coefficient_nx(
     dtype: DTypeLike | None = None,
 ) -> float:
     """A thin wrapper around :func:`compute_weighted_clustering_coefficient_costantini`
-    that matches ``networkx.average_clustering``.
+    that matches :func:`networkx.average_clustering`.
 
-    As the implementation in ``networkx``, this assumes that the weights are all
+    As the implementation in :mod:`networkx`, this assumes that the weights are all
     non-negative. If this is not the case, it will give incorrect results. Use
     :func:`compute_weighted_clustering_coefficient_costantini` directly in
     that case.
@@ -437,6 +437,63 @@ def compute_graph_triangles(mat: Array2D[np.floating[Any]]) -> int:
     trmat3 = trmat3 - 3 * d @ np.diag(mat2) + 2 * np.sum(d**3)
 
     return int(trmat3) // 6
+
+
+# }}}
+
+
+# {{{ compute_rich_club_coefficient
+
+
+def compute_rich_club_coefficient(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+) -> dict[int, float]:
+    """Compute the rich-club coefficient for the adjacency matrix *mat*.
+
+    This is equivalent to :func:`networkx.rich_club_coefficient` with
+    ``normalize=False``. As such, none of the parameters from that method are
+    supported either.
+
+    :returns: a dictionary of ``{degree: rcc}`` with the rich-club coefficient
+        for each degree.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+    A = np.abs(mat) > eps
+    degrees = np.count_nonzero(A, axis=1)
+    iu, ju = np.nonzero(np.triu(A, k=1))
+    min_edge = np.minimum(degrees[iu], degrees[ju])
+
+    result = {}
+    for k in range(int(np.max(degrees)) if degrees.size else 0):
+        nk = np.count_nonzero(degrees > k)
+        if nk <= 1:
+            continue
+
+        ek = np.count_nonzero(min_edge > k)
+        result[k] = 2.0 * ek / (nk * (nk - 1))
+
+    return result
 
 
 # }}}

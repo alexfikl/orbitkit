@@ -235,6 +235,7 @@ intersphinx_mapping = {
     "jitcode": ("https://jitcode.readthedocs.io/en/latest", None),
     "jitcxde": ("https://jitcde-common.readthedocs.io/en/latest", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
+    "networkx": ("https://networkx.org/documentation/stable", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "pymbolic": ("https://documen.tician.de/pymbolic", None),
     "python": ("https://docs.python.org/3", None),
