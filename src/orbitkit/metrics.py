@@ -289,6 +289,30 @@ def compute_weighted_clustering_coefficient_costantini(
     return wcc
 
 
+def compute_weighted_clustering_coefficient_nx(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+    dtype: DTypeLike | None = None,
+) -> float:
+    """A thin wrapper around :func:`compute_weighted_clustering_coefficient_costantini`
+    that matches ``networkx.average_clustering``.
+
+    As the implementation in ``networkx``, this assumes that the weights are all
+    non-negative. If this is not the case, it will give incorrect results. Use
+    :func:`compute_weighted_clustering_coefficient_costantini` directly in
+    that case.
+    """
+    max_weight = np.max(mat) if mat.size > 0 else 0.0
+    if max_weight <= 0.0:
+        return 0.0
+
+    wcc = compute_weighted_clustering_coefficient_costantini(
+        mat / max_weight, variant=7, eps=eps, dtype=dtype
+    )
+    return float(np.mean(np.nan_to_num(wcc)))
+
+
 # }}}
 
 
