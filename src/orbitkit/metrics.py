@@ -46,8 +46,7 @@ def compute_positive_weighted_degree(
     /,
 ) -> Array1D[np.floating[Any]]:
     r"""Compute the weighted degree of :math:`W^+_{ij} = \max(W_{ij}, 0)`."""
-    mat = np.where(mat > 0, mat, 0.0)
-    return compute_weighted_degree(mat)
+    return compute_weighted_degree(np.maximum(mat, 0.0))
 
 
 def compute_negative_weighted_degree(
@@ -55,8 +54,7 @@ def compute_negative_weighted_degree(
     /,
 ) -> Array1D[np.floating[Any]]:
     r"""Compute the weighted degree of :math:`W^-_{ij} = \max(-W_{ij}, 0)`."""
-    mat = np.where(mat < 0, -mat, 0.0)
-    return compute_weighted_degree(mat)
+    return compute_weighted_degree(np.maximum(-mat, 0.0))
 
 
 def compute_total_weighted_degree(
@@ -392,7 +390,7 @@ def compute_graph_density(mat: Array2D[np.floating[Any]]) -> float:
         return 0.0
 
     # NOTE: this subtracts the diagonal so that we can handle graphs with self-loops
-    edges = np.sum(mat) - np.sum(np.diag(mat))
+    edges = np.sum(mat) - np.trace(mat)
     max_edges = n * (n - 1)
 
     return float(edges / max_edges)
@@ -586,8 +584,8 @@ def compute_participation_coefficient_split(
     function is just a thin wrapper. To compute the communities, prefer a signed
     algorithm such as :func:`~orbitkit.clusters.signed_leiden_communities`.
     """
-    pcp = compute_participation_coefficient(np.where(mat > 0, mat, 0.0), communities)
-    pcm = compute_participation_coefficient(np.where(mat < 0, -mat, 0.0), communities)
+    pcp = compute_participation_coefficient(np.maximum(mat, 0.0), communities)
+    pcm = compute_participation_coefficient(np.maximum(-mat, 0.0), communities)
 
     return pcp, pcm
 
@@ -745,7 +743,7 @@ def compute_eigenvector_centrality(
 
     # find eigenspace
     V = eigvecs[:, mask]
-    score = np.einsum("ij,ij->i", V, V)
+    score = np.sum(V**2, axis=1)
 
     # NOTE: both v and -v are eigenvectors for the eigenvalue. We fix
     # the sign so that the largest entry in v is positive, for consistency
