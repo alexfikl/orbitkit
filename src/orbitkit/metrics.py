@@ -450,11 +450,19 @@ def compute_rich_club_coefficient(
     *,
     eps: float | None = None,
 ) -> dict[int, float]:
-    """Compute the rich-club coefficient for the adjacency matrix *mat*.
+    r"""Compute the rich-club coefficient for the adjacency matrix *mat*.
 
     This is equivalent to :func:`networkx.rich_club_coefficient` with
     ``normalize=False``. As such, none of the parameters from that method are
-    supported either.
+    supported either. The formula is
+
+    .. math::
+
+        \phi(d) = \frac{2 E_{\ge k}}{N_{\ge k} (N_{\ge k} - 1)},
+
+    where :math:`E_{\ge k}` is the number of edges between nodes with at least
+    degree :math:`k`. This is then normalized by random matrices with the
+    same degree distribution to avoid fake rich-club effects.
 
     :returns: a dictionary of ``{degree: rcc}`` with the rich-club coefficient
         for each degree.
@@ -484,16 +492,31 @@ def compute_rich_club_coefficient(
     iu, ju = np.nonzero(np.triu(A, k=1))
     min_edge = np.minimum(degrees[iu], degrees[ju])
 
-    result = {}
-    for k in range(int(np.max(degrees)) if degrees.size else 0):
-        nk = np.count_nonzero(degrees > k)
-        if nk <= 1:
-            continue
+    max_deg = int(np.max(degrees)) if degrees.size else 0
+    if max_deg == 0:
+        return {}
 
-        ek = np.count_nonzero(min_edge > k)
-        result[k] = 2.0 * ek / (nk * (nk - 1))
+    # compute counts of nodes/edges with degree > k for all k via bincount & cumsum
+    hist_n = np.bincount(degrees, minlength=max_deg + 1)
+    n_greater = np.cumsum(hist_n[::-1])[-2::-1]
 
-    return result
+    if min_edge.size:
+        hist_e = np.bincount(min_edge, minlength=max_deg + 1)
+        e_greater = np.cumsum(hist_e[::-1])[-2::-1]
+    else:
+        e_greater = np.zeros(max_deg, dtype=int)
+
+    # only retain degrees where there are at least 2 nodes
+    mask = n_greater > 1
+    if not np.any(mask):
+        return {}
+
+    valid_k = np.flatnonzero(mask)
+    nk = n_greater[valid_k]
+    ek = e_greater[valid_k]
+    rcc = 2.0 * ek / (nk * (nk - 1))
+
+    return dict(zip(valid_k.tolist(), rcc.tolist(), strict=True))
 
 
 # }}}
