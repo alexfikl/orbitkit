@@ -255,15 +255,13 @@ def compute_weighted_clustering_coefficient_costantini(
         if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("weight matrix 'mat' is not symmetric")
 
-    W = mat.copy()
-    if eps != 0:
-        W[np.abs(mat) < eps] = 0.0
+    W = np.where(np.abs(mat) < eps, 0.0, mat) if eps != 0 else mat.copy()
 
     if variant == 6:
         A = np.sign(W)
         A3 = np.einsum("ij,jk,ki->i", A, A, A, optimize=True)
 
-        degree = np.sum(W != 0, axis=1, dtype=dtype)
+        degree = np.count_nonzero(W, axis=1)
         max_triangles = degree * (degree - 1)
 
         with np.errstate(invalid="ignore", divide="ignore"):
@@ -272,7 +270,7 @@ def compute_weighted_clustering_coefficient_costantini(
         A = np.cbrt(W)
         A3 = np.einsum("ij,jk,ki->i", A, A, A, optimize=True)
 
-        degree = np.sum(W != 0, axis=1, dtype=dtype)
+        degree = np.count_nonzero(W, axis=1)
         max_triangles = degree * (degree - 1)
 
         with np.errstate(invalid="ignore", divide="ignore"):
