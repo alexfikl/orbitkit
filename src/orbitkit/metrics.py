@@ -186,7 +186,7 @@ def compute_weighted_clustering_coefficient_barrat(
     degree = np.sum(A, axis=1)
 
     # NOTE: since W is symmetric, `(W_ij + W_{ik}) / 2 -> W_{ij}` in the sum
-    result = np.einsum("ij,ij,ik,kj->i", mat, A, A, A)
+    result = np.einsum("ij,ij,ik,kj->i", mat, A, A, A, optimize=True)
 
     mask = (degree >= 2) & (np.abs(strength) >= eps)
     wcc = np.zeros(n, dtype=dtype)
@@ -261,7 +261,7 @@ def compute_weighted_clustering_coefficient_costantini(
 
     if variant == 6:
         A = np.sign(W)
-        A3 = np.einsum("ij,jk,ki->i", A, A, A)
+        A3 = np.einsum("ij,jk,ki->i", A, A, A, optimize=True)
 
         degree = np.sum(W != 0, axis=1, dtype=dtype)
         max_triangles = degree * (degree - 1)
@@ -270,7 +270,7 @@ def compute_weighted_clustering_coefficient_costantini(
             wcc = np.where(max_triangles > 0, A3 / max_triangles, np.nan)
     elif variant == 7:
         A = np.cbrt(W)
-        A3 = np.einsum("ij,jk,ki->i", A, A, A)
+        A3 = np.einsum("ij,jk,ki->i", A, A, A, optimize=True)
 
         degree = np.sum(W != 0, axis=1, dtype=dtype)
         max_triangles = degree * (degree - 1)
@@ -278,7 +278,7 @@ def compute_weighted_clustering_coefficient_costantini(
         with np.errstate(invalid="ignore", divide="ignore"):
             wcc = np.where(max_triangles > 0, A3 / max_triangles, np.nan)
     elif variant == 8:
-        W3 = np.einsum("ij,jk,ki->i", W, W, W)
+        W3 = np.einsum("ij,jk,ki->i", W, W, W, optimize=True)
         denominator = np.sum(np.abs(W), axis=1) ** 2 - np.sum(W**2, axis=1)
 
         with np.errstate(invalid="ignore", divide="ignore"):
