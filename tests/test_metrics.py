@@ -155,6 +155,82 @@ def test_compute_weighted_clustering_coefficient_costantini() -> None:
 # }}}
 
 
+# {{{ test_compute_weighted_clustering_coefficient_nx
+
+
+def test_compute_weighted_clustering_coefficient_nx() -> None:
+    from orbitkit.metrics import compute_weighted_clustering_coefficient_nx
+
+    # empty and non-positive weight matrices
+    assert compute_weighted_clustering_coefficient_nx(np.zeros((0, 0))) < 1.0e-15
+    assert compute_weighted_clustering_coefficient_nx(np.zeros((3, 3))) < 1.0e-15
+    assert compute_weighted_clustering_coefficient_nx(-np.ones((3, 3))) < 1.0e-15
+
+    # complete graph with uniform weights has clustering coefficient 1.0
+    n = 4
+    mat = 2.5 * (np.ones((n, n)) - np.eye(n))
+    assert compute_weighted_clustering_coefficient_nx(mat) == pytest.approx(1.0)
+
+    # uniform scaling leaves coefficient invariant
+    mat = np.array([
+        [0.0, 1.0, 0.5],
+        [1.0, 0.0, 0.8],
+        [0.5, 0.8, 0.0],
+    ])
+    c1 = compute_weighted_clustering_coefficient_nx(mat)
+    c2 = compute_weighted_clustering_coefficient_nx(3.5 * mat)
+    assert c1 == pytest.approx(c2)
+
+
+# }}}
+
+
+# {{{ test_compute_rich_club_coefficient
+
+
+def test_compute_rich_club_coefficient() -> None:
+    from orbitkit.metrics import compute_rich_club_coefficient
+
+    # validation errors
+    with pytest.raises(ValueError, match="not square"):
+        compute_rich_club_coefficient(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="'eps' must be positive"):
+        compute_rich_club_coefficient(np.zeros((3, 3)), eps=-1.0)
+
+    with pytest.raises(ValueError, match="does not have a zero diagonal"):
+        compute_rich_club_coefficient(np.eye(3))
+
+    with pytest.raises(ValueError, match="is not symmetric"):
+        compute_rich_club_coefficient(np.array([[0.0, 1.0], [0.0, 0.0]]))
+
+    # integer matrix exercises finfo fallback
+    mat_int = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
+    assert compute_rich_club_coefficient(mat_int) == {0: 1.0, 1: 1.0}
+
+    # empty or isolated graphs have no rich-club entries
+    assert compute_rich_club_coefficient(np.zeros((0, 0))) == {}
+    assert compute_rich_club_coefficient(np.zeros((4, 4))) == {}
+
+    # star graph: center has degree 3, leaves have degree 1
+    # only k=0 has > 1 node with degree > k (all 4 nodes), giving 2*3/(4*3) = 0.5
+    mat_star = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    assert compute_rich_club_coefficient(mat_star) == {0: 0.5}
+
+    # complete graph K_5: all nodes have degree 4, phi(k) = 1.0 for k in 0..3
+    mat_k5 = np.ones((5, 5)) - np.eye(5)
+    expected_k5 = dict.fromkeys(range(4), 1.0)
+    assert compute_rich_club_coefficient(mat_k5) == expected_k5
+
+
+# }}}
+
+
 # {{{ test_compute_participation_coefficient
 
 
@@ -1041,6 +1117,90 @@ def test_local_assortativity_sabek_global_matches_networkx() -> None:
             assert np.isnan(r_nx)
         else:
             assert r_ok == pytest.approx(r_nx)
+
+
+def test_weighted_clustering_coefficient_nx_matches_networkx() -> None:
+    """compute_weighted_clustering_coefficient_nx matches nx.average_clustering."""
+    from orbitkit.metrics import compute_weighted_clustering_coefficient_nx
+
+    nx = pytest.importorskip("networkx")
+
+    cases = [
+        # triangle with distinct weights
+        np.array([
+            [0.0, 1.0, 0.5],
+            [1.0, 0.0, 0.8],
+            [0.5, 0.8, 0.0],
+        ]),
+        # 4-node weighted graph
+        np.array([
+            [0.0, 1.0, 0.5, 0.3],
+            [1.0, 0.0, 0.8, 0.0],
+            [0.5, 0.8, 0.0, 1.0],
+            [0.3, 0.0, 1.0, 0.0],
+        ]),
+        # graph with an isolated node
+        np.array([
+            [0.0, 2.0, 3.0, 0.0],
+            [2.0, 0.0, 1.0, 0.0],
+            [3.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+        ]),
+    ]
+
+    for mat in cases:
+        c_ok = compute_weighted_clustering_coefficient_nx(mat)
+        G = nx.from_numpy_array(mat)
+        c_nx = nx.average_clustering(G, weight="weight")
+        assert c_ok == pytest.approx(c_nx)
+
+
+def test_rich_club_coefficient_matches_networkx() -> None:
+    """compute_rich_club_coefficient matches nx.rich_club_coefficient."""
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_rich_club_coefficient
+
+    nx = pytest.importorskip("networkx")
+
+    # known structured graphs
+    cases = [
+        # 4-node star
+        np.array([
+            [0.0, 1.0, 1.0, 1.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+        ]),
+        # 5-node path
+        np.array([
+            [0.0, 1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0, 0.0],
+        ]),
+        # complete 5-node graph
+        np.ones((5, 5)) - np.eye(5),
+    ]
+
+    for mat in cases:
+        rc_ok = compute_rich_club_coefficient(mat)
+        G = nx.from_numpy_array(mat)
+        rc_nx = nx.rich_club_coefficient(G, normalized=False)
+        assert rc_ok == pytest.approx(rc_nx)
+
+    # random unweighted graphs
+    rng = np.random.default_rng(42)
+    for _ in range(10):
+        n = int(rng.integers(5, 12))
+        p = float(rng.uniform(0.3, 0.7))
+        mat = generate_adjacency_erdos_renyi(
+            n, p=p, symmetric=True, dtype=float, rng=rng
+        )
+        rc_ok = compute_rich_club_coefficient(mat)
+        G = nx.from_numpy_array(mat)
+        rc_nx = nx.rich_club_coefficient(G, normalized=False)
+        assert rc_ok == pytest.approx(rc_nx)
 
 
 # }}}
