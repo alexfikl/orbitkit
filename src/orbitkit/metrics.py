@@ -664,14 +664,23 @@ def compute_modularity(
     if total_W < eps:
         return 0.0
 
-    with np.errstate(invalid="ignore", divide="ignore"):
-        w_pos /= np.sqrt(W_pos) if W_pos > eps else 1.0
-        w_neg /= np.sqrt(W_neg) if W_neg > eps else 1.0
+    # compute sum of weights within each community
+    internal_edges = sum(
+        float(np.sum(mat[np.ix_(idx, idx)]))
+        for c in communities
+        for idx in [np.fromiter(c, dtype=np.intp)]
+        if idx.size > 0
+    )
 
-    W = mat - (np.outer(w_pos, w_pos) - np.outer(w_neg, w_neg))
-    C = labels[:, None] == labels[None, :]
+    # NOTE: In the null-model terms, sum_{i,j in c} w_i w_j factors into
+    # (sum_{i in c} w_i)^2, which avoids constructing dense N x N outer products
+    pos_comm = np.bincount(labels, weights=w_pos)
+    neg_comm = np.bincount(labels, weights=w_neg)
 
-    return np.sum(W * C) / total_W
+    pos_term = float(np.sum(pos_comm**2)) / W_pos if W_pos > eps else 0.0
+    neg_term = float(np.sum(neg_comm**2)) / W_neg if W_neg > eps else 0.0
+
+    return (internal_edges - (pos_term - neg_term)) / total_W
 
 
 # }}}
