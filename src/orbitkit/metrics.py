@@ -936,21 +936,23 @@ def compute_assortativity_arcagni(
         if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
             raise ValueError("weight matrix 'mat' is not symmetric")
 
-    omega = np.sum(mat)
+    c = np.sum(mat, axis=1)
+    omega = np.sum(c)
     if omega == 0:
         return np.nan
 
-    E = mat / omega
-    q = np.sum(E, axis=1)
-    c = np.sum(mat, axis=1)
-
-    cq = (c @ q) ** 2
-    denominator = c @ (c * q) - cq
+    # NOTE: In the formula, s = c, E = mat / omega, and q = c / omega.
+    # Multiplying both numerator and denominator by omega^2 gives:
+    #   numerator   = omega * s^T (mat @ s) - (s^T s)^2
+    #   denominator = omega * sum(s_i^3) - (s^T s)^2
+    # which avoids explicitly constructing the normalized N x N matrix E.
+    cq = float(c @ c) ** 2
+    denominator = omega * float(np.sum(c**3)) - cq
     if denominator == 0:
         return np.nan
 
-    numerator = c @ (E @ c) - cq
-    return numerator / denominator
+    numerator = omega * float(c @ (mat @ c)) - cq
+    return float(numerator / denominator)
 
 
 # }}}
