@@ -1203,6 +1203,57 @@ def test_rich_club_coefficient_matches_networkx() -> None:
         assert rc_ok == pytest.approx(rc_nx)
 
 
+def test_compute_rich_club_coefficient_normalized() -> None:
+    from orbitkit.metrics import compute_rich_club_coefficient
+
+    rng = np.random.default_rng(42)
+
+    # validation checks
+    mat_small = np.zeros((3, 3))
+    with pytest.raises(ValueError, match="fewer than 4"):
+        compute_rich_club_coefficient(mat_small, normalized=True)
+
+    mat_k5 = np.ones((5, 5)) - np.eye(5)
+    with pytest.raises(ValueError, match="'n_samples'"):
+        compute_rich_club_coefficient(mat_k5, normalized=True, n_samples=0)
+
+    with pytest.raises(ValueError, match="'q'"):
+        compute_rich_club_coefficient(mat_k5, normalized=True, q=0)
+
+    # clique invariant: all normalized coefficients should be exactly 1.0
+    rc_k5 = compute_rich_club_coefficient(
+        mat_k5, normalized=True, q=10, n_samples=5, rng=rng
+    )
+    for _, val in rc_k5.items():
+        assert np.isclose(val, 1.0, atol=1.0e-12)
+
+
+def test_compute_rich_club_coefficient_normalized_networkx() -> None:
+    from orbitkit.metrics import compute_rich_club_coefficient
+
+    nx = pytest.importorskip("networkx")
+
+    # Generate a random graph
+    G = nx.erdos_renyi_graph(30, 0.35, seed=42)
+    mat = nx.to_numpy_array(G)
+
+    rng = np.random.default_rng(42)
+    n_samples = 40
+    q = 10
+
+    rc_ok = compute_rich_club_coefficient(
+        mat, normalized=True, q=q, n_samples=n_samples, rng=rng
+    )
+    rc_nx = nx.rich_club_coefficient(
+        G, normalized=True, Q=q, n_samples=n_samples, seed=42
+    )
+
+    # Should match statistically across all common degrees
+    for deg in rc_ok:
+        if deg in rc_nx:
+            assert np.isclose(rc_ok[deg], rc_nx[deg], atol=0.15)
+
+
 # }}}
 
 
