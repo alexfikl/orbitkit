@@ -1785,3 +1785,121 @@ def generate_random_degree_proportional_weights(
 
 
 # }}}
+
+
+# {{{ shuffle_adjacency_weights
+
+
+def shuffle_adjacency_local_weights(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float = 0.0,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Shuffle weights over node-wise edges of an adjacency matrix *mat*.
+
+    This function shuffles non-zero edge weights for each node. As such, it will
+    preserve the strength / degree of the node, but it will result in an
+    asymmetric matrix (i.e. a directed graph).
+    """
+    if eps < 0.0:
+        raise ValueError(f"'eps' must be non-negative: {eps}")
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    mask = np.abs(mat) > eps
+
+    result = np.copy(mat)
+    for i in range(mat.shape[0]):
+        nz = np.flatnonzero(mask[i])
+        if len(nz) > 1:
+            result[i, nz] = rng.permutation(result[i, nz])
+
+    return result
+
+
+def shuffle_adjacency_global_weights(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float = 0.0,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Shuffle weights over all edges of a symmetric *mat*.
+
+    This function shuffles non-zero weights globally. This will preserve the
+    topology of the graph represented by *mat*, but not most other measures.
+    The resulting graph will undirected.
+    """
+    if eps < 0.0:
+        raise ValueError(f"'eps' must be non-negative: {eps}")
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # get upper triangular values from the adjacency
+    iu, ju = np.nonzero(np.triu(np.abs(mat) > eps, k=1))
+    weights = rng.permutation(mat[iu, ju])
+
+    # chug them in a new matrix
+    result = np.copy(mat)
+    result[iu, ju] = weights
+    result[ju, iu] = weights
+
+    return result
+
+
+# }}}
+
+
+# {{{ rewire_adjacency
+
+
+def rewire_adjacency(
+    mat: Array2D[np.floating[Any]],
+    *,
+    q: int = 10,
+    eps: float = 0.0,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Rewire the edges in *mat* such that the node degree is preserved.
+
+    This performs a standard degree-preserving double-edge swap that also works
+    on weighted adjacency matrices. The resulting graph will be undirected.
+    """
+    if eps < 0.0:
+        raise ValueError(f"'eps' must be non-negative: {eps}")
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    result = np.copy(mat)
+
+    edges = np.argwhere(np.abs(np.triu(mat, k=1)) > eps)
+    m = len(edges)
+    if m <= 2:
+        return result
+
+    for _ in range(q * m):
+        i, j = rng.integers(m, size=2)
+        a, b = edges[i]
+        c, d = edges[j] if rng.random() < 0.5 else edges[j][::-1]
+
+        if (
+            len({a, b, c, d}) < 4
+            or np.abs(result[a, d]) > eps
+            or np.abs(result[c, b]) > eps
+        ):
+            continue
+
+        w1, w2 = result[a, b], result[c, d]
+        result[a, b] = result[b, a] = result[c, d] = result[d, c] = 0
+        result[a, d] = result[d, a] = w1
+        result[c, b] = result[b, c] = w2
+
+        edges[i], edges[j] = (a, d), (c, b)
+
+    return result
+
+
+# }}}
