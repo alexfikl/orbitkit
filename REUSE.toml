@@ -27,6 +27,7 @@ SPDX-License-Identifier = "CC0-1.0"
 [[annotations]]
 path = [
     "docs/*.rst",
+    "docs/api/*.rst",
     "docs/justfile",
     "docs/_static/css/custom.css",
 ]
