@@ -44,7 +44,7 @@ table = Table(
     "N",
     "E",
     "q",
-    "S",
+    "nsamples",
     "Unnorm (ms)",
     "Rewire (ms)",
     "Orbitkit (ms)",
