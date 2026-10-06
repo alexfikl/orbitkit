@@ -119,6 +119,10 @@ lint.isort.required-imports = [
 default.extend-words.inh = "inh"
 default.extend-words.ND = "ND"
 
+[tool.ty]
+rules.undefined-reveal = "ignore"
+rules.unused-ignore-comment = "ignore"
+
 [tool.pytest]
 ini_options.testpaths = "tests"
 ini_options.addopts = [
