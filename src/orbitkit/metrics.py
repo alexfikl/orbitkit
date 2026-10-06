@@ -61,7 +61,9 @@ def compute_total_weighted_degree(
     mat: Array2D[np.floating[Any]],
     /,
 ) -> Array1D[np.floating[Any]]:
-    r"""Compute the weighted degree of the absolute value :math:`W_{ij} = |W_{ij}|`."""
+    r"""Compute the weighted degree of the absolute value
+    :math:`|W|_{ij} = |W_{ij}|`.
+    """
     return compute_weighted_degree(np.abs(mat))
 
 
