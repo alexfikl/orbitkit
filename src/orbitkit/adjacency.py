@@ -1864,40 +1864,76 @@ def rewire_adjacency(
 ) -> Array2D[np.floating[Any]]:
     """Rewire the edges in *mat* such that the node degree is preserved.
 
-    This performs a standard degree-preserving double-edge swap that also works
-    on weighted adjacency matrices. The resulting graph will be undirected.
+    This performs a standard degree-preserving double-edge swap (Maslov-Sneppen)
+    on an undirected graph.
     """
     if eps < 0.0:
         raise ValueError(f"'eps' must be non-negative: {eps}")
+
+    if q < 1:
+        raise ValueError(f"'q' rewiring factor must be >= 1: {q}")
 
     if rng is None:
         rng = np.random.default_rng()
 
     result = np.copy(mat)
 
-    edges = np.argwhere(np.abs(np.triu(mat, k=1)) > eps)
-    m = len(edges)
+    # get edges
+    u_, v_ = np.nonzero(np.triu(np.abs(mat) > eps, k=1))
+    m = len(u_)
     if m <= 2:
         return result
 
-    for _ in range(q * m):
-        i, j = rng.integers(m, size=2)
-        a, b = edges[i]
-        c, d = edges[j] if rng.random() < 0.5 else edges[j][::-1]
+    # NOTE: turns out creating np.int64s every time we access this is expensive
+    u = memoryview(u_)
+    v = memoryview(v_)
 
-        if (
-            len({a, b, c, d}) < 4
-            or np.abs(result[a, d]) > eps
-            or np.abs(result[c, b]) > eps
-        ):
-            continue
+    n_attempts = q * m
+    batch_size = min(n_attempts, 20_000)
+    attempts_remaining = n_attempts
 
-        w1, w2 = result[a, b], result[c, d]
-        result[a, b] = result[b, a] = result[c, d] = result[d, c] = 0
-        result[a, d] = result[d, a] = w1
-        result[c, b] = result[b, c] = w2
+    while attempts_remaining > 0:
+        chunk = min(attempts_remaining, batch_size)
+        idx1 = memoryview(rng.integers(m, size=chunk))
+        idx2 = memoryview(rng.integers(m, size=chunk))
+        flip = memoryview(rng.random(chunk) < 0.5)
+        attempts_remaining -= chunk
 
-        edges[i], edges[j] = (a, d), (c, b)
+        for k in range(chunk):
+            i = idx1[k]
+            j = idx2[k]
+            if i == j:
+                continue
+
+            u1 = u[i]
+            v1 = v[i]
+            if flip[k]:
+                u2 = u[j]
+                v2 = v[j]
+            else:
+                u2 = u[j]
+                v2 = v[j]
+
+            # skip repeated edges or ones that already exist
+            if u1 == u2 or u1 == v2 or v1 == u2 or v1 == v2:  # ruff: ignore[compare-with-tuple, repeated-equality-comparison]
+                continue
+
+            if abs(result[u1, v2]) > eps or abs(result[u2, v1]) > eps:
+                continue
+
+            # swap edges in result
+            w1 = result[u1, v1]
+            w2 = result[u2, v2]
+            result[u1, v1] = result[v1, u1] = 0.0
+            result[u2, v2] = result[v2, u2] = 0.0
+            result[u1, v2] = result[v2, u1] = w1
+            result[u2, v1] = result[v1, u2] = w2
+
+            # update edges
+            u[i] = u1
+            v[i] = v2
+            u[j] = u2
+            v[j] = v1
 
     return result
 
