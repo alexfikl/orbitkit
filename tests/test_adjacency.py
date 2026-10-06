@@ -1149,6 +1149,177 @@ def test_generate_weighted_random_graph_garlaschelli_edge_cases() -> None:
 # }}}
 
 
+# {{{ test_shuffle_adjacency_weights
+
+
+def test_shuffle_adjacency_local_weights() -> None:
+    from orbitkit.adjacency import (
+        generate_adjacency_erdos_renyi,
+        generate_random_degree_proportional_weights,
+        shuffle_adjacency_local_weights,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    n = 32
+    adj = generate_adjacency_erdos_renyi(n, p=0.4, rng=rng)
+    mat = generate_random_degree_proportional_weights(adj, rng=rng)
+
+    shuffled = shuffle_adjacency_local_weights(mat, rng=rng)
+
+    assert shuffled.shape == mat.shape
+    assert shuffled.dtype == mat.dtype
+
+    # zero pattern (topology) should be identical
+    assert np.array_equal(mat == 0, shuffled == 0)
+
+    # row strengths (row sums) should be preserved
+    assert np.allclose(np.sum(mat, axis=1), np.sum(shuffled, axis=1), atol=1.0e-12)
+
+    # multiset of non-zero weights in each row should be preserved
+    for i in range(n):
+        nz_orig = np.sort(mat[i, mat[i] > 0])
+        nz_shuf = np.sort(shuffled[i, shuffled[i] > 0])
+        assert np.allclose(nz_orig, nz_shuf, atol=1.0e-12)
+
+    # the matrix should actually change for non-trivial rows
+    assert not np.array_equal(mat, shuffled)
+
+
+def test_shuffle_adjacency_local_weights_edge_cases() -> None:
+    from orbitkit.adjacency import shuffle_adjacency_local_weights
+
+    rng = np.random.default_rng(seed=42)
+
+    # all zeros
+    mat_zero = np.zeros((10, 10))
+    res = shuffle_adjacency_local_weights(mat_zero, rng=rng)
+    assert np.array_equal(res, mat_zero)
+
+    # single node
+    mat_one = np.zeros((1, 1))
+    res = shuffle_adjacency_local_weights(mat_one, rng=rng)
+    assert np.array_equal(res, mat_one)
+
+
+def test_shuffle_adjacency_global_weights() -> None:
+    from orbitkit.adjacency import (
+        generate_adjacency_erdos_renyi,
+        generate_random_degree_proportional_weights,
+        shuffle_adjacency_global_weights,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    n = 32
+    adj = generate_adjacency_erdos_renyi(n, p=0.4, rng=rng)
+    mat = generate_random_degree_proportional_weights(adj, rng=rng)
+    # symmetrize to create a valid symmetric weighted adjacency
+    mat = (mat + mat.T) / 2.0
+    np.fill_diagonal(mat, 0.0)
+
+    shuffled = shuffle_adjacency_global_weights(mat, rng=rng)
+
+    assert shuffled.shape == mat.shape
+    assert shuffled.dtype == mat.dtype
+
+    # must remain symmetric
+    assert np.allclose(shuffled, shuffled.T, atol=1.0e-12)
+    assert np.all(np.diag(shuffled) == 0)
+
+    # binary topology must be preserved
+    assert np.array_equal(mat == 0, shuffled == 0)
+
+    # multiset of upper-triangular weights must be preserved
+    iu = np.triu_indices(n, k=1)
+    orig_weights = np.sort(mat[iu])
+    shuf_weights = np.sort(shuffled[iu])
+    assert np.allclose(orig_weights, shuf_weights, atol=1.0e-12)
+
+    # weights should actually be shuffled
+    assert not np.array_equal(mat, shuffled)
+
+
+def test_shuffle_adjacency_global_weights_eps() -> None:
+    from orbitkit.adjacency import shuffle_adjacency_global_weights
+
+    rng = np.random.default_rng(seed=42)
+    mat = np.array([
+        [0.0, 1.0, 1.0e-6],
+        [1.0, 0.0, 2.0],
+        [1.0e-6, 2.0, 0.0],
+    ])
+
+    shuffled = shuffle_adjacency_global_weights(mat, eps=1.0e-5, rng=rng)
+    assert np.allclose(shuffled, shuffled.T, atol=1.0e-12)
+    # the small weight (1.0e-6) was below eps, so it shouldn't be touched
+    assert np.isclose(shuffled[0, 2], 1.0e-6)
+    assert np.isclose(shuffled[2, 0], 1.0e-6)
+
+
+# }}}
+
+
+# {{{ test_rewire_adjacency
+
+
+def test_rewire_adjacency() -> None:
+    from orbitkit.adjacency import (
+        generate_adjacency_erdos_renyi,
+        rewire_adjacency,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    n = 32
+    mat = generate_adjacency_erdos_renyi(n, p=0.3, rng=rng).astype(float)
+    assert np.array_equal(mat, mat.T)
+
+    rewired = rewire_adjacency(mat, q=10, rng=rng)
+
+    assert rewired.shape == mat.shape
+    assert rewired.dtype == mat.dtype
+
+    # must remain symmetric
+    assert np.allclose(rewired, rewired.T, atol=1.0e-12)
+    assert np.all(np.diag(rewired) == 0)
+
+    # total edge count must be preserved
+    assert np.sum(rewired > 0) == np.sum(mat > 0)
+
+    # node degree sequence must be exactly preserved
+    orig_degrees = np.sum(mat > 0, axis=1)
+    rewired_degrees = np.sum(rewired > 0, axis=1)
+    assert np.array_equal(orig_degrees, rewired_degrees)
+
+    # rewiring should produce a different matrix
+    assert not np.array_equal(mat, rewired)
+
+
+def test_rewire_adjacency_small_graphs() -> None:
+    from orbitkit.adjacency import rewire_adjacency
+
+    rng = np.random.default_rng(seed=42)
+
+    # graph with 0 edges
+    mat_zero = np.zeros((5, 5))
+    res = rewire_adjacency(mat_zero, rng=rng)
+    assert np.array_equal(res, mat_zero)
+
+    # graph with 1 edge (m=1)
+    mat_one = np.zeros((4, 4))
+    mat_one[0, 1] = mat_one[1, 0] = 1.0
+    res = rewire_adjacency(mat_one, rng=rng)
+    assert np.array_equal(res, mat_one)
+
+    # graph with 2 edges (m=2)
+    mat_two = np.zeros((4, 4))
+    mat_two[0, 1] = mat_two[1, 0] = 1.0
+    mat_two[2, 3] = mat_two[3, 2] = 1.0
+    res = rewire_adjacency(mat_two, rng=rng)
+    assert np.array_equal(res, mat_two)
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
