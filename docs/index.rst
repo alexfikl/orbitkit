@@ -6,10 +6,19 @@ ORBITKIT: Utilities for Dynamical Systems
     :hidden:
     :caption: Contents
 
-    models
-    codegen
-    api
     literature
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: API Reference
+
+    api/models
+    api/codegen
+    api/clusters
+    api/adjacency
+    api/metrics
+    api/misc
 
 .. warning::
 

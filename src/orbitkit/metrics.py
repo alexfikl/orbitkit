@@ -306,9 +306,10 @@ def compute_weighted_clustering_coefficient_nx(
     dtype: DTypeLike | None = None,
 ) -> float:
     """A thin wrapper around :func:`compute_weighted_clustering_coefficient_costantini`
-    that matches :func:`networkx.average_clustering`.
+    that matches
+    :func:`~networkx.algorithms.approximation.clustering_coefficient.average_clustering`.
 
-    As the implementation in :mod:`networkx`, this assumes that the weights are all
+    As the implementation in ``networkx``, this assumes that the weights are all
     non-negative. If this is not the case, it will give incorrect results. Use
     :func:`compute_weighted_clustering_coefficient_costantini` directly in
     that case.
@@ -501,7 +502,8 @@ def compute_rich_club_coefficient(
 ) -> dict[int, float]:
     r"""Compute the rich-club coefficient for the adjacency matrix *mat*.
 
-    This is equivalent to :func:`networkx.rich_club_coefficient`. The formula is
+    This is equivalent to :func:`~networkx.algorithms.richclub.rich_club_coefficient`.
+    The formula is
 
     .. math::
 
