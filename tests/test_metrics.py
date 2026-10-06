@@ -1220,6 +1220,9 @@ def test_compute_rich_club_coefficient_normalized() -> None:
     with pytest.raises(ValueError, match="'q'"):
         compute_rich_club_coefficient(mat_k5, normalized=True, q=0)
 
+    with pytest.raises(ValueError, match="'delta_q'"):
+        compute_rich_club_coefficient(mat_k5, normalized=True, delta_q=0)
+
     # clique invariant: all normalized coefficients should be exactly 1.0
     rc_k5 = compute_rich_club_coefficient(
         mat_k5, normalized=True, q=10, n_samples=5, rng=rng

@@ -480,6 +480,7 @@ def compute_rich_club_coefficient(
     *,
     normalized: bool = False,
     q: int = 100,
+    delta_q: int = 2,
     n_samples: int = 1,
     eps: float | None = None,
     rng: np.random.Generator | None = None,
@@ -502,8 +503,11 @@ def compute_rich_club_coefficient(
 
     :arg normalized: if *True*, normalizes the coefficient by generating
         random degree-preserving null models.
-    :arg q: rewiring attempt factor; the number of attempted double-edge swaps
-        per sample is ``q * n_edges`` (defaults to 100, matching NetworkX).
+    :arg q: burn-in rewiring attempt factor; the number of attempted double-edge
+        swaps for the first randomized sample is ``q * n_edges`` (defaults to 100).
+    :arg delta_q: thinning factor between consecutive samples; each subsequent
+        sample performs ``delta_q * n_edges`` swaps starting from the previous
+        sample (defaults to 2).
     :arg n_samples: number of randomized null graphs to average over (defaults to 1).
     :arg eps: edge weight threshold below which edges are considered absent.
     :arg rng: random number generator for the rewiring process.
@@ -543,6 +547,9 @@ def compute_rich_club_coefficient(
         if q < 1:
             raise ValueError(f"'q' rewiring factor must be >= 1: {q}")
 
+        if delta_q < 1:
+            raise ValueError(f"'delta_q' thinning factor must be >= 1: {delta_q}")
+
     A = np.abs(mat) > eps
     rc = _compute_unnormalized_rich_club_coefficient(A)
     if not normalized or not rc:
@@ -554,8 +561,11 @@ def compute_rich_club_coefficient(
         rng = np.random.default_rng()
 
     averages = dict.fromkeys(rc, 0.0)
-    for _ in range(n_samples):
-        rand_mat = rewire_adjacency(mat, q=q, eps=eps, rng=rng)
+    rand_mat = rewire_adjacency(mat, q=q, eps=eps, rng=rng)
+
+    for s in range(n_samples):
+        if s > 0:
+            rand_mat = rewire_adjacency(rand_mat, q=delta_q, eps=eps, rng=rng)
 
         A_rand = np.abs(rand_mat) > eps
         rc_rand = _compute_unnormalized_rich_club_coefficient(A_rand)
