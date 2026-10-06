@@ -16,7 +16,7 @@ if on_ci():
     raise SystemExit(0)
 
 try:
-    import networkx as nx
+    import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment]
 except ImportError:
     nx = None
 
