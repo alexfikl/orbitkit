@@ -64,24 +64,24 @@ for n, q, n_samples in configs:
     mat = mats[n]
     m = np.sum(np.triu(mat > 0, k=1))
 
-    # 1. Unnormalized time
+    # 1. normalized=False time
     with tm:
         _ = compute_rich_club_coefficient(mat, normalized=False)
     t_unnorm = tm.t_wall * 1000.0
 
-    # 2. Single rewire_adjacency time
+    # 2. single rewire_adjacency time
     with tm:
         _ = rewire_adjacency(mat, q=q, rng=rng)
     t_rewire = tm.t_wall * 1000.0
 
-    # 3. Total Orbitkit normalized time
+    # 3. total normalized time
     with tm:
         _ = compute_rich_club_coefficient(
             mat, normalized=True, q=q, n_samples=n_samples, rng=rng
         )
     t_ok = tm.t_wall * 1000.0
 
-    # 4. Optional NetworkX normalized time
+    # 4. networkx normalized time
     if nx is not None and n <= 200:
         G = nx.from_numpy_array(mat)
 
