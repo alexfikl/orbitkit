@@ -20,9 +20,8 @@ from orbitkit.typing import Array1D, Array2D, ArrayND, PathLike, Scalar, T
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from numpy.typing import DTypeLike
-
     import rich.table
+    from numpy.typing import DTypeLike
 
 # {{{ environment
 
