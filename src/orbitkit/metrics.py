@@ -102,6 +102,8 @@ def compute_normalized_weighted_degree(
 
 def compute_average_excess_strength(
     mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
 ) -> Array1D[np.floating[Any]]:
     r"""Computes the average excess weight for each node.
 
@@ -117,10 +119,20 @@ def compute_average_excess_strength(
     if n != m:
         raise ValueError(f"matrix not square: {mat.shape}")
 
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
     s = np.sum(mat, axis=1)
     degree = np.sum(mat > 0, axis=1)
 
-    return s - s / degree
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return s - np.where(degree < eps, 0.0, s / degree)
 
 
 # }}}
