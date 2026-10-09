@@ -609,6 +609,240 @@ def compute_rich_club_coefficient(
 # }}}
 
 
+# {{{ compute_rich_club_coefficient_opsahl
+
+
+class WeightedRichClubResult(NamedTuple):
+    richness: Array1D[np.floating[Any]]
+    """The richness thresholds :math:`r`."""
+    coefficient: Array1D[np.floating[Any]]
+    """The weighted rich-club coefficient at each richness threshold."""
+
+
+def _compute_richness(
+    mat: Array2D[np.floating[Any]],
+    richness: Literal["degree", "strength", "weight"],
+    *,
+    eps: float,
+) -> Array1D[np.floating[Any]]:
+
+    if richness == "degree":
+        A = np.abs(mat) > eps
+        return np.count_nonzero(A, axis=1).astype(np.float64)
+    elif richness == "strength":
+        return np.sum(mat, axis=1)
+    elif richness == "weight":
+        A = np.abs(mat) > eps
+        degree = np.count_nonzero(A, axis=1)
+        strength = np.sum(mat, axis=1)
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            return np.where(degree > 0, strength / degree, 0.0)
+    else:
+        raise ValueError(f"unknown richness: {richness!r}")
+
+
+def _compute_unnormalized_weighted_rich_club_coefficient(
+    mat: Array2D[np.floating[Any]],
+    *,
+    richness: Literal["degree", "strength", "weight"],
+    eps: float,
+    thresholds: Array1D[np.floating[Any]] | None = None,
+) -> tuple[Array1D[np.floating[Any]], Array1D[np.floating[Any]]]:
+    n = mat.shape[0]
+    r = _compute_richness(mat, richness, eps=eps)
+
+    if thresholds is None:
+        thresholds = np.unique(r)
+
+    # all ordered non-self links, so that this also works for the asymmetric
+    # matrices produced by the local weight reshuffling null model
+    iu, ju = np.nonzero(np.abs(mat) > eps)
+    keep = iu != ju
+    iu = iu[keep]
+    ju = ju[keep]
+    w = mat[iu, ju]
+
+    if w.size == 0 or thresholds.size == 0:
+        empty = np.array([], dtype=mat.dtype)
+        return empty, empty
+
+    # the denominator sums the E_{> r} strongest weights in the whole network
+    w_sorted = np.sort(w)[::-1]
+    w_cumsum = np.cumsum(w_sorted)
+
+    # an edge is in the club iff both endpoints are, so its threshold is given
+    # by the smallest richness of its endpoints
+    edge_richness = np.minimum(r[iu], r[ju])
+    order = np.argsort(edge_richness)
+    edge_richness = edge_richness[order]
+    w_suffix = np.cumsum(w[order][::-1])[::-1]
+
+    r_sorted = np.sort(r)
+
+    valid: list[float] = []
+    coefficient: list[float] = []
+    for t in thresholds:
+        # number of nodes with richness larger than the threshold
+        n_club = n - int(np.searchsorted(r_sorted, t, side="right"))
+        if n_club < 2:
+            continue
+
+        # number of links between the nodes in the club and their total weight
+        pos = int(np.searchsorted(edge_richness, t, side="right"))
+        n_edges = edge_richness.size - pos
+        if n_edges < 1:
+            continue
+
+        denom = w_cumsum[n_edges - 1]
+        if denom <= 0.0:
+            continue
+
+        valid.append(float(t))
+        coefficient.append(float(w_suffix[pos] / denom))
+
+    return (
+        np.array(valid, dtype=mat.dtype),
+        np.array(coefficient, dtype=mat.dtype),
+    )
+
+
+def compute_rich_club_coefficient_opsahl(
+    mat: Array2D[np.floating[Any]],
+    *,
+    richness: Literal["degree", "strength", "weight"] = "degree",
+    normalized: bool = False,
+    q: int = 100,
+    delta_q: int = 2,
+    n_samples: int = 1,
+    eps: float | None = None,
+    rng: np.random.Generator | None = None,
+) -> WeightedRichClubResult:
+    r"""Compute the weighted rich-club coefficient from [Opsahl2008]_.
+
+    The weighted rich-club coefficient is defined as
+
+    .. math::
+
+        \phi^w(r) = \frac{W_{> r}}{\sum_{l = 1}^{E_{> r}} w_l^{\mathrm{rank}}},
+
+    where :math:`r` is a richness parameter, :math:`W_{> r}` is the sum of the
+    weights of the links connecting the nodes with richness larger than
+    :math:`r`, :math:`E_{> r}` is the number of such links, and
+    :math:`w_l^{\mathrm{rank}}` are the weights of all the links in the network
+    sorted in decreasing order.
+
+    The richness parameter can be the degree, the strength, or the average
+    weight :math:`\bar{w}_i = s_i / k_i` of the nodes. When *normalized* is
+    ``True``, the coefficient is normalized by suitable random null models
+    according to [Opsahl2008]_. Most parameters match
+    :func:`compute_rich_club_coefficient`
+
+    .. [Opsahl2008] T. Opsahl, V. Colizza, P. Panzarasa, J. J. Ramasco,
+        *Prominence and Control: The Weighted Rich-Club Effect*,
+        Physical Review Letters, Vol. 101, pp. 168702, 2008,
+        `doi:10.1103/physrevlett.101.168702 <https://doi.org/10.1103/physrevlett.101.168702>`__.
+
+    :returns: a :class:`WeightedRichClubResult` with the richness thresholds and
+        the corresponding weighted rich-club coefficient.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if richness not in {"degree", "strength", "weight"}:
+        raise ValueError(f"unknown 'richness': {richness}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+        if np.any(mat < -eps):
+            raise ValueError("weight matrix 'mat' has negative weights")
+
+    if normalized:
+        if n < 4:
+            raise ValueError(
+                "cannot normalize rich-club coefficient for graphs with fewer "
+                f"than 4 nodes: {n}"
+            )
+
+        if n_samples < 1:
+            raise ValueError(f"'n_samples' must be >= 1: {n_samples}")
+
+        if q < 1:
+            raise ValueError(f"'q' rewiring factor must be >= 1: {q}")
+
+        if delta_q < 1:
+            raise ValueError(f"'delta_q' thinning factor must be >= 1: {delta_q}")
+
+    thresholds, rc = _compute_unnormalized_weighted_rich_club_coefficient(
+        mat, richness=richness, eps=eps
+    )
+
+    if not normalized or rc.size == 0:
+        return WeightedRichClubResult(richness=thresholds, coefficient=rc)
+
+    from orbitkit.adjacency import (
+        rewire_adjacency,
+        shuffle_adjacency_local_weights,
+    )
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    averages = np.zeros_like(rc)
+    if richness == "degree":
+        rand_mat = rewire_adjacency(mat, q=q, eps=eps, rng=rng)
+
+        for s in range(n_samples):
+            if s > 0:
+                rand_mat = rewire_adjacency(rand_mat, q=delta_q, eps=eps, rng=rng)
+
+            _, rc_rand = _compute_unnormalized_weighted_rich_club_coefficient(
+                rand_mat, richness=richness, eps=eps, thresholds=thresholds
+            )
+            averages += rc_rand
+    else:
+        for _ in range(n_samples):
+            rand_mat = shuffle_adjacency_local_weights(mat, eps=eps, rng=rng)
+
+            _, rc_rand = _compute_unnormalized_weighted_rich_club_coefficient(
+                rand_mat, richness=richness, eps=eps, thresholds=thresholds
+            )
+            averages += rc_rand
+
+    if not np.all(averages > 0.0):
+        from warnings import warn
+
+        warn(
+            "Skipping richness thresholds with a zero average random "
+            "rich-club coefficient.",
+            stacklevel=2,
+        )
+
+    keep = averages > 0.0
+    return WeightedRichClubResult(
+        richness=thresholds[keep],
+        coefficient=rc[keep] / averages[keep],
+    )
+
+
+# }}}
+
+
 # {{{ compute_participation_coefficient
 
 
@@ -776,7 +1010,7 @@ def compute_modularity(
 # {{{ compute_eigenvector_centrality
 
 
-class EigenvectorCentrality(NamedTuple):
+class EigenvectorCentralityResult(NamedTuple):
     lambda_max: float
     """The largest real eigenvalue."""
     score: Array1D[np.floating[Any]]
@@ -792,7 +1026,7 @@ def compute_eigenvector_centrality(
     mat: Array2D[np.floating[Any]],
     *,
     eps: float | None = None,
-) -> EigenvectorCentrality:
+) -> EigenvectorCentralityResult:
     r"""Compute a signed version of eigenvector centrality based on [Bonacich2004]_.
 
     We solve the standard eigenproblem :math:`W v = \lambda v`. Unlike the
@@ -841,7 +1075,9 @@ def compute_eigenvector_centrality(
     if k == 1 and V[np.argmax(np.abs(V)), 0] < 0:
         V = -V
 
-    return EigenvectorCentrality(lambda_max=eigvals[-1], score=score, eigenbasis=V)
+    return EigenvectorCentralityResult(
+        lambda_max=eigvals[-1], score=score, eigenbasis=V
+    )
 
 
 # }}}
