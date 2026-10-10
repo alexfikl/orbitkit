@@ -1255,26 +1255,47 @@ def test_generate_weighted_random_graph_serrano_unit_weights() -> None:
     assert np.allclose(mat[edges], 1.0)
 
 
-def test_generate_weighted_random_graph_serrano_strength_convergence() -> None:
-    from orbitkit.adjacency import (
-        _make_chung_lu_power_law_degrees,  # ruff: ignore[import-private-name]
-        generate_weighted_random_graph_serrano,
-    )
+def test_generate_weighted_random_graph_serrano_homogeneous() -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_serrano
 
     rng = np.random.default_rng(seed=42)
-    n = 300
-    beta = 1.5
+    n = 64
 
-    degrees = _make_chung_lu_power_law_degrees(n)
-    target_strengths = degrees**beta
-    expected_mean_strength = np.mean(target_strengths)
+    k0 = 4.0
+    s0 = 12.0
+    mat = generate_weighted_random_graph_serrano(
+        n,
+        degrees=np.full(n, k0),
+        strengths=np.full(n, s0),
+        rng=rng,
+    )
 
-    mat = generate_weighted_random_graph_serrano(n, degrees=degrees, beta=beta, rng=rng)
-    strengths = np.sum(mat, axis=1)
-    mean_strengths = np.mean(strengths)
+    edges = mat > 0
+    assert np.any(edges)
+    assert np.allclose(mat[edges], 3.0, atol=1.0e-14)
 
-    error = abs(mean_strengths - expected_mean_strength) / expected_mean_strength
-    assert error < 0.15
+
+def test_generate_weighted_random_graph_serrano_strength_scaling() -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_serrano
+
+    n = 64
+    rng1 = np.random.default_rng(seed=42)
+    rng2 = np.random.default_rng(seed=42)
+
+    degrees = np.linspace(2.0, 10.0, n)
+    strengths = degrees**1.5
+
+    # Homogeneity of degree 1 in strength: W(alpha * s) == alpha * W(s)
+    alpha = 2.5
+    mat1 = generate_weighted_random_graph_serrano(
+        n, degrees=degrees, strengths=strengths, rng=rng1
+    )
+    mat2 = generate_weighted_random_graph_serrano(
+        n, degrees=degrees, strengths=alpha * strengths, rng=rng2
+    )
+
+    assert np.array_equal(mat1 > 0, mat2 > 0)
+    assert np.allclose(mat2, alpha * mat1, atol=1.0e-14)
 
 
 def test_generate_weighted_random_graph_serrano_degree_strength_scaling() -> None:
