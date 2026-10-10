@@ -1483,12 +1483,9 @@ def generate_adjacency_chung_lu(
     if total < 10 * np.finfo(degrees.dtype).eps:
         return np.zeros((n, n), dtype=dtype)
 
-    # P_ij = min(1.0, k_i * k_j / sum(k))
-    P = np.outer(degrees, degrees) / np.sum(degrees)
-    np.fill_diagonal(P, 0.0)
-
     iu, ju = np.triu_indices(n, k=1)
-    connected = rng.random(len(iu)) < P[iu, ju]
+    p = (degrees[iu] * degrees[ju]) / total
+    connected = rng.random(len(iu)) < p
 
     A = np.zeros((n, n), dtype=dtype)
     A[iu[connected], ju[connected]] = 1
@@ -1641,8 +1638,19 @@ def generate_weighted_random_graph_serrano(
         if np.any(strengths < 0):
             raise ValueError("'strengths' must be non-negative")
 
-    # generate underlying graph
-    A = generate_adjacency_chung_lu(n, degrees=degrees, rng=rng)
+    if rng is None:
+        rng = np.random.default_rng()
+
+    total = np.sum(degrees)
+    if total < 10 * np.finfo(degrees.dtype).eps:
+        return np.zeros((n, n), dtype=dtype)
+
+    iu, ju = np.triu_indices(n, k=1)
+    p = (degrees[iu] * degrees[ju]) / total
+    connected = rng.random(len(iu)) < p
+
+    ic = iu[connected]
+    jc = ju[connected]
 
     # add weights
     u = np.zeros_like(degrees, dtype=np.float64)
@@ -1653,10 +1661,12 @@ def generate_weighted_random_graph_serrano(
     mean_s = np.mean(strengths)
     scale = (mean_k / mean_s) if mean_s > 0 else 1.0
 
-    W = scale * A * np.outer(u, u)
-    np.fill_diagonal(W, 0.0)
+    w = scale * u[ic] * u[jc]
+    W = np.zeros((n, n), dtype=dtype)
+    W[ic, jc] = w
+    W[jc, ic] = w
 
-    return W.astype(dtype)
+    return W
 
 
 # }}}
