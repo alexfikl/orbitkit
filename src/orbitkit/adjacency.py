@@ -100,10 +100,15 @@ def stringify_adjacency(
 
 
 ADJACENCY_TYPES: Final = frozenset({
+    "barabasialbert",
+    "barabasialbert2",
+    "barabasialbert4",
     "bus",
     "bus1",
     "bus2",
+    "chunglu",
     "configuration",
+    "distancedecay",
     "erdosrenyi",
     "feedforward",
     "fractal",
@@ -115,10 +120,6 @@ ADJACENCY_TYPES: Final = frozenset({
     "star",
     "startree",
     "strogatzwatts",
-    "barabasialbert",
-    "barabasialbert2",
-    "barabasialbert4",
-    "distancedecay",
 })
 
 
@@ -180,6 +181,8 @@ def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
         return generate_adjacency_distance_decay(n, dtype=dtype, rng=rng)
     elif topology == "configuration":
         return generate_adjacency_configuration(n, dtype=dtype, rng=rng)
+    elif topology == "chunglu":
+        return generate_adjacency_chung_lu(n, dtype=dtype, rng=rng)
     elif topology == "gapjunctions":
         k = max(int(n // 9) - 1, 1) if k is None else k
         return generate_adjacency_gap_junctions(n, k, dtype=dtype, rng=rng)
@@ -311,7 +314,7 @@ def make_adjacency_from_edges(
 # }}}
 
 
-# {{{ adjacency matrices
+# {{{ binary adjacency matrices
 
 
 def generate_adjacency_all(
@@ -1420,10 +1423,78 @@ def generate_adjacency_stochastic_block_model(
     return result
 
 
+def generate_adjacency_chung_lu(
+    n: int,
+    *,
+    degrees: Array1D[np.floating[Any]] | None = None,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    """Generate a random Chung-Lu adjacency matrix as described in [Chung2002]_.
+
+    The generated graph will have the given *degrees* on average. If the degrees
+    are all equal, then this is equivalent to the Erdős-Rényi construction.
+
+    .. [Chung2002] F. Chung, L. Lu,
+        *Connected Components in Random Graphs With Given Expected Degree Sequences*,
+        Annals of Combinatorics, Vol. 6, pp. 125--145, 2002,
+        `doi:10.1007/pl00012580 <https://doi.org/10.1007/pl00012580>`__.
+
+    :arg degrees: an array of expected node degrees, which are not necessarily
+        integer values. If no degrees are given, then a simple power law with
+        mean degree *5.0* is used.
+    """
+
+    if n < 0:
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
+
+    if dtype is None:
+        dtype = np.int32
+    dtype = np.dtype(dtype)
+
+    if n <= 1:
+        return np.zeros((n, n), dtype=dtype)
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if degrees is None:
+        # NOTE: we make a little default degree sequence to match [Chung2002]
+        gamma = 2.5
+        mu = 5.0
+
+        p = 1.0 / (gamma - 1.0)
+        idx = np.arange(1, n + 1) ** (-p)
+        degrees = n * mu * idx / np.sum(idx)
+    else:
+        if degrees.shape != (n,):
+            raise ValueError(f"'degrees' must have shape ({n},): {degrees.shape}")
+
+        if np.any(degrees < 0):
+            raise ValueError("'degrees must be non-negative'")
+
+    total = np.sum(degrees)
+    if total < 10 * np.finfo(degrees.dtype).eps:
+        return np.zeros((n, n), dtype=dtype)
+
+    # P_ij = min(1.0, k_i * k_j / sum(k))
+    P = np.outer(degrees, degrees) / np.sum(degrees)
+    np.fill_diagonal(P, 0.0)
+
+    iu, ju = np.triu_indices(n, k=1)
+    connected = rng.random(len(iu)) < P[iu, ju]
+
+    A = np.zeros((n, n), dtype=dtype)
+    A[iu[connected], ju[connected]] = 1
+    A[ju[connected], iu[connected]] = 1
+
+    return A
+
+
 # }}}
 
 
-# {{{ weighted matrices
+# {{{ weighted adjacency matrices
 
 
 def generate_weighted_random_graph_garlaschelli(
@@ -1504,7 +1575,7 @@ def generate_weighted_random_graph_garlaschelli(
 # }}}
 
 
-# {{{ weights
+# {{{ adding weights
 
 
 def generate_random_weights(
@@ -1847,12 +1918,6 @@ def shuffle_adjacency_global_weights(
     result[ju, iu] = weights
 
     return result
-
-
-# }}}
-
-
-# {{{ rewire_adjacency
 
 
 def rewire_adjacency(

@@ -711,7 +711,7 @@ def compute_rich_club_coefficient_opsahl(
     mat: Array2D[np.floating[Any]],
     *,
     richness: Literal["degree", "strength", "weight"] = "degree",
-    normalized: bool = False,
+    normalized: bool = True,
     q: int = 100,
     delta_q: int = 2,
     n_samples: int = 1,
