@@ -1057,6 +1057,75 @@ def test_generate_adjacency_astrocyte_lattice_edge_cases() -> None:
 # }}}
 
 
+# {{{ test_generate_adjacency_chung_lu
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 32, 100])
+def test_generate_adjacency_chung_lu_shape(n: int) -> None:
+    from orbitkit.adjacency import generate_adjacency_chung_lu
+
+    rng = np.random.default_rng(seed=42)
+    mat = generate_adjacency_chung_lu(n, rng=rng)
+
+    assert mat.shape == (n, n)
+    assert mat.dtype == np.dtype(np.int32)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+
+    dtype = np.dtype(np.float64)
+    mat = generate_adjacency_chung_lu(n, dtype=dtype, rng=rng)
+    assert mat.dtype == dtype
+
+
+def test_generate_adjacency_chung_lu_degrees() -> None:
+    from orbitkit.adjacency import generate_adjacency_chung_lu
+
+    rng = np.random.default_rng(seed=42)
+    n = 200
+
+    # 1. default power-law degrees: check average degree is roughly mu = 5.0
+    mat = generate_adjacency_chung_lu(n, rng=rng)
+    assert mat.shape == (n, n)
+    assert np.array_equal(mat, mat.T)
+
+    degrees = np.sum(mat, axis=1)
+    assert 3.0 < np.mean(degrees) < 7.0
+
+    # 2. explicit uniform degrees (equivalent to Erdos-Renyi)
+    target_k = 6.0
+    expected_degrees = np.full(n, target_k, dtype=np.float64)
+
+    mat = generate_adjacency_chung_lu(n, degrees=expected_degrees, rng=rng)
+    empirical_mean = np.mean(np.sum(mat, axis=1))
+    assert abs(empirical_mean - target_k) < 1.0
+
+
+def test_generate_adjacency_chung_lu_edge_cases() -> None:
+    from orbitkit.adjacency import generate_adjacency_chung_lu
+
+    rng = np.random.default_rng(seed=42)
+    n = 32
+
+    with pytest.raises(ValueError, match="negative dimension"):
+        _ = generate_adjacency_chung_lu(-1, rng=rng)
+
+    with pytest.raises(ValueError, match="shape"):
+        _ = generate_adjacency_chung_lu(n, degrees=np.ones(n // 2), rng=rng)
+
+    bad_deg = np.ones(n)
+    bad_deg[0] = -1.0
+    with pytest.raises(ValueError, match="non-negative"):
+        _ = generate_adjacency_chung_lu(n, degrees=bad_deg, rng=rng)
+
+    # zero sum degrees should return all zeros
+    zero_mat = generate_adjacency_chung_lu(n, degrees=np.zeros(n), rng=rng)
+    assert zero_mat.shape == (n, n)
+    assert np.all(zero_mat == 0)
+
+
+# }}}
+
+
 # {{{ test_generate_weighted_random_graph_garlaschelli
 
 
