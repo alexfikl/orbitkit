@@ -1218,6 +1218,122 @@ def test_generate_weighted_random_graph_garlaschelli_edge_cases() -> None:
 # }}}
 
 
+# {{{ test_generate_weighted_random_graph_serrano
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 32, 100])
+def test_generate_weighted_random_graph_serrano_shape(n: int) -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_serrano
+
+    rng = np.random.default_rng(seed=42)
+    mat = generate_weighted_random_graph_serrano(n, rng=rng)
+
+    assert mat.shape == (n, n)
+    assert mat.dtype == np.dtype(np.float64)
+    assert np.all(np.diag(mat) == 0)
+    assert np.array_equal(mat, mat.T)
+    assert np.all(mat >= 0)
+
+    dtype = np.dtype(np.float32)
+    mat = generate_weighted_random_graph_serrano(n, dtype=dtype, rng=rng)
+    assert mat.dtype == dtype
+
+
+def test_generate_weighted_random_graph_serrano_unit_weights() -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_serrano
+
+    rng = np.random.default_rng(seed=42)
+    n = 100
+
+    # when beta == 1.0, s_i == k_i, so weights w_ij must all be identically 1.0
+    mat = generate_weighted_random_graph_serrano(n, beta=1.0, rng=rng)
+    assert mat.shape == (n, n)
+    assert np.array_equal(mat, mat.T)
+
+    edges = mat > 0
+    assert np.any(edges)
+    assert np.allclose(mat[edges], 1.0)
+
+
+def test_generate_weighted_random_graph_serrano_strength_convergence() -> None:
+    from orbitkit.adjacency import (
+        _make_chung_lu_power_law_degrees,  # ruff: ignore[import-private-name]
+        generate_weighted_random_graph_serrano,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    n = 300
+    beta = 1.5
+
+    degrees = _make_chung_lu_power_law_degrees(n)
+    target_strengths = degrees**beta
+    expected_mean_strength = np.mean(target_strengths)
+
+    mat = generate_weighted_random_graph_serrano(n, degrees=degrees, beta=beta, rng=rng)
+    strengths = np.sum(mat, axis=1)
+    mean_strengths = np.mean(strengths)
+
+    error = abs(mean_strengths - expected_mean_strength) / expected_mean_strength
+    assert error < 0.15
+
+
+def test_generate_weighted_random_graph_serrano_degree_strength_scaling() -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_serrano
+
+    rng = np.random.default_rng(seed=42)
+    n = 200
+    beta = 1.5
+
+    mat = generate_weighted_random_graph_serrano(n, beta=beta, rng=rng)
+    degrees = np.sum(mat > 0, axis=1)
+    strengths = np.sum(mat, axis=1)
+
+    connected = degrees > 0
+    deg = degrees[connected]
+    strn = strengths[connected]
+
+    corr = float(np.corrcoef(deg, strn)[0, 1])
+    assert corr > 0.85
+
+
+def test_generate_weighted_random_graph_serrano_edge_cases() -> None:
+    from orbitkit.adjacency import generate_weighted_random_graph_serrano
+
+    rng = np.random.default_rng(seed=42)
+    n = 32
+
+    with pytest.raises(ValueError, match="negative dimension"):
+        _ = generate_weighted_random_graph_serrano(-1, rng=rng)
+
+    with pytest.raises(ValueError, match="shape"):
+        _ = generate_weighted_random_graph_serrano(n, degrees=np.ones(n // 2), rng=rng)
+
+    with pytest.raises(ValueError, match="shape"):
+        _ = generate_weighted_random_graph_serrano(
+            n, strengths=np.ones(n // 2), rng=rng
+        )
+
+    bad = np.ones(n)
+    bad[0] = -1.0
+    with pytest.raises(ValueError, match="non-negative"):
+        _ = generate_weighted_random_graph_serrano(n, degrees=bad, rng=rng)
+
+    bad = np.ones(n)
+    bad[0] = -1.0
+    with pytest.raises(ValueError, match="non-negative"):
+        _ = generate_weighted_random_graph_serrano(n, strengths=bad, rng=rng)
+
+    with pytest.raises(ValueError, match="positive"):
+        _ = generate_weighted_random_graph_serrano(n, beta=-0.5, rng=rng)
+
+    zero_mat = generate_weighted_random_graph_serrano(n, degrees=np.zeros(n), rng=rng)
+    assert zero_mat.shape == (n, n)
+    assert np.all(zero_mat == 0)
+
+
+# }}}
+
+
 # {{{ test_shuffle_adjacency_weights
 
 
