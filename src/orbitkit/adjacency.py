@@ -1423,6 +1423,17 @@ def generate_adjacency_stochastic_block_model(
     return result
 
 
+def _make_chung_lu_power_law_degrees(
+    n: int,
+    *,
+    gamma: float = 2.5,
+    mu: float = 5.0,
+) -> Array1D[np.floating[Any]]:
+    p = 1.0 / (gamma - 1.0)
+    idx = np.arange(1, n + 1) ** (-p)
+    return n * mu * idx / np.sum(idx)
+
+
 def generate_adjacency_chung_lu(
     n: int,
     *,
@@ -1460,18 +1471,13 @@ def generate_adjacency_chung_lu(
 
     if degrees is None:
         # NOTE: we make a little default degree sequence to match [Chung2002]
-        gamma = 2.5
-        mu = 5.0
-
-        p = 1.0 / (gamma - 1.0)
-        idx = np.arange(1, n + 1) ** (-p)
-        degrees = n * mu * idx / np.sum(idx)
+        degrees = _make_chung_lu_power_law_degrees(n)
     else:
         if degrees.shape != (n,):
             raise ValueError(f"'degrees' must have shape ({n},): {degrees.shape}")
 
         if np.any(degrees < 0):
-            raise ValueError("'degrees must be non-negative'")
+            raise ValueError("'degrees' must be non-negative")
 
     total = np.sum(degrees)
     if total < 10 * np.finfo(degrees.dtype).eps:
@@ -1570,6 +1576,87 @@ def generate_weighted_random_graph_garlaschelli(
 
     # FIXME: ensure that this is actually connected
     return result
+
+
+def generate_weighted_random_graph_serrano(
+    n: int,
+    *,
+    degrees: Array1D[np.floating[Any]] | None = None,
+    strengths: Array1D[np.floating[Any]] | None = None,
+    beta: float = 1.5,
+    dtype: DTypeLike | None = None,
+    rng: np.random.Generator | None = None,
+) -> Array2D[np.floating[Any]]:
+    r"""Generate a Weighted Complex Network (WCN) as described in [Serrano2006]_.
+
+    This construction acts as a maximally random null model for weighted
+    complex networks with prescribed degree-strength distributions, filtering out
+    spurious non-structural correlations. The unweighted graph is generated
+    via the Chung-Lu ensemble, and edges are assigned weights according to
+
+    .. math::
+
+        w_{ij} = \frac{\langle k \rangle}{\langle s \rangle} \frac{s_i s_j}{k_i k_j}.
+
+    .. [Serrano2006] M. Á. Serrano, M. Boguñá, R. Pastor-Satorras,
+        *Correlations in Weighted Networks*,
+        Physical Review E, Vol. 74, pp. 55101--55101, 2006,
+        `doi:10.1103/physreve.74.055101 <https://doi.org/10.1103/physreve.74.055101>`__.
+
+    :arg degrees: an array of expected node degrees, which are not necessarily
+        integer values. If no degrees are given, then a simple power law with
+        mean degree *5.0* is used.
+    :arg strengths: an array of expected node strengths. If not given, then
+        they are defined as :math:`s_i = k_i^\beta` from the degree distribution.
+    """
+
+    if n < 0:
+        raise ValueError(f"negative dimensions are not allowed: '{n}'")
+
+    if dtype is None:
+        dtype = np.float64
+    dtype = np.dtype(dtype)
+
+    if n <= 1:
+        return np.zeros((n, n), dtype=dtype)
+
+    if degrees is None:
+        degrees = _make_chung_lu_power_law_degrees(n)
+    else:
+        if degrees.shape != (n,):
+            raise ValueError(f"'degrees' must have shape ({n},): {degrees.shape}")
+
+        if np.any(degrees < 0):
+            raise ValueError("'degrees' must be non-negative")
+
+    if strengths is None:
+        if beta <= 0.0:
+            raise ValueError(f"'beta' must be positive: {beta}")
+
+        strengths = degrees**beta
+    else:
+        if strengths.shape != (n,):
+            raise ValueError(f"'strengths' must have shape ({n},): {strengths.shape}")
+
+        if np.any(strengths < 0):
+            raise ValueError("'strengths' must be non-negative")
+
+    # generate underlying graph
+    A = generate_adjacency_chung_lu(n, degrees=degrees, rng=rng)
+
+    # add weights
+    u = np.zeros_like(degrees, dtype=np.float64)
+    nonzero = degrees > 0
+    u[nonzero] = strengths[nonzero] / degrees[nonzero]
+
+    mean_k = np.mean(degrees)
+    mean_s = np.mean(strengths)
+    scale = (mean_k / mean_s) if mean_s > 0 else 1.0
+
+    W = scale * A * np.outer(u, u)
+    np.fill_diagonal(W, 0.0)
+
+    return W.astype(dtype)
 
 
 # }}}
