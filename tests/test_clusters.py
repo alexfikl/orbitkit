@@ -125,6 +125,42 @@ def test_signed_leiden_communities_validation() -> None:
         signed_leiden_communities(np.array([[np.inf, 0], [0, np.inf]]))
 
 
+def test_signed_leiden_communities_weight() -> None:
+    """The negative layer is active by default and can be disabled with 'weight'."""
+    from orbitkit.clusters import signed_leiden_communities
+
+    # a positive path (0 -- 1, 0 -- 2) plus a single negative edge (1 -- 2):
+    # only the negative layer can push node 2 out of the community
+    mat = np.array([
+        [0.0, 1.0, 1.0],
+        [1.0, 0.0, -1.0],
+        [1.0, -1.0, 0.0],
+    ])
+
+    assert len(signed_leiden_communities(mat, seed=42)) == 2
+    assert len(signed_leiden_communities(mat, weight=1.0, seed=42)) == 2
+    assert len(signed_leiden_communities(mat, weight=0.0, seed=42)) == 1
+
+    with pytest.raises(ValueError, match="non-negative"):
+        signed_leiden_communities(mat, weight=-1.0)
+
+
+def test_signed_leiden_communities_scale_invariance() -> None:
+    """The partition does not depend on the overall scale of the weights."""
+    from orbitkit.clusters import signed_leiden_communities
+
+    mat = np.array([
+        [0.0, 1.0, 1.0],
+        [1.0, 0.0, -1.0],
+        [1.0, -1.0, 0.0],
+    ])
+
+    expected = frozenset(frozenset(c) for c in signed_leiden_communities(mat, seed=42))
+    for scale in (1.0e-2, 1.0e2, 1.0e4):
+        communities = signed_leiden_communities(scale * mat, seed=42)
+        assert frozenset(frozenset(c) for c in communities) == expected
+
+
 # }}}
 
 
