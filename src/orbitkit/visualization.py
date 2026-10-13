@@ -1255,7 +1255,7 @@ def write_dot_from_adjacency(
             edgecolors = to_color(w, colormap=colormap, vmin=wmin, vmax=wmax)
 
         for k, (i, j) in enumerate(edges):
-            if widths is None:
+            if widths is None or edgecolors is None:
                 outf.write(f'    "{i}" -- "{j}";\n')
             else:
                 outf.write(
@@ -1391,7 +1391,7 @@ def write_gexf_from_adjacency(
             weight=f"{mat[i, j]:g}",
         )
 
-        if widths is not None:
+        if widths is not None and edgecolors is not None:
             SubElement(edge, f"{{{viz}}}size", value=f"{widths[k]:.3f}")
 
             color = edgecolors[k][1:]
