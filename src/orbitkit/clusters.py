@@ -209,7 +209,7 @@ def signed_leiden_communities(
     mat: Array2D[np.floating[Any]],
     *,
     resolution: float = 1.0,
-    weight: float | None = None,
+    weight: float = 1.0,
     mode: Literal["undirected", "directed"] = "undirected",
     seed: int | None = None,
 ) -> tuple[set[int], ...]:
@@ -231,11 +231,18 @@ def signed_leiden_communities(
         Q = \frac{1}{2 w^+} \sum_{i j}
                 \left( w_{ij}^+ - \gamma \frac{k_i^+ k_j^+}{2 w^+} \right)
                 \delta(c_i, c_j)
-            - \sum_{i j} w_{ij}^- \delta(c_i, c_j),
+            - \lambda \frac{1}{2 w^-} \sum_{i j}
+                w_{ij}^- \delta(c_i, c_j),
 
-    where :math:`k_i^+` is the positive weighted degree of node :math:`i`
-    and :math:`2 w^+` is the total positive edge weight.  Larger values of
-    *resolution* favour smaller, more tightly connected communities.
+    where :math:`k_i^+` is the positive weighted degree of node :math:`i`,
+    :math:`2 w^\pm` is the total positive/negative edge weight, and
+    :math:`\lambda` is *weight*.
+
+    Each layer is normalized by its own total edge weight, so the quality is
+    invariant to rescaling *mat*, and :math:`\lambda` is a dimensionless
+    relative weight. The default :math:`\lambda = 1` gives the two layers equal
+    weight, while :math:`\lambda = 0` ignores the negative layer. Larger values
+    of *resolution* favour smaller, more tightly connected communities.
 
     .. [Traag2009] V. A. Traag, J. Bruggeman,
         *Community Detection in Networks With Positive and Negative Links*,
@@ -244,6 +251,9 @@ def signed_leiden_communities(
 
     :arg mat: a signed symmetric adjacency matrix.
     :arg resolution: resolution parameter :math:`\gamma` for the null model.
+    :arg weight: relative weight :math:`\lambda` of the negative layer. The
+        default ``1.0`` weights the two normalized layers equally and ``0.0``
+        disables the negative layer.
     :arg mode: whether the graph is ``"undirected"`` or ``"directed"``.
     :arg seed: random seed for reproducibility.
 
@@ -268,16 +278,17 @@ def signed_leiden_communities(
 
     from igraph import Graph
 
+    if weight < 0.0:
+        raise ValueError(f"'weight' must be non-negative: {weight}")
+
     W_pos = np.where(mat > 0, mat, 0.0)
     W_neg = np.where(mat < 0, -mat, 0.0)
 
-    if weight is None:
-        weight = np.sum(W_neg)
-        weight = 1.0 / weight if weight > 0.0 else 0.0
+    # compute normalization for each subnetwork
+    layer_pos = 1.0 / w if (w := np.sum(W_pos)) > 0.0 else 0.0
+    layer_neg = weight / w if (w := np.sum(W_neg)) > 0.0 else 0.0
 
-    if weight < 0:
-        raise ValueError(f"'weight' must be non-negative: {weight}")
-
+    # create partitions for each subnetworks
     G_pos = Graph.Weighted_Adjacency(W_pos, mode=mode)
     G_neg = Graph.Weighted_Adjacency(W_neg, mode=mode)
 
@@ -288,13 +299,14 @@ def signed_leiden_communities(
         G_neg, weights="weight", resolution_parameter=0.0
     )
 
+    # find partitions
     optimiser = leidenalg.Optimiser()
     if seed is not None:
         optimiser.set_rng_seed(seed)
 
     optimiser.optimise_partition_multiplex(
         [part_pos, part_neg],
-        layer_weights=[1, -weight],
+        layer_weights=[layer_pos, -layer_neg],
     )
     membership = part_pos.membership
 
