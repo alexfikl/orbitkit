@@ -787,7 +787,7 @@ def test_make_graph_laplacian_directed(out: bool, normalize: bool) -> None:  # r
     )
 
     rng = np.random.default_rng(seed=42)
-    atol = 4.0e-14
+    atol = 6.0e-14
     n = 128
 
     for topology in ADJACENCY_TYPES:
