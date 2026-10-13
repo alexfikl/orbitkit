@@ -8,7 +8,7 @@ import pathlib
 
 import numpy as np
 
-from orbitkit.adjacency import ADJACENCY_TYPES
+from orbitkit.adjacency import ADJACENCY_TYPES, WEIGHTED_ADJACENCY_TYPES
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -39,20 +39,25 @@ def main(
 
     from orbitkit.visualization import to_color
 
-    if name.startswith("barabasialbert"):
-        degrees = np.sum(mat, axis=1)
-        nodecolors = to_color(degrees, colormap="Reds", vmin=0, vmax=None)
+    weighted = name in WEIGHTED_ADJACENCY_TYPES
+    if name.startswith("barabasialbert") or weighted:
+        weights = np.sum(mat, axis=1)
+        nodecolors = to_color(weights, colormap="plasma", vmin=0, vmax=None)
     else:
         nodecolors = None
 
     if outfile.suffix == ".gexf":
         from orbitkit.visualization import write_gexf_from_adjacency
 
-        write_gexf_from_adjacency(outfile, mat, nodecolors=nodecolors, overwrite=force)
+        write_gexf_from_adjacency(
+            outfile, mat, nodecolors=nodecolors, weighted=weighted, overwrite=force
+        )
     elif outfile.suffix == ".dot":
         from orbitkit.visualization import write_dot_from_adjacency
 
-        write_dot_from_adjacency(outfile, mat, nodecolors=nodecolors, overwrite=force)
+        write_dot_from_adjacency(
+            outfile, mat, nodecolors=nodecolors, weighted=weighted, overwrite=force
+        )
     else:
         from orbitkit.visualization import (
             NetworkXLayout,
@@ -75,7 +80,14 @@ def main(
             layout = NetworkXLayout.ARF
 
         set_plotting_defaults()
-        write_nx_from_adjacency(outfile, mat, layout=layout, overwrite=force)
+        write_nx_from_adjacency(
+            outfile,
+            mat,
+            layout=layout,
+            weighted=weighted,
+            nodecolors=nodecolors,
+            overwrite=force,
+        )
 
     return 0
 
