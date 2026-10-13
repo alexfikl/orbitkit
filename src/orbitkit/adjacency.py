@@ -1446,7 +1446,8 @@ def _sample_chung_lu_edges(
         return empty, empty
 
     iu, ju = np.triu_indices(n, k=1)
-    p = (degrees[iu] * degrees[ju]) / total
+    deg_scaled = degrees * (1.0 / total)
+    p = deg_scaled[iu] * degrees[ju]
     connected = rng.random(len(iu)) < p
     return iu[connected], ju[connected]
 
