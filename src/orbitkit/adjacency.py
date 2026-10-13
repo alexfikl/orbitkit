@@ -99,28 +99,40 @@ def stringify_adjacency(
         raise ValueError(f"unknown stringify format: '{fmt}'")
 
 
-ADJACENCY_TYPES: Final = frozenset({
-    "barabasialbert",
-    "barabasialbert2",
-    "barabasialbert4",
-    "bus",
-    "bus1",
-    "bus2",
-    "chunglu",
-    "configuration",
-    "distancedecay",
-    "erdosrenyi",
-    "feedforward",
-    "fractal",
-    # "gapjunctions",
-    "lattice",
-    "ring",
-    "ring1",
-    "ring2",
-    "star",
-    "startree",
-    "strogatzwatts",
+WEIGHTED_ADJACENCY_TYPES: Final = frozenset({
+    "garlaschelli",
+    "serrano",
 })
+"""Names of topologies that generate real-valued (weighted) adjacency matrices."""
+
+ADJACENCY_TYPES: Final = frozenset(
+    {
+        "barabasialbert",
+        "barabasialbert2",
+        "barabasialbert4",
+        "bus",
+        "bus1",
+        "bus2",
+        "chunglu",
+        "configuration",
+        "distancedecay",
+        "erdosrenyi",
+        "feedforward",
+        "fractal",
+        "garlaschelli",
+        # "gapjunctions",
+        "lattice",
+        "ring",
+        "ring1",
+        "ring2",
+        "serrano",
+        "star",
+        "startree",
+        "strogatzwatts",
+    }
+    | WEIGHTED_ADJACENCY_TYPES
+)
+"""Names of the supported adjacency matrix topologies."""
 
 
 def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
@@ -137,7 +149,7 @@ def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
         gap junction clusters; number of levels in a fractal network.
     """
     if dtype is None:
-        dtype = np.int32
+        dtype = np.float64 if topology in WEIGHTED_ADJACENCY_TYPES else np.int32
     dtype = np.dtype(dtype)
 
     if rng is None:
@@ -183,6 +195,10 @@ def make_adjacency_matrix_from_name(  # ruff:ignore[too-many-return-statements]
         return generate_adjacency_configuration(n, dtype=dtype, rng=rng)
     elif topology == "chunglu":
         return generate_adjacency_chung_lu(n, dtype=dtype, rng=rng)
+    elif topology == "garlaschelli":
+        return generate_weighted_random_graph_garlaschelli(n, dtype=dtype, rng=rng)
+    elif topology == "serrano":
+        return generate_weighted_random_graph_serrano(n, dtype=dtype, rng=rng)
     elif topology == "gapjunctions":
         k = max(int(n // 9) - 1, 1) if k is None else k
         return generate_adjacency_gap_junctions(n, k, dtype=dtype, rng=rng)
