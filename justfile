@@ -170,7 +170,7 @@ examples:
 
     set -o errexit -o errtrace -o nounset -o pipefail
 
-    for ex in `ls examples/*.py`; do
+    for ex in `ls examples/models/*.py examples/*.py`; do
         echo "::group::Running ${ex}";
         {{ PYTHON }} ${ex};
         echo "::endgroup::";
