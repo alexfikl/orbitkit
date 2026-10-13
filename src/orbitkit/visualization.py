@@ -1114,16 +1114,14 @@ def write_nx_from_adjacency(
         nx.draw_networkx_labels(graph, layout, ax=ax)
 
         widths = None
-        edge_color = None
+        edgecolors = None
         if weighted and graph.number_of_edges() > 0:
             edges = list(graph.edges(data=True))
-            w = np.array(
-                [data.get("weight", 1.0) for *_, data in edges]
-            )
 
+            w = np.array([data.get("weight", 1.0) for *_, data in edges])
             wmin, wmax = _weight_limits(w)
             widths = _scale_weight(w, vmin, vmax)
-            edge_color = to_color(w, colormap=colormap, vmin=wmin, vmax=wmax)
+            edgecolors = to_color(w, colormap=colormap, vmin=wmin, vmax=wmax)
 
         nx.draw_networkx_edges(
             graph,
@@ -1132,7 +1130,7 @@ def write_nx_from_adjacency(
             arrows=True,
             connectionstyle="arc3,rad=0.1",
             width=widths,
-            edge_color=edge_color,
+            edge_color=edgecolors,
         )
 
         if widths is not None:
@@ -1283,6 +1281,10 @@ def write_gexf_from_adjacency(
     directed: bool = False,
     nodenames: Iterable[str] | None = None,
     nodecolors: Iterable[str] | None = None,
+    weighted: bool = False,
+    colormap: str = "viridis",
+    vmin: float = 1.0,
+    vmax: float = 8.0,
     overwrite: bool = False,
 ) -> None:
     """Write a `*.gexf* <https://gexf.net/>`__ file for the give adjacency
@@ -1290,6 +1292,7 @@ def write_gexf_from_adjacency(
 
     :arg nodenames: a list of labels used for the nodes. Defaults to using
         the node index.
+    :arg weighted: if *True*, the edges are scaled by the entries of *mat*.
     """
     filename = pathlib.Path(filename)
     if not overwrite and filename.exists():
@@ -1364,24 +1367,36 @@ def write_gexf_from_adjacency(
         r, g, b = (int(color[i : i + 2], 16) for i in (0, 2, 4))
         SubElement(node, f"{{{viz}}}color", r=str(r), g=str(g), b=str(b))
 
-    edge_id = 0
-    edges = SubElement(graph, "edges")
-    for i, j in product(range(n), range(n)):
-        if mat[i, j] == 0:
-            continue
+    if directed:
+        edges = [(i, j) for i, j in product(range(n), range(n)) if mat[i, j] != 0]
+    else:
+        edges = [(i, j) for i in range(n) for j in range(i + 1, n) if mat[i, j] != 0]
 
-        if not directed and j <= i:
-            continue
+    widths = None
+    edgecolors = None
+    if weighted and edges:
+        w = np.array([mat[i, j] for i, j in edges])
+        wmin, wmax = _weight_limits(w)
+        widths = _scale_weight(w, vmin, vmax)
+        edgecolors = to_color(w, colormap=colormap, vmin=wmin, vmax=wmax)
 
-        SubElement(
-            edges,
+    edge_elems = SubElement(graph, "edges")
+    for k, (i, j) in enumerate(edges):
+        edge = SubElement(
+            edge_elems,
             "edge",
-            edge_id=str(edge_id),
+            edge_id=str(k),
             source=str(i),
             target=str(j),
             weight=f"{mat[i, j]:g}",
         )
-        edge_id += 1
+
+        if widths is not None:
+            SubElement(edge, f"{{{viz}}}size", value=f"{widths[k]:.3f}")
+
+            color = edgecolors[k][1:]
+            r, g, b = (int(color[m : m + 2], 16) for m in (0, 2, 4))
+            SubElement(edge, f"{{{viz}}}color", r=str(r), g=str(g), b=str(b), a="0.8")
 
     # }}}
 
