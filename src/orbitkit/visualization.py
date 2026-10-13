@@ -1052,11 +1052,9 @@ def write_nx_from_adjacency(
     """Write a ``networkx`` graph for the given adjacency matrix *mat*.
 
     :arg layout: the layout used to position the nodes.
-    :arg weighted: if *True*, the edge width and color are scaled by the entries
-        of *mat* and a colorbar is added to the plot.
+    :arg weighted: if *True*, the edges are scaled by the entries of *mat*.
     :arg nodecolors: a list of colors for each node given as hexadecimal strings,
         i.e. ``#000000`` (see :func:`to_color`).
-    :arg width_range: the minimum and maximum edge widths used.
     """
     import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment,unused-ignore-comment]
 
@@ -1182,6 +1180,10 @@ def write_dot_from_adjacency(
     nodenames: Iterable[str] | None = None,
     nodecolors: Iterable[str] | None = None,
     layout: DotLayout = DotLayout.Neato,
+    weighted: bool = False,
+    colormap: str = "viridis",
+    vmin: float = 1.0,
+    vmax: float = 10.0,
     overwrite: bool = False,
 ) -> None:
     """Write a `*.dot* <https://graphviz.org/doc/info/lang.html>`__ file for the
@@ -1192,6 +1194,7 @@ def write_dot_from_adjacency(
     :arg nodecolor: a list of colors for each node given as hexadeximal strings,
         i.e. ``#000000``. An alpha component can also be included.
     :arg layout: the layout used by dot to render the graph.
+    :arg weighted: if *True*, the edges are scaled by the entries of *mat*.
     """
     filename = pathlib.Path(filename)
     if not overwrite and filename.exists():
@@ -1243,10 +1246,24 @@ def write_dot_from_adjacency(
 
         outf.write("\n")
 
-        for i in range(n):
-            for j in range(i + 1, n):
-                if mat[i, j] != 0:
-                    outf.write(f'    "{i}" -- "{j}";\n')
+        edges = [(i, j) for i in range(n) for j in range(i + 1, n) if mat[i, j] != 0]
+
+        widths = None
+        edgecolors = None
+        if weighted and edges:
+            w = np.array([mat[i, j] for i, j in edges])
+            wmin, wmax = _weight_limits(w)
+            widths = _scale_weight(w, vmin, vmax)
+            edgecolors = to_color(w, colormap=colormap, vmin=wmin, vmax=wmax)
+
+        for k, (i, j) in enumerate(edges):
+            if widths is None:
+                outf.write(f'    "{i}" -- "{j}";\n')
+            else:
+                outf.write(
+                    f'    "{i}" -- "{j}" '
+                    f'[penwidth={widths[k]:.2f}, color="{edgecolors[k]}"];\n'
+                )
 
         outf.write("}\n")
 
