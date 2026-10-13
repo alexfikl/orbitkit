@@ -724,7 +724,7 @@ def compute_rich_club_coefficient_opsahl(
 
     .. math::
 
-        \phi^w(r) = \frac{W_{> r}}{\sum_{l = 1}^{E_{> r}} w_l^{\mathrm{rank}}},
+        \phi^w(r) = \frac{W_{> r}}{\sum_{l = 1}^{E_{> r}} w_l^{\mathrm{rank}} },
 
     where :math:`r` is a richness parameter, :math:`W_{> r}` is the sum of the
     weights of the links connecting the nodes with richness larger than
