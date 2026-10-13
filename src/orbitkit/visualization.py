@@ -1017,13 +1017,47 @@ class NetworkXLayout(enum.Enum):
     """Position nodes in layers of straight lines."""
 
 
+def _weight_limits(w: Array1D[np.floating[Any]]) -> tuple[float, float]:
+    wmin, wmax = float(np.min(w)), float(np.max(w))
+    if wmax <= wmin:
+        wmax = wmin + 1.0
+
+    return wmin, wmax
+
+
+def _scale_weight(
+    w: Array1D[np.floating[Any]],
+    vmin: float,
+    vmax: float,
+) -> Array1D[np.floating[Any]]:
+    wmin, wmax = float(np.min(w)), float(np.max(w))
+    if wmax <= wmin:
+        return np.full(w.shape, 0.5 * (vmin + vmax), dtype=w.dtype)
+
+    return vmin + (vmax - vmin) * (w - wmin) / (wmax - wmin)
+
+
 def write_nx_from_adjacency(
     filename: PathLike,
     mat: Array2D[np.floating[Any]],
     *,
     layout: NetworkXLayout = NetworkXLayout.ARF,
+    weighted: bool = False,
+    nodecolors: Iterable[str] | None = None,
+    colormap: str = "viridis",
+    vmin: float = 0.5,
+    vmax: float = 5.0,
     overwrite: bool = False,
 ) -> None:
+    """Write a ``networkx`` graph for the given adjacency matrix *mat*.
+
+    :arg layout: the layout used to position the nodes.
+    :arg weighted: if *True*, the edge width and color are scaled by the entries
+        of *mat* and a colorbar is added to the plot.
+    :arg nodecolors: a list of colors for each node given as hexadecimal strings,
+        i.e. ``#000000`` (see :func:`to_color`).
+    :arg width_range: the minimum and maximum edge widths used.
+    """
     import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment,unused-ignore-comment]
 
     filename = pathlib.Path(filename)
@@ -1033,8 +1067,14 @@ def write_nx_from_adjacency(
     if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
         raise ValueError(f"'mat' must be a square matrix: {mat.shape}")
 
-    if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
-        raise ValueError(f"'mat' must be a square matrix: {mat.shape}")
+    n, _ = mat.shape
+    if nodecolors is not None:
+        nodecolors = tuple(nodecolors)
+        if len(nodecolors) != n:
+            raise ValueError(
+                f"incorrect number of node colors: got {len(nodecolors)} "
+                f"but expected {n}"
+            )
 
     graph = nx.from_numpy_array(mat)
     if layout == NetworkXLayout.Circular:
@@ -1071,15 +1111,39 @@ def write_nx_from_adjacency(
             graph,
             layout,
             ax=ax,
+            node_color=nodecolors,
         )
         nx.draw_networkx_labels(graph, layout, ax=ax)
+
+        widths = None
+        edge_color = None
+        if weighted and graph.number_of_edges() > 0:
+            edges = list(graph.edges(data=True))
+            w = np.array(
+                [data.get("weight", 1.0) for *_, data in edges]
+            )
+
+            wmin, wmax = _weight_limits(w)
+            widths = _scale_weight(w, vmin, vmax)
+            edge_color = to_color(w, colormap=colormap, vmin=wmin, vmax=wmax)
+
         nx.draw_networkx_edges(
             graph,
             layout,
             ax=ax,
             arrows=True,
             connectionstyle="arc3,rad=0.1",
+            width=widths,
+            edge_color=edge_color,
         )
+
+        if widths is not None:
+            from matplotlib.cm import ScalarMappable
+            from matplotlib.colors import Normalize
+
+            sm = ScalarMappable(norm=Normalize(vmin=wmin, vmax=wmax), cmap=colormap)
+            fig.colorbar(sm, ax=ax)
+
         ax.set_axis_off()
 
 
