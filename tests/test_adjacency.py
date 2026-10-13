@@ -1352,6 +1352,46 @@ def test_generate_weighted_random_graph_serrano_edge_cases() -> None:
     assert np.all(zero_mat == 0)
 
 
+def test_generate_random_serrano_weights() -> None:
+    from orbitkit.adjacency import (
+        generate_adjacency_erdos_renyi,
+        generate_random_serrano_weights,
+    )
+
+    rng = np.random.default_rng(seed=42)
+    n = 50
+    adj = generate_adjacency_erdos_renyi(n, p=0.3, rng=rng)
+
+    # 1. binary matrix reweighting
+    W = generate_random_serrano_weights(adj, beta=1.5)
+    assert W.shape == adj.shape
+    assert np.allclose(W, W.T)
+    assert np.all(np.diag(W) == 0)
+    assert np.array_equal(W > 0, adj > 0)
+
+    # 2. unit weights when beta=1.0
+    W_unit = generate_random_serrano_weights(adj, beta=1.0)
+    edges = adj > 0
+    assert np.allclose(W_unit[edges], 1.0)
+
+    # 3. reweighting an already weighted matrix
+    W_empirical = adj.astype(float) * rng.uniform(1.0, 5.0, size=adj.shape)
+    W_empirical = (W_empirical + W_empirical.T) / 2
+    np.fill_diagonal(W_empirical, 0)
+
+    W_null = generate_random_serrano_weights(W_empirical)
+    assert W_null.shape == W_empirical.shape
+    assert np.allclose(W_null, W_null.T)
+    assert np.array_equal(W_null > 0, W_empirical > 0)
+
+    # 4. edge cases
+    with pytest.raises(ValueError, match="square"):
+        generate_random_serrano_weights(np.zeros((3, 4)))
+
+    zero_mat = generate_random_serrano_weights(np.zeros((10, 10)))
+    assert np.all(zero_mat == 0)
+
+
 # }}}
 
 

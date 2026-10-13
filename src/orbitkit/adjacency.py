@@ -1434,6 +1434,23 @@ def _make_chung_lu_power_law_degrees(
     return n * mu * idx / np.sum(idx)
 
 
+def _sample_chung_lu_edges(
+    degrees: Array1D[np.floating[Any]],
+    *,
+    rng: np.random.Generator,
+) -> tuple[Array1D[np.integer[Any]], Array1D[np.integer[Any]]]:
+    n = len(degrees)
+    total = np.sum(degrees)
+    if total < 10 * np.finfo(degrees.dtype).eps:
+        empty = np.array([], dtype=np.int64)
+        return empty, empty
+
+    iu, ju = np.triu_indices(n, k=1)
+    p = (degrees[iu] * degrees[ju]) / total
+    connected = rng.random(len(iu)) < p
+    return iu[connected], ju[connected]
+
+
 def generate_adjacency_chung_lu(
     n: int,
     *,
@@ -1479,17 +1496,11 @@ def generate_adjacency_chung_lu(
         if np.any(degrees < 0):
             raise ValueError("'degrees' must be non-negative")
 
-    total = np.sum(degrees)
-    if total < 10 * np.finfo(degrees.dtype).eps:
-        return np.zeros((n, n), dtype=dtype)
-
-    iu, ju = np.triu_indices(n, k=1)
-    p = (degrees[iu] * degrees[ju]) / total
-    connected = rng.random(len(iu)) < p
+    ic, jc = _sample_chung_lu_edges(degrees, rng=rng)
 
     A = np.zeros((n, n), dtype=dtype)
-    A[iu[connected], ju[connected]] = 1
-    A[ju[connected], iu[connected]] = 1
+    A[ic, jc] = 1
+    A[jc, ic] = 1
 
     return A
 
@@ -1575,6 +1586,20 @@ def generate_weighted_random_graph_garlaschelli(
     return result
 
 
+def _make_serrano_scaling(
+    degrees: Array1D[np.floating[Any]],
+    strengths: Array1D[np.floating[Any]],
+) -> tuple[float, Array1D[np.floating[Any]]]:
+    u = np.zeros_like(degrees, dtype=np.float64)
+    nonzero = degrees > 0
+    u[nonzero] = strengths[nonzero] / degrees[nonzero]
+
+    mean_k = np.mean(degrees)
+    mean_s = np.mean(strengths)
+    scale = float(mean_k / mean_s) if mean_s > 0 else 1.0
+    return scale, u
+
+
 def generate_weighted_random_graph_serrano(
     n: int,
     *,
@@ -1641,25 +1666,8 @@ def generate_weighted_random_graph_serrano(
     if rng is None:
         rng = np.random.default_rng()
 
-    total = np.sum(degrees)
-    if total < 10 * np.finfo(degrees.dtype).eps:
-        return np.zeros((n, n), dtype=dtype)
-
-    iu, ju = np.triu_indices(n, k=1)
-    p = (degrees[iu] * degrees[ju]) / total
-    connected = rng.random(len(iu)) < p
-
-    ic = iu[connected]
-    jc = ju[connected]
-
-    # add weights
-    u = np.zeros_like(degrees, dtype=np.float64)
-    nonzero = degrees > 0
-    u[nonzero] = strengths[nonzero] / degrees[nonzero]
-
-    mean_k = np.mean(degrees)
-    mean_s = np.mean(strengths)
-    scale = (mean_k / mean_s) if mean_s > 0 else 1.0
+    ic, jc = _sample_chung_lu_edges(degrees, rng=rng)
+    scale, u = _make_serrano_scaling(degrees, strengths)
 
     w = scale * u[ic] * u[jc]
     W = np.zeros((n, n), dtype=dtype)
@@ -1931,7 +1939,6 @@ def generate_random_degree_proportional_weights(
     * :math:`0 < \alpha < 1`: a sublinear scaling with respect to degree.
     * :math:`\alpha < 0`: high-degree nodes receive less input.
     * :math:`\alpha > 1`: high-degree nodes are amplified.
-
     """
 
     result = generate_random_equal_row_sum(mat, dtype=dtype, rng=rng)
@@ -1949,6 +1956,70 @@ def generate_random_degree_proportional_weights(
         scaling /= max_scaling
 
     result *= scaling.reshape(-1, 1)
+    return result
+
+
+def generate_random_serrano_weights(
+    mat: Array2D[np.floating[Any]],
+    *,
+    degrees: Array1D[np.floating[Any]] | None = None,
+    strengths: Array1D[np.floating[Any]] | None = None,
+    beta: float = 1.5,
+    dtype: DTypeLike | None = None,
+) -> Array2D[np.floating[Any]]:
+    r"""Generate edge weights for *mat* according to [Serrano2006]_.
+
+    This assigns weights to the existing edges of the adjacency matrix *mat*
+    such that edge weights follow the uncorrelated baseline:
+
+    .. math::
+
+        w_{ij} = \frac{\langle k \rangle}{\langle s \rangle} \frac{s_i s_j}{k_i k_j}.
+
+    :arg degrees: an array of node degrees. If not given, degrees are computed
+        from *mat* as the row counts of non-zero entries.
+    :arg strengths: an array of expected node strengths. If not given, then
+        they are defined as :math:`s_i = k_i^\beta` from the degree distribution.
+    """
+    if mat.ndim != 2 or mat.shape[0] != mat.shape[1]:
+        raise ValueError(f"adjacency matrix should be square: {mat.shape}")
+
+    if dtype is None:
+        dtype = np.float64
+    dtype = np.dtype(dtype)
+
+    n = mat.shape[0]
+    if n <= 1:
+        return np.zeros(mat.shape, dtype=dtype)
+
+    if degrees is None:
+        degrees = np.count_nonzero(mat != 0, axis=1).astype(np.float64)
+    else:
+        if degrees.shape != (n,):
+            raise ValueError(f"'degrees' must have shape ({n},): {degrees.shape}")
+
+        if np.any(degrees < 0):
+            raise ValueError("'degrees' must be non-negative")
+
+    if strengths is None:
+        if beta <= 0.0:
+            raise ValueError(f"'beta' must be positive: {beta}")
+
+        strengths = degrees**beta
+    else:
+        if strengths.shape != (n,):
+            raise ValueError(f"'strengths' must have shape ({n},): {strengths.shape}")
+        if np.any(strengths < 0):
+            raise ValueError("'strengths' must be non-negative")
+
+    iu, ju = np.nonzero(np.triu(mat != 0, k=1))
+    scale, u = _make_serrano_scaling(degrees, strengths)
+
+    w = scale * u[iu] * u[ju]
+    result = np.zeros(mat.shape, dtype=dtype)
+    result[iu, ju] = w
+    result[ju, iu] = w
+
     return result
 
 
