@@ -736,7 +736,13 @@ def compute_rich_club_coefficient_opsahl(
     weight :math:`\bar{w}_i = s_i / k_i` of the nodes. When *normalized* is
     ``True``, the coefficient is normalized by suitable random null models
     according to [Opsahl2008]_. Most parameters match
-    :func:`compute_rich_club_coefficient`
+    :func:`compute_rich_club_coefficient`.
+
+    .. warning::
+
+        This formulation can conflate topology with weight allocation when
+        normalized. Prefer :func:`compute_rich_club_coefficient_alstott` to
+        cleanly separate topological and weighted contributions.
 
     .. [Opsahl2008] T. Opsahl, V. Colizza, P. Panzarasa, J. J. Ramasco,
         *Prominence and Control: The Weighted Rich-Club Effect*,
