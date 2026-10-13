@@ -843,6 +843,206 @@ def compute_rich_club_coefficient_opsahl(
 # }}}
 
 
+# {{{ compute_rich_club_coefficient_alstott
+
+
+def _compute_alstott_connectedness(
+    mat: Array2D[np.floating[Any]],
+    r: Array1D[np.floating[Any]],
+    thresholds: Array1D[np.floating[Any]],
+    *,
+    binary: bool = False,
+    eps: float,
+) -> Array1D[np.floating[Any]]:
+    iu, ju = np.triu_indices(mat.shape[0], k=1)
+    mask = np.abs(mat[iu, ju]) > eps
+    if not np.any(mask):
+        return np.zeros(len(thresholds), dtype=mat.dtype)
+
+    iu = iu[mask]
+    ju = ju[mask]
+    w = np.ones(len(iu), dtype=mat.dtype) if binary else mat[iu, ju]
+    edge_r = np.minimum(r[iu], r[ju])
+
+    order = np.argsort(edge_r)
+    edge_r_sorted = edge_r[order]
+    w_suffix = np.cumsum(w[order][::-1])[::-1]
+
+    c = np.zeros(len(thresholds), dtype=mat.dtype)
+    for i, t in enumerate(thresholds):
+        pos = int(np.searchsorted(edge_r_sorted, t, side="right"))
+        if pos < len(w_suffix):
+            c[i] = w_suffix[pos]
+
+    return c
+
+
+def compute_rich_club_coefficient_alstott(
+    mat: Array2D[np.floating[Any]],
+    *,
+    kind: Literal["weighted", "topological", "mixed"] = "weighted",
+    richness: Literal["degree", "strength"] = "degree",
+    normalized: bool = True,
+    n_samples: int = 100,
+    eps: float | None = None,
+    rng: np.random.Generator | None = None,
+) -> WeightedRichClubResult:
+    r"""Compute the rich-club coefficient framework from [Alstott2014]_.
+
+    This computes the rich-club coefficient defined as:
+
+    .. math::
+
+        \omega_{\text{norm}}(r) = \frac{C(r)}{C_{\text{rand}}(r)},
+
+    where :math:`C(r)` is the weighted connectedness of the club (the sum of the
+    weights of the links connecting nodes with richness larger than :math:`r`),
+    and :math:`C_{\text{rand}}(r)` is the corresponding connectedness in
+    randomized null model controls.
+
+    The parameter *kind* selects the type of rich club and null model:
+
+    * ``"weighted"``: the underlying network topology is preserved, but link
+      weights are replaced by uncorrelated null model weights using
+      :func:`~orbitkit.adjacency.generate_random_serrano_weights`.
+    * ``"topological"``: link weights are ignored and null models randomize
+      topology using the Chung-Lu model.
+    * ``"mixed"``: both the topology and weights are randomized simultaneously via
+      :func:`~orbitkit.adjacency.generate_weighted_random_graph_serrano`.
+
+    .. [Alstott2014] J. Alstott, P. Panzarasa, M. Rubinov, E. T. Bullmore, P. E. Vértes,
+        *A Unifying Framework for Measuring Weighted Rich Clubs*,
+        Scientific Reports, Vol. 4, pp. 7258, 2014,
+        `doi:10.1038/srep07258 <https://doi.org/10.1038/srep07258>`__.
+
+    :arg normalized: if *True*, divides the empirical connectedness by the null
+        model average :math:`C(r) / C_{\text{rand}}(r)`.
+    :arg n_samples: number of randomized null controls to average over when
+        randomizing topology.
+    :arg eps: edge weight threshold below which edges are considered absent.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if kind not in {"weighted", "topological", "mixed"}:
+        raise ValueError(f"unknown 'kind': {kind!r}")
+
+    if richness not in {"degree", "strength"}:
+        raise ValueError(f"unknown 'richness': {richness!r}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+        if np.any(mat < -eps):
+            raise ValueError("weight matrix 'mat' has negative weights")
+
+    if n < 4:
+        raise ValueError(
+            f"cannot compute rich-club coefficient for fewer than 4 nodes: {n}"
+        )
+
+    if normalized and n_samples < 1:
+        raise ValueError(f"'n_samples' must be >= 1: {n_samples}")
+
+    r = _compute_richness(mat, richness, eps=eps)
+    all_thresholds = np.unique(r)
+
+    # only evaluate thresholds where club has at least 2 nodes
+    r_sorted = np.sort(r)
+    valid_thresholds: list[float] = []
+    for t in all_thresholds:
+        n_club = n - int(np.searchsorted(r_sorted, t, side="right"))
+        if n_club >= 2:
+            valid_thresholds.append(float(t))
+
+    thresholds = np.array(valid_thresholds, dtype=mat.dtype)
+    if thresholds.size == 0:
+        empty = np.array([], dtype=mat.dtype)
+        return WeightedRichClubResult(richness=empty, coefficient=empty)
+
+    is_topological = kind == "topological"
+    C = _compute_alstott_connectedness(
+        mat, r, thresholds, binary=is_topological, eps=eps
+    )
+
+    if not normalized:
+        return WeightedRichClubResult(richness=thresholds, coefficient=C)
+
+    from orbitkit.adjacency import (
+        generate_adjacency_chung_lu,
+        generate_random_serrano_weights,
+        generate_weighted_random_graph_serrano,
+    )
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    degrees = np.count_nonzero(np.abs(mat) > eps, axis=1).astype(np.float64)
+    strengths = np.sum(mat, axis=1).astype(np.float64)
+
+    if kind == "weighted":
+        # topology is preserved, weights are replaced by Serrano baseline
+        W_rand = generate_random_serrano_weights(
+            mat, degrees=degrees, strengths=strengths, dtype=mat.dtype
+        )
+        C_rand = _compute_alstott_connectedness(
+            W_rand, r, thresholds, binary=False, eps=eps
+        )
+    elif kind == "topological":
+        C_rand = np.zeros_like(C)
+        for _ in range(n_samples):
+            A_rand = generate_adjacency_chung_lu(
+                n, degrees=degrees, dtype=mat.dtype, rng=rng
+            )
+            C_rand += _compute_alstott_connectedness(
+                A_rand, r, thresholds, binary=True, eps=0.5
+            )
+        C_rand /= n_samples
+    elif kind == "mixed":
+        C_rand = np.zeros_like(C)
+        for _ in range(n_samples):
+            W_rand = generate_weighted_random_graph_serrano(
+                n, degrees=degrees, strengths=strengths, dtype=mat.dtype, rng=rng
+            )
+            C_rand += _compute_alstott_connectedness(
+                W_rand, r, thresholds, binary=False, eps=eps
+            )
+        C_rand /= n_samples
+    else:
+        raise AssertionError(f"unexpected kind: {kind}")
+
+    keep = C_rand > 0.0
+    if not np.all(keep):
+        from warnings import warn
+
+        warn(
+            "Skipping richness thresholds with a zero average random connectedness.",
+            stacklevel=2,
+        )
+
+    return WeightedRichClubResult(
+        richness=thresholds[keep],
+        coefficient=C[keep] / C_rand[keep],
+    )
+
+
+# }}}
+
+
 # {{{ compute_participation_coefficient
 
 
