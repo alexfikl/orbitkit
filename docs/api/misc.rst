@@ -14,6 +14,11 @@ Mappers
 
 .. automodule:: orbitkit.symbolic.mappers
 
+Array API
+---------
+
+.. automodule:: orbitkit.array_api_extras
+
 Tools
 -----
 

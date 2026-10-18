@@ -1,0 +1,427 @@
+# SPDX-FileCopyrightText: 2026 Alexandru Fikl <alexfikl@gmail.com>
+# SPDX-License-Identifier: MIT
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
+from typing import Any, Generic, Protocol, TypeAlias
+
+import numpy as np
+from typing_extensions import TypeAliasType
+
+from orbitkit.typing import DTypeT, ScalarTypeT, ShapeT, T
+from orbitkit.utils import module_logger
+
+log = module_logger(__name__)
+
+
+# {{{ typing
+
+# TODO: This will move to typing.py when the codebase is translated to the
+# Array API everywhere, which will probably take a very long time..
+
+
+class Array(Protocol[ShapeT, DTypeT]):  # ruff: ignore[too-many-public-methods]
+    """A minimal protocol compatible with the
+    `Array API <https://data-apis.org/array-api/latest/API_specification/array_object.html>`__.
+    """
+
+    @property
+    def dtype(self) -> Any: ...
+    @property
+    def device(self) -> Any: ...
+    @property
+    def ndim(self) -> int: ...
+    # NOTE: torch.Tensor returns torch.Sized here, not tuple[int, ...]
+    @property
+    def shape(self) -> Any: ...
+
+    # NOTE: torch.Tensor defines this as a method instead
+    # @property
+    # def size(self) -> int: ...
+
+    # Arithmetic operators
+    def __pos__(self) -> Any: ...
+    def __neg__(self) -> Any: ...
+    def __add__(self, other: Any, /) -> Any: ...
+    def __sub__(self, other: Any, /) -> Any: ...
+    def __mul__(self, other: Any, /) -> Any: ...
+    def __truediv__(self, other: Any, /) -> Any: ...
+    def __floordiv__(self, other: Any, /) -> Any: ...
+    def __mod__(self, other: Any, /) -> Any: ...
+    def __pow__(self, other: Any, /) -> Any: ...
+
+    # Array operators
+    def __matmul__(self, other: Any, /) -> Any: ...
+
+    # Bitwise operators
+    def __invert__(self) -> Any: ...
+    def __and__(self, other: Any, /) -> Any: ...
+    def __or__(self, other: Any, /) -> Any: ...
+    def __xor__(self, other: Any, /) -> Any: ...
+    def __lshift__(self, other: Any, /) -> Any: ...
+    def __rshift__(self, other: Any, /) -> Any: ...
+
+    # Comparison operators
+    # def __lt__(self, other: Any, /) -> Any: ...
+    # def __le__(self, other: Any, /) -> Any: ...
+    # def __gt__(self, other: Any, /) -> Any: ...
+    # def __ge__(self, other: Any, /) -> Any: ...
+    # def __eq__(self, other: Any, /) -> Any: ...
+    # def __ne__(self, other: Any, /) -> Any: ...
+
+    # In-place operators
+    # def __iadd__(self, other: Any, /) -> Any: ...
+    # def __isub__(self, other: Any, /) -> Any: ...
+    # def __imul__(self, other: Any, /) -> Any: ...
+    # def __itruediv__(self, other: Any, /) -> Any: ...
+    # def __ifloordiv__(self, other: Any, /) -> Any: ...
+    # def __ipow__(self, other: Any, /) -> Any: ...
+    # def __imod__(self, other: Any, /) -> Any: ...
+    # def __imatmul__(self, other: Any, /) -> Any: ...
+    # def __iand__(self, other: Any, /) -> Any: ...
+    # def __ior__(self, other: Any, /) -> Any: ...
+    # def __ixor__(self, other: Any, /) -> Any: ...
+    # def __ilshift__(self, other: Any, /) -> Any: ...
+    # def __irshift__(self, other: Any, /) -> Any: ...
+
+    # Reflected operators
+    def __radd__(self, other: Any, /) -> Any: ...
+    def __rsub__(self, other: Any, /) -> Any: ...
+    def __rmul__(self, other: Any, /) -> Any: ...
+    def __rtruediv__(self, other: Any, /) -> Any: ...
+    def __rfloordiv__(self, other: Any, /) -> Any: ...
+    def __rpow__(self, other: Any, /) -> Any: ...
+    def __rmod__(self, other: Any, /) -> Any: ...
+    def __rmatmul__(self, other: Any, /) -> Any: ...
+    def __rand__(self, other: Any, /) -> Any: ...
+    def __ror__(self, other: Any, /) -> Any: ...
+    def __rxor__(self, other: Any, /) -> Any: ...
+    def __rlshift__(self, other: Any, /) -> Any: ...
+    def __rrshift__(self, other: Any, /) -> Any: ...
+
+    # Methods
+    def __abs__(self) -> Any: ...
+    # NOTE: torch.Tensor does not define __array_namespace__
+    # def __array_namespace__(self, *, api_version: Any = None) -> Any: ...
+    # def __bool__(self) -> bool: ...
+    # def __complex__(self) -> complex: ...
+    # def __dlpack__(self, *, stream=None, copy=None) -> Any: ...
+    # def __dlpack_device__(self) -> tuple[int, int]: ...
+    # def __float__(self) -> float: ...
+    def __getitem__(self, key: Any, /) -> Any: ...
+    # def __index__(self) -> int: ...
+    # def __int__(self) -> int: ...
+    # def to_device(self, device: Any, /, stream: Any = None) -> None: ...
+    def __setitem__(self, key: Any, value: Any, /) -> None: ...
+
+    # Not part of the Array API
+    def __len__(self) -> int: ...
+    def __iter__(self) -> Any: ...
+    def __array__(self) -> np.ndarray[Any, Any]: ...  # ruff:ignore[bad-dunder-method-name]
+
+
+Array0D = TypeAliasType(
+    "Array0D",
+    Array[tuple[()], np.dtype[ScalarTypeT]],
+    type_params=(ScalarTypeT,),
+)
+"""A type alias for a 0-dimensional array."""
+Array1D = TypeAliasType(
+    "Array1D",
+    Array[tuple[int], np.dtype[ScalarTypeT]],
+    type_params=(ScalarTypeT,),
+)
+"""A type alias for a 1-dimensional array."""
+Array2D = TypeAliasType(
+    "Array2D",
+    Array[tuple[int, int], np.dtype[ScalarTypeT]],
+    type_params=(ScalarTypeT,),
+)
+"""A type alias for a 2-dimensional array."""
+Array3D = TypeAliasType(
+    "Array3D",
+    Array[tuple[int, int, int], np.dtype[ScalarTypeT]],
+    type_params=(ScalarTypeT,),
+)
+"""A type alias for a 3-dimensional array."""
+Array4D = TypeAliasType(
+    "Array4D",
+    Array[tuple[int, int, int, int], np.dtype[ScalarTypeT]],
+    type_params=(ScalarTypeT,),
+)
+"""A type alias for a 4-dimensional array."""
+ArrayND = TypeAliasType(
+    "ArrayND",
+    Array[tuple[int, ...], np.dtype[ScalarTypeT]],
+    type_params=(ScalarTypeT,),
+)
+"""A type alias for an n-dimensional array."""
+
+DTypeLike: TypeAlias = Any
+"""A :class:`numpy.dtype` like object."""
+
+
+# }}}
+
+
+# {{{ generator
+
+
+class Generator(ABC, Generic[T]):
+    @abstractmethod
+    def key(self, seed: int) -> T:
+        pass
+
+    @abstractmethod
+    def split(self, key: T) -> tuple[T, ...]:
+        pass
+
+    @abstractmethod
+    def integers(
+        self,
+        key: T,
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        pass
+
+    @abstractmethod
+    def uniform(
+        self,
+        key: T,
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        pass
+
+    @abstractmethod
+    def normal(
+        self,
+        key: T,
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        pass
+
+
+# {{{ NumpyGenerator
+
+
+class SeedSequenceKey:
+    __slots__ = ("entropy", "spawn_key")
+
+    def __init__(
+        self,
+        entropy: int | Sequence[int] | None = None,
+        spawn_key: Sequence[int] = (),
+    ) -> None:
+        if entropy is None:
+            entropy = np.random.SeedSequence().entropy
+
+        self.entropy = entropy
+        self.spawn_key = tuple(spawn_key)
+
+
+class NumpyGenerator(Generator[SeedSequenceKey]):
+    def default_rng(self, key: SeedSequenceKey) -> np.random.Generator:  # ruff: ignore[no-self-use]
+        seed = np.random.SeedSequence(key.entropy, key.spawn_key)
+        return np.random.Generator(np.random.PC64(seed))
+
+    def split(self, key: SeedSequenceKey, num: int = 1) -> tuple[SeedSequenceKey, ...]:  # ruff: ignore[no-self-use]
+        return tuple(
+            SeedSequenceKey(key.entropy, (*key.spawn_key, i)) for i in range(num + 1)
+        )
+
+    def key(self, seed: int) -> SeedSequenceKey:  # ruff: ignore[no-self-use]
+        return SeedSequenceKey(seed)
+
+    def integers(
+        self,
+        key: SeedSequenceKey,
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        rng = self.default_rng(key)
+        return rng.integers(low=low, high=high, size=size, dtype=dtype)
+
+    def uniform(
+        self,
+        key: SeedSequenceKey,
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        rng = self.default_rng(key)
+        result = rng.uniform(low, high, size)
+        if dtype != result.dtype:
+            result = result.astype(dtype)
+
+        return result
+
+    def normal(
+        self,
+        key: SeedSequenceKey,
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        rng = self.default_rng(key)
+        result = rng.normal(loc, scale, size)
+        if dtype != result.dtype:
+            result = result.astype(dtype)
+
+        return result
+
+
+# }}}
+
+
+# {{{ JaxGenerator
+
+
+class JaxGenerator(Generator[Array1D[Any]]):
+    def key(self, seed: int) -> Array1D[Any]:  # ruff: ignore[no-self-use]
+        import jax
+
+        return jax.random.key(seed)
+
+    def split(self, key: Array1D[Any], num: int = 1) -> tuple[Array1D[Any], ...]:  # ruff: ignore[no-self-use]
+        from jax.random import split
+
+        return tuple(split(key, num))
+
+    def integers(  # ruff: ignore[no-self-use]
+        self,
+        key: Array1D[Any],
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        from jax.random import randint
+
+        return randint(key, shape=size, minval=low, maxval=high, dtype=dtype)
+
+    def uniform(  # ruff: ignore[no-self-use]
+        self,
+        key: Array1D[Any],
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        from jax.random import uniform
+
+        return uniform(key, shape=size, minval=low, maxval=high, dtype=dtype)
+
+    def normal(  # ruff: ignore[no-self-use]
+        self,
+        key: Array1D[Any],
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        from jax.random import normal
+
+        result = normal(key, shape=size, dtype=dtype)
+        return loc + scale * result
+
+
+# }}}
+
+
+# {{{ TorchGenerator
+
+
+class TorchGenerator(Generator[SeedSequenceKey]):
+    def __init__(self, device: Any = None) -> None:
+        self.device = device
+
+    def key(self, seed: int) -> SeedSequenceKey:  # ruff: ignore[no-self-use]
+        return SeedSequenceKey(seed)
+
+    def split(self, key: SeedSequenceKey, num: int = 1) -> tuple[Array1D[Any], ...]:  # ruff: ignore[no-self-use]
+        return tuple(
+            SeedSequenceKey(key.entropy, (*key.spawn_key, i)) for i in range(num + 1)
+        )
+
+    def default_rng(self, key: SeedSequenceKey) -> Any:
+        import torch
+
+        ss = np.random.SeedSequence(key.entropy, key.spawn_key)
+        seed = ss.generate_state(1, dtype=np.uint64)[0] & (2**63 - 1)
+        return torch.Generator(device=self.device).manual_seed(seed)
+
+    def integers(
+        self,
+        key: SeedSequenceKey,
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        import torch
+
+        rng = self.default_rng(key)
+        return torch.randint(
+            low, high, size, generator=rng, dtype=dtype, device=self.device
+        )
+
+    def uniform(
+        self,
+        key: SeedSequenceKey,
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        import torch
+
+        rng = self.default_rng(key)
+        result = torch.rand(*size, dtype=dtype, generator=rng, device=self.device)
+
+        return low + (high - low) * result
+
+    def normal(
+        self,
+        key: SeedSequenceKey,
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        import torch
+
+        rng = self.default_rng(key)
+        result = torch.randn(*size, dtype=dtype, generator=rng, device=self.device)
+        return loc + scale * result
+
+
+# }}}
+
+# }}}

@@ -67,6 +67,12 @@ def compute_total_weighted_degree(
     return compute_weighted_degree(np.abs(mat))
 
 
+# }}}
+
+
+# {{{ compute_normalized_weighted_degree
+
+
 def compute_normalized_weighted_degree(
     mat: Array2D[np.floating[Any]],
     *,
