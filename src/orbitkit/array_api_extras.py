@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Protocol, TypeAlias
+from collections.abc import Sequence
+from typing import Any, Generic, Protocol, TypeAlias
 
 import numpy as np
 from typing_extensions import TypeAliasType
 
-from orbitkit.typing import DTypeT, ScalarTypeT, ShapeT
+from orbitkit.typing import DTypeT, ScalarTypeT, ShapeT, T
 from orbitkit.utils import module_logger
 
 log = module_logger(__name__)
@@ -168,10 +169,19 @@ DTypeLike: TypeAlias = Any
 # {{{ generator
 
 
-class Generator(ABC):
+class Generator(ABC, Generic[T]):
+    @abstractmethod
+    def key(self, seed: int) -> T:
+        pass
+
+    @abstractmethod
+    def split(self, key: T) -> tuple[T, ...]:
+        pass
+
     @abstractmethod
     def integers(
         self,
+        key: T,
         low: int,
         high: int | None = None,
         size: ShapeT | None = None,
@@ -181,8 +191,11 @@ class Generator(ABC):
         pass
 
     @abstractmethod
-    def random(
+    def uniform(
         self,
+        key: T,
+        low: float = 0.0,
+        high: float = 1.0,
         size: ShapeT | None = None,
         *,
         dtype: DTypeLike | None = None,
@@ -190,14 +203,225 @@ class Generator(ABC):
         pass
 
     @abstractmethod
-    def choice(
+    def normal(
         self,
-        a: int | ArrayND[ScalarTypeT],
+        key: T,
+        loc: float = 0.0,
+        scale: float = 1.0,
         size: ShapeT | None = None,
         *,
-        replace: bool = True,
+        dtype: DTypeLike | None = None,
     ) -> Array[ShapeT, ScalarTypeT]:
         pass
 
+
+# {{{ NumpyGenerator
+
+
+class SeedSequenceKey:
+    __slots__ = ("entropy", "spawn_key")
+
+    def __init__(
+        self,
+        entropy: int | Sequence[int] | None = None,
+        spawn_key: Sequence[int] = (),
+    ) -> None:
+        if entropy is None:
+            entropy = np.random.SeedSequence().entropy
+
+        self.entropy = entropy
+        self.spawn_key = tuple(spawn_key)
+
+
+class NumpyGenerator(Generator[SeedSequenceKey]):
+    def default_rng(self, key: SeedSequenceKey) -> np.random.Generator:  # ruff: ignore[no-self-use]
+        seed = np.random.SeedSequence(key.entropy, key.spawn_key)
+        return np.random.Generator(np.random.PC64(seed))
+
+    def split(self, key: SeedSequenceKey, num: int = 1) -> tuple[SeedSequenceKey, ...]:  # ruff: ignore[no-self-use]
+        return tuple(
+            SeedSequenceKey(key.entropy, (*key.spawn_key, i)) for i in range(num + 1)
+        )
+
+    def key(self, seed: int) -> SeedSequenceKey:  # ruff: ignore[no-self-use]
+        return SeedSequenceKey(seed)
+
+    def integers(
+        self,
+        key: SeedSequenceKey,
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        rng = self.default_rng(key)
+        return rng.integers(low=low, high=high, size=size, dtype=dtype)
+
+    def uniform(
+        self,
+        key: SeedSequenceKey,
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        rng = self.default_rng(key)
+        result = rng.uniform(low, high, size)
+        if dtype != result.dtype:
+            result = result.astype(dtype)
+
+        return result
+
+    def normal(
+        self,
+        key: SeedSequenceKey,
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        rng = self.default_rng(key)
+        result = rng.normal(loc, scale, size)
+        if dtype != result.dtype:
+            result = result.astype(dtype)
+
+        return result
+
+
+# }}}
+
+
+# {{{ JaxGenerator
+
+
+class JaxGenerator(Generator[Array1D[Any]]):
+    def key(self, seed: int) -> Array1D[Any]:  # ruff: ignore[no-self-use]
+        import jax
+
+        return jax.random.key(seed)
+
+    def split(self, key: Array1D[Any], num: int = 1) -> tuple[Array1D[Any], ...]:  # ruff: ignore[no-self-use]
+        from jax.random import split
+
+        return tuple(split(key, num))
+
+    def integers(  # ruff: ignore[no-self-use]
+        self,
+        key: Array1D[Any],
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        from jax.random import randint
+
+        return randint(key, shape=size, minval=low, maxval=high, dtype=dtype)
+
+    def uniform(  # ruff: ignore[no-self-use]
+        self,
+        key: Array1D[Any],
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        from jax.random import uniform
+
+        return uniform(key, shape=size, minval=low, maxval=high, dtype=dtype)
+
+    def normal(  # ruff: ignore[no-self-use]
+        self,
+        key: Array1D[Any],
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        from jax.random import normal
+
+        result = normal(key, shape=size, dtype=dtype)
+        return loc + scale * result
+
+
+# }}}
+
+
+# {{{ TorchGenerator
+
+
+class TorchGenerator(Generator[SeedSequenceKey]):
+    def __init__(self, device: Any = None) -> None:
+        self.device = device
+
+    def key(self, seed: int) -> SeedSequenceKey:  # ruff: ignore[no-self-use]
+        return SeedSequenceKey(seed)
+
+    def split(self, key: SeedSequenceKey, num: int = 1) -> tuple[Array1D[Any], ...]:  # ruff: ignore[no-self-use]
+        return tuple(
+            SeedSequenceKey(key.entropy, (*key.spawn_key, i)) for i in range(num + 1)
+        )
+
+    def default_rng(self, key: SeedSequenceKey) -> Any:
+        import torch
+
+        ss = np.random.SeedSequence(key.entropy, key.spawn_key)
+        seed = ss.generate_state(1, dtype=np.uint64)[0] & (2**63 - 1)
+        return torch.Generator(device=self.device).manual_seed(seed)
+
+    def integers(
+        self,
+        key: SeedSequenceKey,
+        low: int,
+        high: int | None = None,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[np.integer[Any], ShapeT]:
+        import torch
+
+        rng = self.default_rng(key)
+        return torch.randint(
+            low, high, size, generator=rng, dtype=dtype, device=self.device
+        )
+
+    def uniform(
+        self,
+        key: SeedSequenceKey,
+        low: float = 0.0,
+        high: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, np.floating[Any]]:
+        import torch
+
+        rng = self.default_rng(key)
+        result = torch.rand(*size, dtype=dtype, generator=rng, device=self.device)
+
+        return low + (high - low) * result
+
+    def normal(
+        self,
+        key: SeedSequenceKey,
+        loc: float = 0.0,
+        scale: float = 1.0,
+        size: ShapeT | None = None,
+        *,
+        dtype: DTypeLike | None = None,
+    ) -> Array[ShapeT, ScalarTypeT]:
+        import torch
+
+        rng = self.default_rng(key)
+        result = torch.randn(*size, dtype=dtype, generator=rng, device=self.device)
+        return loc + scale * result
+
+
+# }}}
 
 # }}}
