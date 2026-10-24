@@ -23,7 +23,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
@@ -50,6 +50,8 @@ optional-dependencies.docs = [
 ]
 urls.Documentation = "https://orbitkit.readthedocs.io"
 urls.Repository = "https://github.com/alexfikl/orbitkit"
+urls.Homepage = "https://github.com/alexfikl/orbitkit"
+urls.Issues = "https://github.com/alexfikl/orbitkit/issues"
 
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
