@@ -20,7 +20,7 @@ exceptiongroup==1.3.1 ; python_full_version < '3.11'
     # via pytest
 fonttools==4.65.0 ; python_full_version < '3.11'
     # via matplotlib
-fonttools==4.66.1 ; python_full_version >= '3.11'
+fonttools==4.67.0 ; python_full_version >= '3.11'
     # via matplotlib
 igraph==1.0.0
     # via leidenalg
@@ -30,13 +30,13 @@ jax==0.6.2 ; python_full_version < '3.11'
     # via orbitkit (pyproject.toml:backends)
 jax==0.10.2 ; python_full_version == '3.11.*'
     # via orbitkit (pyproject.toml:backends)
-jax==0.11.2 ; python_full_version >= '3.12'
+jax==0.12.0.1 ; python_full_version >= '3.12'
     # via orbitkit (pyproject.toml:backends)
 jaxlib==0.6.2 ; python_full_version < '3.11'
     # via jax
 jaxlib==0.10.2 ; python_full_version == '3.11.*'
     # via jax
-jaxlib==0.11.2 ; python_full_version >= '3.12'
+jaxlib==0.12.0.1 ; python_full_version >= '3.12'
     # via jax
 jinja2==3.1.6
     # via jitcxde-common
@@ -131,13 +131,15 @@ packaging==26.3
     # via
     #   matplotlib
     #   pytest
-pillow==12.3.0
+pillow==12.3.0 ; python_full_version < '3.11'
+    # via matplotlib
+pillow==13.0.0 ; python_full_version >= '3.11'
     # via matplotlib
 platformdirs==4.12.4 ; python_full_version < '3.11'
     # via pytools
-platformdirs==4.13.0 ; python_full_version >= '3.11'
+platformdirs==4.13.5 ; python_full_version >= '3.11'
     # via pytools
-pluggy==1.6.0
+pluggy==1.7.0
     # via pytest
 pygments==2.21.0
     # via
@@ -153,7 +155,7 @@ pytest==9.1.1
     #   pytest-github-actions-annotate-failures
 pytest-github-actions-annotate-failures==0.4.2
     # via orbitkit (pyproject.toml:test)
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
     # via matplotlib
 pytools==2026.1.1
     # via
@@ -161,7 +163,7 @@ pytools==2026.1.1
     #   pymbolic
 rich==15.0.0
     # via orbitkit (pyproject.toml)
-ruff==0.17.0
+ruff==0.17.2
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.2
     # via orbitkit (pyproject.toml:visualization)
@@ -189,7 +191,7 @@ scipy-stubs==1.17.1.5 ; python_full_version == '3.11.*'
     # via orbitkit (pyproject.toml:test)
 scipy-stubs==1.18.1.1 ; python_full_version >= '3.12'
     # via orbitkit (pyproject.toml:test)
-setuptools==84.0.0
+setuptools==84.2.1
     # via jitcxde-common
 siphash24==1.9
     # via pytools
@@ -202,11 +204,11 @@ symengine==0.14.1
     #   jitcxde-common
 sympy==1.14.0
     # via orbitkit (pyproject.toml:codegen)
-texttable==1.7.1
+texttable==1.7.2
     # via igraph
 tomli==2.5.0 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.86
+ty==0.0.91
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.16.0
     # via
@@ -214,3 +216,5 @@ typing-extensions==4.16.0
     #   optype
     #   pymbolic
     #   pytools
+tzdata==2026.5
+    # via python-dateutil
