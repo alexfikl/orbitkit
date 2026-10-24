@@ -62,7 +62,10 @@ extras = [ "networkx", "requests" ]
 visualization = [ "matplotlib", "scienceplots" ]
 
 [tool.hatch]
-build.targets.sdist.exclude = [ ".venv*" ]
+build.targets.sdist.exclude = [ ".venv*", "tags" ]
+
+[tool.hatch.build.targets.wheel]
+packages = [ "src/orbitkit" ]
 
 [tool.ruff]
 target-version = "py310"
