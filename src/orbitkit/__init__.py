@@ -5,4 +5,4 @@ from __future__ import annotations
 
 from importlib import metadata
 
-__version__ = metadata.version("orbitkit-neuro")
+__version__ = metadata.version("orbitkit")
