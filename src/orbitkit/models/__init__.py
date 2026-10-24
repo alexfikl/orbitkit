@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass, replace
 from typing import TYPE_CHECKING, Any
@@ -11,7 +12,6 @@ import numpy as np
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.typing import DataclassInstanceT
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from orbitkit.models.linear_chain_tricks import AuxiliaryEquation
     from orbitkit.typing import Array1D
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ dataclass as symbolic

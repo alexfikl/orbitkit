@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 from dataclasses import replace
 
@@ -10,9 +11,10 @@ import numpy as np
 
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.kuramoto import Kuramoto, make_model_from_name
-from orbitkit.utils import module_logger, on_ci
+from orbitkit.utils import on_ci, set_up_logging
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 
 # {{{ create right-hand side
 

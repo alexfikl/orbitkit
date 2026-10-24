@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import shutil
 from dataclasses import dataclass, replace
@@ -23,7 +24,6 @@ from orbitkit.codegen.jitcxde import (
 )
 from orbitkit.symbolic.mappers import IdentityMapper, WalkMapper
 from orbitkit.typing import Array1D
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from jitcxde_common import jitcxde
     from pymbolic.typing import Expression as PymbolicExpression
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 # {{{ gather mapper
 

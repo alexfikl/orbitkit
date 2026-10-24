@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import shutil
 from dataclasses import dataclass
@@ -22,7 +23,6 @@ from orbitkit.codegen.jitcxde import (
     linker_flags,
 )
 from orbitkit.typing import Array1D
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     import symengine as sp
     from jitcxde_common import jitcxde
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ compiled code

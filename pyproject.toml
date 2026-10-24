@@ -49,9 +49,9 @@ optional-dependencies.docs = [
     "sympy>=1.12",
 ]
 urls.Documentation = "https://orbitkit.readthedocs.io"
-urls.Repository = "https://github.com/alexfikl/orbitkit"
 urls.Homepage = "https://github.com/alexfikl/orbitkit"
 urls.Issues = "https://github.com/alexfikl/orbitkit/issues"
+urls.Repository = "https://github.com/alexfikl/orbitkit"
 
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]

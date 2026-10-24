@@ -3,15 +3,17 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 
 import numpy as np
 
 from orbitkit.codegen.jitcode import JiTCODETarget
 from orbitkit.models.kuramoto import make_model_from_name, shift_kuramoto_angle
-from orbitkit.utils import module_logger, on_ci, tictoc
+from orbitkit.utils import on_ci, set_up_logging, tictoc
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 rng = np.random.default_rng(seed=42)
 
 if not JiTCODETarget.has_jitcode():

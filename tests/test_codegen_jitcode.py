@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import tempfile
 from typing import TYPE_CHECKING
@@ -10,15 +11,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from orbitkit.utils import module_logger
-
 if TYPE_CHECKING:
     from orbitkit.codegen.jitcode import JiTCODECompiledCode
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ test_codegen_jitcode

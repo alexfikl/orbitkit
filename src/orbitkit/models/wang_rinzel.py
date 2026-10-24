@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Final
 
@@ -12,9 +13,8 @@ import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.models.rate_functions import ExponentialRate, RateFunction, SigmoidRate
 from orbitkit.typing import Array2D
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ Wang-Rinzel Model

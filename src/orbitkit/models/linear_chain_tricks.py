@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, overload
 
@@ -11,7 +12,6 @@ import numpy as np
 import orbitkit.symbolic.primitives as sym
 from orbitkit.symbolic.mappers import IdentityMapper
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pymbolic.typing import Expression
     from pytools import UniqueNameGenerator
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ AuxiliaryEquation

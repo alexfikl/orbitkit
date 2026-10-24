@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import pathlib
 
@@ -12,12 +13,12 @@ import pytest
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.symbolic.mappers import WalkMapper
-from orbitkit.utils import enable_test_plotting, module_logger
+from orbitkit.utils import enable_test_plotting
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ test_dirac_delay_distributor

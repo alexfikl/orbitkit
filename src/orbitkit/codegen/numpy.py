@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Final
@@ -14,9 +15,8 @@ from pymbolic.mapper.stringifier import PREC_NONE, StringifyMapper
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code, Target, execute_code
 from orbitkit.typing import Array1D, ArrayND
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 # TODO: will need to make this into a proper compiler with statements and
 # assignments and whatnot at some point. The main driving force for that is

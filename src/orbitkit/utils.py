@@ -76,69 +76,75 @@ def enable_test_plotting() -> bool:
 # {{{ logging
 
 
-def orbitkit_quiet() -> None:
-    """Set the root logger to only show error messages."""
-    root = logging.getLogger("orbitkit")
-    root.setLevel(logging.ERROR)
+ORBITKIT_HANDLER_NAME: Final = "orbitkit"
 
 
-def module_logger(
-    module: str,
+def set_up_logging(
     level: int | str | None = None,
     *,
-    root_name: str = "orbitkit",
+    rich: bool = True,
 ) -> logging.Logger:
-    """Create a new logging for the module *module*.
+    """Set up logging for scripts, examples, and tests.
 
-    The logger is created using a :class:`rich.logging.RichHandler` for fancy
-    highlighting. The ``NO_COLOR`` environment variable can be used to
-    disable colors.
+    A :class:`rich.logging.RichHandler` writing to ``stderr`` is installed by
+    default; the ``NO_COLOR`` environment variable disables colors and
+    highlighting. The ``ORBITKIT_LOGGING_LEVEL`` environment variable can be
+    used to set a default logging level. Any handler previously installed by
+    this function is replaced.
 
-    :arg module: a name for the module to create a logger for.
-    :arg level: if *None*, the default value is taken to from the
-        ``ORBITKIT_LOGGING_LEVEL`` environment variable and falls back to the
-        ``INFO`` level if it does not exist (see :mod:`logging`).
+    :arg level: log level as an integer or case insensitive name (e.g. ``"INFO"``).
+    :arg rich: if *False*, use a plain :class:`logging.StreamHandler` instead.
     """
+    root = logging.getLogger()
+
     if level is None:
-        level = os.environ.get("ORBITKIT_LOGGING_LEVEL", "INFO").upper()
+        level = os.environ.get("ORBITKIT_LOGGING_LEVEL", "INFO")
 
     if isinstance(level, str):
         level = getattr(logging, level.upper())
 
-    assert isinstance(level, int)
+    if not isinstance(level, int):
+        raise TypeError(f"'level' must be an int or str: {level!r}")
 
-    # NOTE: insist on putting everything under the `orbitkit` root
-    path = pathlib.Path(module)
-    if path.exists():
-        module = f"{root_name}.{path.stem}".replace("-", "_")
+    # remove any existing handler installed by this function
+    for handler in root.handlers[:]:
+        if handler.get_name() == ORBITKIT_HANDLER_NAME:
+            root.removeHandler(handler)
 
-    # set up the root logger
-    root = logging.getLogger(root_name)
-    root.propagate = False
-
-    if not root.handlers:
+    if rich:
+        from rich.console import Console
         from rich.highlighter import NullHighlighter
         from rich.logging import RichHandler
 
         no_color = "NO_COLOR" in os.environ
-        handler = RichHandler(
+        handler: logging.Handler = RichHandler(
             level,
+            console=Console(stderr=True, no_color=no_color),
             show_time=True,
             omit_repeated_times=False,
             show_level=True,
             show_path=True,
             highlighter=NullHighlighter() if no_color else None,
-            markup=True,
+            markup=False,
+        )
+    else:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                datefmt="%H:%M:%S",
+            )
         )
 
-        root.addHandler(handler)
-        root.setLevel(level)
+    handler.set_name(ORBITKIT_HANDLER_NAME)
+    handler.setLevel(level)
+    root.addHandler(handler)
+    root.setLevel(level)
 
-    _, *rest = module.split(".", maxsplit=1)
-    return root.getChild(rest[0]) if rest else root
+    return root
 
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 # }}}
 

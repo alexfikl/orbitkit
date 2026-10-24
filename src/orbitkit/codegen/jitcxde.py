@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import platform
 from abc import ABC, abstractmethod
@@ -15,7 +16,6 @@ import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen import Assignment, Code
 from orbitkit.codegen.numpy import NumpyCodeGenerator, NumpyTarget
 from orbitkit.typing import Array1D, ArrayND
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     import symengine as sp
     from jitcxde_common import jitcxde
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 JiTCXDEExpression: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[Any]]
 """Array of expressions used by JiTC*DE code generation."""

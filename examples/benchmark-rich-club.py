@@ -3,14 +3,17 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 from rich.table import Table
 
 from orbitkit.adjacency import generate_adjacency_erdos_renyi, rewire_adjacency
 from orbitkit.metrics import compute_rich_club_coefficient
-from orbitkit.utils import BlockTimer, module_logger, on_ci, stringify_table
+from orbitkit.utils import BlockTimer, on_ci, set_up_logging, stringify_table
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 
 if on_ci():
     raise SystemExit(0)

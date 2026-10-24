@@ -3,14 +3,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Final
 
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ MackeyGlass

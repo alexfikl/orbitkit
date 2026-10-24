@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import field
 from typing import Any, TypeAlias
 
@@ -11,9 +12,8 @@ import pymbolic.primitives as prim
 from pymbolic.mapper.stringifier import StringifyMapper as StringifyMapperBase
 
 from orbitkit.typing import ArrayND
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 Expression: TypeAlias = (
     int | float | complex | np.inexact | np.integer | prim.ExpressionNode

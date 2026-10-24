@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 from dataclasses import dataclass
 from typing import Any
@@ -17,14 +18,13 @@ from orbitkit.typing import Array1D
 from orbitkit.utils import (
     EOCRecorder,
     enable_test_plotting,
-    module_logger,
     stringify_eoc,
 )
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 # {{{ linear model
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 from typing import Any
 
@@ -12,12 +13,11 @@ import pytest
 
 from orbitkit.models.kuramoto import KuramotoAbrams
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import module_logger
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ test_symbolify

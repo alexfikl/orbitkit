@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -12,9 +13,8 @@ import numpy as np
 from orbitkit.codegen import Code, execute_code
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.typing import Array1D
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)

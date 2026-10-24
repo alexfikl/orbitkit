@@ -3,17 +3,18 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 
 import numpy as np
 import pytest
 
-from orbitkit.utils import enable_test_plotting, module_logger
+from orbitkit.utils import enable_test_plotting
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ test_detect_cycle_harmonic

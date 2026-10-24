@@ -3,14 +3,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 def pfeuty_chi(V: Array2D[np.inexact[Any]], *, ddof: int = 1) -> float:

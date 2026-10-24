@@ -3,18 +3,18 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D, FloatingT
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ make_mse_weight_matrix

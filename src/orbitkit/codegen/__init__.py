@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -13,9 +14,8 @@ import numpy as np
 import orbitkit.symbolic.primitives as sym
 from orbitkit.models import Model
 from orbitkit.typing import Array1D, ArrayND, Scalar
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ code

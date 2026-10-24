@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import zipfile
@@ -18,9 +19,15 @@ from orbitkit.models import (
 )
 from orbitkit.models.wilson_cowan import make_model_from_name
 from orbitkit.symbolic.primitives import DiracDelayKernel
-from orbitkit.utils import download_from_data_dryad, load_from_mat, module_logger, on_ci
+from orbitkit.utils import (
+    download_from_data_dryad,
+    load_from_mat,
+    on_ci,
+    set_up_logging,
+)
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 rng = np.random.default_rng(seed=42)
 
 if on_ci():

@@ -3,18 +3,17 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import time
 
 import numpy as np
 import pytest
 
-from orbitkit.utils import module_logger
-
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 # {{{ test_estimate_scaling
 

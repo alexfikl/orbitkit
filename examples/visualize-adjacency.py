@@ -9,9 +9,10 @@ import pathlib
 import numpy as np
 
 from orbitkit.adjacency import ADJACENCY_TYPES, WEIGHTED_ADJACENCY_TYPES
-from orbitkit.utils import module_logger
+from orbitkit.utils import set_up_logging
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 
 
 def main(

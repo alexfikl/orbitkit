@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 
 import numpy as np
@@ -10,9 +11,10 @@ import numpy as np
 import orbitkit.symbolic.primitives as sym
 from orbitkit.codegen.numpy import NumpyTarget
 from orbitkit.models.astrocyte import make_model_from_name
-from orbitkit.utils import module_logger, on_ci
+from orbitkit.utils import on_ci, set_up_logging
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 rng = np.random.default_rng(seed=42)
 
 # FIXME: this fails to reproduce the results from Figure 12 FM. The paper shows

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import enum
+import logging
 import pathlib
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
@@ -12,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D, Array3D, PathLike
-from orbitkit.utils import BOOLEAN_STATES, module_logger, on_ci
+from orbitkit.utils import BOOLEAN_STATES, on_ci
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as mp
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
     from matplotlib.colorbar import Colorbar
     from matplotlib.image import AxesImage
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 ColorTuple: TypeAlias = tuple[float, float, float]
 """An RGB color tuple with values in :math:`[0, 1]` denoting RGB values."""

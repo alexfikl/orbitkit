@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -11,9 +12,8 @@ from typing import Any
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 class CycleResult(ABC):

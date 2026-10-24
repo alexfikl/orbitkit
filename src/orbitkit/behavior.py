@@ -4,12 +4,12 @@
 from __future__ import annotations
 
 import enum
+import logging
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 import numpy as np
 
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import module_logger
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from matplotlib.cm import ScalarMappable
     from matplotlib.contour import ContourSet
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ determine_behavior

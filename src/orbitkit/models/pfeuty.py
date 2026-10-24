@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Final
@@ -19,9 +20,8 @@ from orbitkit.models.rate_functions import (
     TanhRate,
 )
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import module_logger
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ Pfeuty model

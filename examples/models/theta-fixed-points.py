@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 from itertools import product
 
@@ -10,9 +11,10 @@ import numpy as np
 
 from orbitkit.models.theta import ThetaModel, find_fixed_points
 from orbitkit.symbolic.primitives import DiracDelayKernel
-from orbitkit.utils import module_logger, on_ci
+from orbitkit.utils import on_ci, set_up_logging
 
-log = module_logger(__name__)
+set_up_logging("INFO")
+log = logging.getLogger(__name__)
 
 # {{{ fixed points
 

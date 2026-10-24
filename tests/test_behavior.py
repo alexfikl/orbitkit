@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 from typing import Any
 
@@ -10,12 +11,12 @@ import numpy as np
 import pytest
 
 from orbitkit.typing import Array1D, Array2D
-from orbitkit.utils import enable_test_plotting, module_logger
+from orbitkit.utils import enable_test_plotting
 
 TEST_FILENAME = pathlib.Path(__file__)
 TEST_DIRECTORY = TEST_FILENAME.parent
 
-log = module_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 # {{{ test_periodic_behavior_culshaw
