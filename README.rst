@@ -2,7 +2,7 @@
     :alt: Build Status
     :target: https://github.com/alexfikl/orbitkit/actions/workflows/ci.yml
 
-.. |badge-rtd| image:: https://readthedocs.org/projects/orbitkit/badge/?version=latest
+.. |badge-rtd| image:: https://app.readthedocs.org/projects/orbitkit/badge/?version=latest
     :alt: Documentation
     :target: https://orbitkit.readthedocs.io/en/latest/?badge=latest
 
