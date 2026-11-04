@@ -573,9 +573,9 @@ def make_lallouette_mesh(
         return np.array((0, dim), dtype=dtype)
 
     x = a * np.arange(n)
-    points = np.stack(np.meshgrid(*([x] * dim), indexing="ij"), axis=-1)
+    points = np.stack(np.meshgrid(*([x] * dim), indexing="ij"), axis=-1, dtype=dtype)
 
-    noise = rng.normal(a_mean, a_std, size=points.shape)
+    noise = rng.normal(a_mean, a_std, size=points.shape).astype(dtype)
     points += noise
 
     return points.reshape(-1, dim)
