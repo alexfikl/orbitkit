@@ -48,7 +48,7 @@ source = target.lambdify_model(model, model.n)
 # {{{ evolve
 
 try:
-    from diffrax import (  # ty: ignore[unresolved-import]
+    from diffrax import (  # ty: ignore[import-not-found]
         Dopri5,
         ODETerm,
         PIDController,

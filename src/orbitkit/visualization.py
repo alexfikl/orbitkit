@@ -1057,7 +1057,7 @@ def write_nx_from_adjacency(
     :arg nodecolors: a list of colors for each node given as hexadecimal strings,
         i.e. ``#000000`` (see :func:`to_color`).
     """
-    import networkx as nx  # ty: ignore[unresolved-import,unused-ignore-comment,unused-ignore-comment]
+    import networkx as nx  # ty: ignore[import-not-found,unused-ignore-comment,unused-ignore-comment]
 
     filename = pathlib.Path(filename)
     if not overwrite and filename.exists():
