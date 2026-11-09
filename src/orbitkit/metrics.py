@@ -1414,6 +1414,92 @@ def compute_assortativity_li(
 # }}}
 
 
+# {{{ compute_assortativity_newman
+
+
+def compute_assortativity_newman(
+    mat: Array2D[np.floating[Any]],
+    *,
+    eps: float | None = None,
+) -> float:
+    r"""Computes the weighted assortativity coefficient from [Newman2002]_.
+
+    The coefficient is the Pearson correlation between the strengths (weighted
+    degrees) at the two ends of each edge, i.e. Equation (4)
+
+    .. math::
+
+        r = \frac{
+                \frac{1}{K} \sum_e s_i s_j
+                - \left(\frac{1}{K} \sum_e \frac{s_i + s_j}{2}\right)^2
+            }{
+                \frac{1}{K} \sum_e \frac{s_i^2 + s_j^2}{2}
+                - \left(\frac{1}{K} \sum_e \frac{s_i + s_j}{2}\right)^2
+            },
+
+    where the sum is over the :math:`K` undirected edges of the graph and
+    :math:`s_i = \sum_j W_{ij}` is the strength of node :math:`i`.
+
+    The measure assumes that: (1) the weight matrix *mat* is symmetric,
+    (2) that its diagonal is zero, and (3) that the weights are non-negative.
+
+    .. [Newman2002] M. E. J. Newman,
+        *Assortative Mixing in Networks*,
+        Physical Review Letters, Vol. 89, pp. 208701--208701, 2002,
+        `doi:10.1103/physrevlett.89.208701 <https://doi.org/10.1103/physrevlett.89.208701>`__.
+
+    :returns: assortativity coefficient in :math:`[-1, 1]`. It can also return
+        *NaN* if the graph has no edges or the strength variance is zero.
+    """
+    n, m = mat.shape
+    if n != m:
+        raise ValueError(f"matrix not square: {mat.shape}")
+
+    if n == 0:
+        raise ValueError(f"assortativity not defined for empty matrices: {mat}")
+
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    if __debug__:
+        if np.any(np.abs(np.diag(mat)) > eps):
+            raise ValueError("weight matrix 'mat' does not have a zero diagonal")
+
+        if np.any(mat < 0):
+            raise ValueError("weight matrix 'mat' has negative entries")
+
+        if not np.allclose(mat, mat.T, rtol=eps, atol=eps):
+            raise ValueError("weight matrix 'mat' is not symmetric")
+
+    strength = compute_weighted_degree(mat)
+
+    # NOTE: only consider each undirected edge once
+    i, j = np.nonzero(np.triu(mat > eps, k=1))
+    if i.size == 0:
+        return np.nan
+
+    a, b = strength[i], strength[j]
+    term1 = np.sum(a * b) / a.size
+    term2 = (0.5 * np.sum(a + b) / a.size) ** 2
+    term3 = 0.5 * np.sum(a**2 + b**2) / a.size
+
+    # NOTE: return nan rather than returning infinity to keep the assortativity
+    # in [-1, 1] for all valid inputs.
+    if term3 - term2 == 0:
+        return np.nan
+
+    return float((term1 - term2) / (term3 - term2))
+
+
+# }}}
+
+
 # {{{ compute_assortativity_arcagni
 
 
