@@ -636,6 +636,187 @@ def test_compute_assortativity_li_in_range() -> None:
 # }}}
 
 
+# {{{ test_compute_assortativity_newman
+
+
+def test_compute_assortativity_newman_validation() -> None:
+    """Input validation for compute_assortativity_newman."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_assortativity_newman(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="not defined for empty matrices"):
+        compute_assortativity_newman(np.zeros((0, 0)))
+
+    with pytest.raises(ValueError, match="'eps' must be positive"):
+        compute_assortativity_newman(mat, eps=-1.0)
+
+    with pytest.raises(ValueError, match="zero diagonal"):
+        compute_assortativity_newman(np.array([[1.0, 1.0], [1.0, 0.0]]))
+
+    with pytest.raises(ValueError, match="negative entries"):
+        compute_assortativity_newman(
+            np.array([
+                [0.0, 1.0, -1.0],
+                [1.0, 0.0, 1.0],
+                [-1.0, 1.0, 0.0],
+            ])
+        )
+
+    with pytest.raises(ValueError, match="not symmetric"):
+        compute_assortativity_newman(
+            np.array([
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0],
+            ])
+        )
+
+
+def test_compute_assortativity_newman_known_value() -> None:
+    """Hand-computed coefficient on a weighted 4-node path."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    mat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 2.0, 0.0],
+        [0.0, 2.0, 0.0, 3.0],
+        [0.0, 0.0, 3.0, 0.0],
+    ])
+    assert compute_assortativity_newman(mat) == pytest.approx(-1.0 / 17.0)
+
+
+def test_compute_assortativity_newman_star_is_disassortative() -> None:
+    """A uniformly weighted star graph is perfectly disassortative (r = -1)."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    assert compute_assortativity_newman(mat) == pytest.approx(-1.0)
+
+
+def test_compute_assortativity_newman_binary_matches_li() -> None:
+    """On a binary graph, strengths coincide with degrees."""
+    from orbitkit.metrics import (
+        compute_assortativity_li,
+        compute_assortativity_newman,
+    )
+
+    mat = np.array([
+        [0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+    ])
+    assert compute_assortativity_newman(mat) == pytest.approx(
+        compute_assortativity_li(mat, variant=2)
+    )
+
+
+def test_compute_assortativity_newman_undefined_nan() -> None:
+    """Assortativity is NaN for edgeless and uniform-strength graphs."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    # all-zero matrix: no edges
+    assert np.isnan(compute_assortativity_newman(np.zeros((3, 3))))
+
+    # complete graph with uniform weights: all strengths equal
+    mat = np.ones((4, 4)) - np.eye(4)
+    assert np.isnan(compute_assortativity_newman(mat))
+
+
+def test_compute_assortativity_newman_integer_dtype() -> None:
+    """Integer matrices exercise the 'eps' fallback when finfo fails."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    mat = np.array([
+        [0, 1, 1, 1],
+        [1, 0, 1, 0],
+        [1, 1, 0, 0],
+        [1, 0, 0, 0],
+    ])
+    assert compute_assortativity_newman(mat) == pytest.approx(-5.0 / 7.0)
+
+
+def test_compute_assortativity_newman_explicit_eps_matches_default() -> None:
+    """Passing eps explicitly does not change the result."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    mat = np.array([
+        [0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 2.0, 0.0],
+        [0.0, 2.0, 0.0, 3.0],
+        [0.0, 0.0, 3.0, 0.0],
+    ])
+    r_default = compute_assortativity_newman(mat)
+    r_explicit = compute_assortativity_newman(mat, eps=1.0e-8)
+    assert r_default == pytest.approx(r_explicit)
+
+
+def test_compute_assortativity_newman_scale_invariance() -> None:
+    """Scaling all weights by a positive constant leaves the coefficient unchanged."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    r = compute_assortativity_newman(mat)
+    r_scaled = compute_assortativity_newman(5.0 * mat)
+    assert r == pytest.approx(r_scaled)
+
+
+def test_compute_assortativity_newman_permutation_invariance() -> None:
+    """Relabeling nodes must not change the coefficient."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    rng = np.random.default_rng(42)
+    mat = np.array([
+        [0.0, 2.0, 1.0, 0.5],
+        [2.0, 0.0, 3.0, 1.0],
+        [1.0, 3.0, 0.0, 2.0],
+        [0.5, 1.0, 2.0, 0.0],
+    ])
+    perm = rng.permutation(mat.shape[0])
+    matp = mat[perm][:, perm]
+
+    r = compute_assortativity_newman(mat)
+    rp = compute_assortativity_newman(matp)
+    assert r == pytest.approx(rp)
+
+
+def test_compute_assortativity_newman_in_range() -> None:
+    """Coefficient stays in [-1, 1] (or NaN) on random weighted graphs."""
+    from orbitkit.metrics import compute_assortativity_newman
+
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        n = int(rng.integers(4, 12))
+        mat = rng.uniform(0.0, 1.0, size=(n, n))
+        mat = (mat + mat.T) / 2.0
+        np.fill_diagonal(mat, 0.0)
+
+        r = compute_assortativity_newman(mat)
+        assert np.isnan(r) or -1.0 <= r <= 1.0
+
+
+# }}}
+
+
 # {{{ test_compute_assortativity_arcagni
 
 
