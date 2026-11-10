@@ -69,7 +69,7 @@ dirname = pathlib.Path(__file__).parent
 set_plotting_defaults()
 
 t = sym.Variable("t")
-gamma = target.lambdify(target.generate_code((t,), model.gamma(t)))  # ty: ignore[unresolved-attribute]
+gamma = target.lambdify(target.generate_code((t,), model.gamma(t)))  # ty: ignore[missing-attribute]
 
 
 with figure(

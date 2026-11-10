@@ -167,13 +167,13 @@ class WalkMapper(WalkMapperBase[[]]):
 
 
 class StringifyMapper(StringifyMapperBase[[]]):
-    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # ruff:ignore[no-self-use] # ty: ignore[invalid-method-override]
+    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # ruff:ignore[no-self-use] # ty: ignore[incompatible-method-override,lost-keyword-for-regular-parameter]
         from sympy.printing.pretty.pretty_symbology import pretty_symbol
 
         result = pretty_symbol(expr.name)
         return str(result)
 
-    def map_numpy_array(  # ruff:ignore[no-self-use] # ty: ignore[invalid-method-override]
+    def map_numpy_array(  # ruff:ignore[no-self-use] # ty: ignore[incompatible-method-override,lost-keyword-for-regular-parameter]
         self, expr: np.ndarray[tuple[int, ...], np.dtype[Any]], /, enclosing_prec: int
     ) -> str:
         if expr.size >= 10:
@@ -211,7 +211,7 @@ class StringifyMapper(StringifyMapperBase[[]]):
         )
         return f"{type(expr).__name__}(·; {params})"
 
-    def map_call(self, expr: prim.Call, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
+    def map_call(self, expr: prim.Call, /, enclosing_prec: int) -> str:  # ty: ignore[incompatible-method-override,lost-keyword-for-regular-parameter]
         if isinstance(expr.function, sym.DiracDelayKernel):
             tau = self.rec(expr.function.tau, PREC_NONE)
             param = self.rec(expr.parameters[0], PREC_NONE)

@@ -64,7 +64,7 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
     def handle_unsupported_expression(self, expr: object, enclosing_prec: int) -> str:
         raise NotImplementedError(f"{type(self)} cannot handle {type(expr)}: {expr}")
 
-    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
+    def map_variable(self, expr: sym.Variable, /, enclosing_prec: int) -> str:  # ty: ignore[incompatible-method-override,lost-keyword-for-regular-parameter]
         if expr.name not in self.inputs and expr.name not in CODEGEN_IGNORE_PARAMS:
             self.parameters.add(expr.name)
 
@@ -73,7 +73,7 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
     def map_function(self, expr: sym.Function, /, enclosing_prec: int) -> str:
         return f"{self.module}.{expr.name}"
 
-    def map_numpy_array(self, expr: ArrayND[Any], /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
+    def map_numpy_array(self, expr: ArrayND[Any], /, enclosing_prec: int) -> str:  # ty: ignore[incompatible-method-override,lost-keyword-for-regular-parameter]
         if expr.dtype.char == "O":
             for name, ary in self.object_array_arguments.items():
                 if ary is expr:
@@ -104,7 +104,7 @@ class NumpyCodeGenerator(StringifyMapper[[]]):
         right = self.rec(expr.right, PREC_NONE)  # ty: ignore[invalid-argument-type]
         return f"{self.module}.dot({left}, {right})"
 
-    def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:  # ty: ignore[invalid-method-override]
+    def map_call(self, expr: sym.Call, /, enclosing_prec: int) -> str:  # ty: ignore[incompatible-method-override,lost-keyword-for-regular-parameter]
         # NOTE: just unwrap the ZeroDelayKernel
         func = expr.function
         if isinstance(func, sym.ZeroDelayKernel):
