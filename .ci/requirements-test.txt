@@ -215,7 +215,7 @@ texttable==1.7.2
     # via igraph
 tomli==2.5.0 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.99
+ty==0.0.100
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.16.0
     # via
