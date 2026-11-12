@@ -32,6 +32,76 @@ def test_compute_weighted_degree() -> None:
 # }}}
 
 
+# {{{ test_compute_asymmetric_strength
+
+
+def test_compute_asymmetric_strength_validation() -> None:
+    from orbitkit.metrics import compute_asymmetric_strength
+
+    with pytest.raises(ValueError, match="not square"):
+        compute_asymmetric_strength(np.ones((3, 4)))
+
+    with pytest.raises(ValueError, match="'eps' must be positive"):
+        compute_asymmetric_strength(np.eye(3), eps=-1.0)
+
+    # isolated nodes have zero strength
+    assert np.allclose(compute_asymmetric_strength(np.zeros((4, 4))), 0.0)
+
+    # integer matrices exercise the 'eps' fallback when finfo fails
+    mat = np.array([
+        [0, 1, -2],
+        [1, 0, 3],
+        [-2, 3, 0],
+    ])
+    s = compute_asymmetric_strength(mat)
+    assert s.shape == (3,)
+    assert np.allclose(s, [-1.0 / 3.0, 4.0, 11.0 / 5.0])
+
+
+def test_compute_asymmetric_strength_known_value() -> None:
+    from orbitkit.metrics import compute_asymmetric_strength
+
+    # positive strengths s+ = [1, 4, 3], negative strengths s- = [2, 0, 2]
+    mat = np.array([
+        [0.0, 1.0, -2.0],
+        [1.0, 0.0, 3.0],
+        [-2.0, 3.0, 0.0],
+    ])
+    expected = np.array([-1.0 / 3.0, 4.0, 11.0 / 5.0])
+    assert np.allclose(compute_asymmetric_strength(mat), expected)
+
+    # normalization divides by n - 1
+    assert np.allclose(
+        compute_asymmetric_strength(mat, normalize=True),
+        expected / (mat.shape[0] - 1),
+    )
+
+
+def test_compute_asymmetric_strength_positive_negative() -> None:
+    from orbitkit.metrics import (
+        compute_asymmetric_strength,
+        compute_weighted_degree,
+    )
+
+    mat = np.array([
+        [0.0, 1.0, 2.0],
+        [1.0, 0.0, 3.0],
+        [2.0, 3.0, 0.0],
+    ])
+
+    # only positive weights: asymmetric strength is the usual strength
+    assert np.allclose(compute_asymmetric_strength(mat), compute_weighted_degree(mat))
+
+    # only negative weights: asymmetric strength is minus the strength
+    assert np.allclose(compute_asymmetric_strength(-mat), -compute_weighted_degree(mat))
+
+    # node strengths below eps are treated as absent
+    assert np.allclose(compute_asymmetric_strength(0.1 * mat, eps=1.0), 0.0)
+
+
+# }}}
+
+
 # {{{ test_compute_weighted_clustering_coefficient_barrat
 
 
