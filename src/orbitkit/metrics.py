@@ -99,6 +99,50 @@ def compute_normalized_weighted_degree(
 # }}}
 
 
+# {{{
+
+
+def compute_asymmetric_strength(
+    mat: Array2D[np.floating[Any]],
+    *,
+    normalize: bool = False,
+    eps: float | None = None,
+) -> Array1D[np.floating[Any]]:
+    r"""Compute the asymmetric node strength from [Rubinov2011]_.
+
+    .. math::
+
+        s^*_i = s_i^+ - \left(\frac{s_i^-}{s_i^+ + s_i^-}\right) s_i^-,
+
+    where :math:`s_i^\pm` are the positive and negative node strengths. If
+    *normalize* is true, then we divide by :math:`n - 1`.
+
+    .. [Rubinov2011] M. Rubinov, O. Sporns,
+        *Weight-Conserving Characterization of Complex Functional Brain Networks*,
+        NeuroImage, Vol. 56, pp. 2068--2079, 2011,
+        `doi:10.1016/j.neuroimage.2011.03.069 <https://doi.org/10.1016/j.neuroimage.2011.03.069>`__.
+    """
+    if eps is None:
+        try:
+            eps = np.sqrt(np.finfo(mat.dtype).eps)
+        except ValueError:
+            eps = 1.0e-8
+
+    if eps <= 0.0:
+        raise ValueError(f"'eps' must be positive: {eps}")
+
+    sp = compute_positive_weighted_degree(mat)
+    sm = compute_negative_weighted_degree(mat)
+    sp_plus_sm = sm + sp
+
+    scale = (mat.shape[0] - 1) if normalize else 1
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(sp_plus_sm < eps, 0.0, sp - sm * sm / sp_plus_sm) / scale
+
+
+# }}}
+
+
 # {{{ compute_average_excess_strength
 
 
