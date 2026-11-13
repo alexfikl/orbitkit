@@ -33,13 +33,13 @@ class IdentityMapper(IdentityMapperBase[[]]):
         res = self.rec(expr)
         assert isinstance(res, np.ndarray) or prim.is_arithmetic_expression(res)
 
-        return res  # ty: ignore[invalid-return-type]
+        return res  # ty: ignore[invalid-explicit-return]
 
     def map_numpy_array(
         self, expr: np.ndarray[Any, np.dtype[np.generic]]
     ) -> PymbolicExpression:
         if expr.dtype.char != "O":
-            return expr  # ty: ignore[invalid-return-type]
+            return expr  # ty: ignore[invalid-explicit-return]
 
         is_same = True
         result = np.empty(expr.shape, dtype=object)
@@ -48,7 +48,7 @@ class IdentityMapper(IdentityMapperBase[[]]):
             result[i] = self.rec(expr[i])
             is_same = is_same and result[i] is expr[i]
 
-        return expr if is_same else result  # ty: ignore[invalid-return-type]
+        return expr if is_same else result  # ty: ignore[invalid-explicit-return]
 
     def map_contract(self, expr: sym.Contract, /) -> PymbolicExpression:
         aggregate = self.rec_arith(expr.aggregate)
@@ -270,7 +270,7 @@ def flatten(expr: tuple[sym.Expression, ...]) -> tuple[sym.Expression, ...]: ...
 def flatten(
     expr: sym.Expression | tuple[sym.Expression, ...] | ArrayND[Any],
 ) -> sym.Expression | tuple[sym.Expression, ...] | ArrayND[Any]:
-    return FlattenMapper()(expr)  # ty: ignore[invalid-argument-type,invalid-return-type]
+    return FlattenMapper()(expr)  # ty: ignore[invalid-argument-type,invalid-explicit-return]
 
 
 # }}}
@@ -300,7 +300,7 @@ def rename_variables(
     result = RenameMapper(mapping)(expr)
     assert isinstance(result, tuple)
 
-    return result  # ty: ignore[invalid-return-type]
+    return result  # ty: ignore[invalid-explicit-return]
 
 
 # }}}

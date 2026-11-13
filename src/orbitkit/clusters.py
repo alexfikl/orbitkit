@@ -334,7 +334,7 @@ def community_labels(
     dtype = np.dtype(dtype)
 
     if not communities:
-        return np.zeros((), dtype=dtype)  # ty: ignore[invalid-return-type]
+        return np.zeros((), dtype=dtype)  # ty: ignore[invalid-explicit-return]
 
     if n is None:
         # FIXME: this will raise if we have a list of empty communities

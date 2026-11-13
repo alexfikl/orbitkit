@@ -48,7 +48,7 @@ class ExpressionNode(prim.ExpressionNode):
     ) -> StringifyMapperBase[Any]:
         from orbitkit.symbolic.mappers import StringifyMapper
 
-        return StringifyMapper()  # ty: ignore[invalid-return-type]
+        return StringifyMapper()  # ty: ignore[invalid-explicit-return]
 
 
 @prim.expr_dataclass()

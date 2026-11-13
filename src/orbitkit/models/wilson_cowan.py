@@ -620,10 +620,10 @@ def _get_wilson_cowan_fixed_point(
     import scipy.optimize as so
 
     def root_func_excitatory(Es: float, Is: float) -> float:
-        return Es - sE_func(a * Es - b * Is + p)  # ty: ignore[invalid-return-type]
+        return Es - sE_func(a * Es - b * Is + p)  # ty: ignore[invalid-explicit-return]
 
     def root_jac_excitatory(Es: float, Is: float) -> float:
-        return 1.0 - a * sE_prime(a * Es - b * Is + p)  # ty: ignore[invalid-return-type]
+        return 1.0 - a * sE_prime(a * Es - b * Is + p)  # ty: ignore[invalid-explicit-return]
 
     def solve_for_inhibitory(Es: float) -> float:
         result = so.root_scalar(  # ty: ignore[no-matching-overload]
