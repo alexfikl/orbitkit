@@ -52,7 +52,7 @@ kiwisolver==1.5.1
     # via matplotlib
 leidenalg==0.12.0
     # via orbitkit (pyproject.toml:clustering)
-markdown-it-py==4.2.0
+markdown-it-py==4.3.0
     # via rich
 markupsafe==3.0.4
     # via jinja2
@@ -165,7 +165,7 @@ pytools==2026.1.1
     #   pymbolic
 rich==15.0.0
     # via orbitkit (pyproject.toml)
-ruff==0.17.4
+ruff==0.17.5
     # via orbitkit (pyproject.toml:test)
 scienceplots==2.2.2
     # via orbitkit (pyproject.toml:visualization)
@@ -211,11 +211,11 @@ symengine==0.15.0 ; python_full_version >= '3.11'
     #   jitcxde-common
 sympy==1.14.0
     # via orbitkit (pyproject.toml:codegen)
-texttable==1.7.2
+texttable==1.7.3
     # via igraph
 tomli==2.5.0 ; python_full_version < '3.11'
     # via pytest
-ty==0.0.100
+ty==0.0.102
     # via orbitkit (pyproject.toml:test)
 typing-extensions==4.16.0
     # via
