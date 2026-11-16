@@ -20,8 +20,10 @@ orbitkit
 ========
 
 This is a bag of random utilities that can be used to analyse and visualize
-continuous dynamical systems. It will mainly grow as various needs arise and
-it does not aim to be a general framework for dynamical systems.
+continuous dynamical systems. It focuses on coupled network oscillators and
+provides algorithms for construction, cycle detection, synchrony, etc. It will
+mainly grow as various needs arise and it does not aim to be a general
+framework for dynamical systems.
 
 There are many other frameworks that can be used for the general study of
 dynamical systems, but they're usually a lot bigger. For some Python examples, see
