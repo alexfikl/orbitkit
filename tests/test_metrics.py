@@ -297,6 +297,34 @@ def test_compute_rich_club_coefficient() -> None:
     assert compute_rich_club_coefficient(mat_k5) == expected_k5
 
 
+def test_compute_rich_club_coefficient_normalized() -> None:
+    from orbitkit.metrics import compute_rich_club_coefficient
+
+    rng = np.random.default_rng(42)
+
+    # validation checks
+    mat_small = np.zeros((3, 3))
+    with pytest.raises(ValueError, match="fewer than 4"):
+        compute_rich_club_coefficient(mat_small, normalized=True)
+
+    mat_k5 = np.ones((5, 5)) - np.eye(5)
+    with pytest.raises(ValueError, match="'n_samples'"):
+        compute_rich_club_coefficient(mat_k5, normalized=True, n_samples=0)
+
+    with pytest.raises(ValueError, match="'q'"):
+        compute_rich_club_coefficient(mat_k5, normalized=True, q=0)
+
+    with pytest.raises(ValueError, match="'delta_q'"):
+        compute_rich_club_coefficient(mat_k5, normalized=True, delta_q=0)
+
+    # clique invariant: all normalized coefficients should be exactly 1.0
+    rc_k5 = compute_rich_club_coefficient(
+        mat_k5, normalized=True, q=10, n_samples=5, rng=rng
+    )
+    for _, val in rc_k5.items():
+        assert np.isclose(val, 1.0, atol=1.0e-12)
+
+
 # }}}
 
 
@@ -1261,6 +1289,94 @@ def test_compute_local_assortativity_sabek_global_in_range() -> None:
 # }}}
 
 
+# {{{ test_compute_rich_club_coefficient_alstott
+
+
+def test_compute_rich_club_coefficient_alstott_uniform_weights() -> None:
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_rich_club_coefficient_alstott
+
+    rng = np.random.default_rng(seed=42)
+
+    n = 30
+    W = generate_adjacency_erdos_renyi(n, p=0.4, rng=rng, dtype=np.float64)
+
+    # When all edge weights are constant, the Serrano null model exactly equals
+    # the empirical weights, so the normalized weighted rich-club coefficient
+    # must be identically 1.0 everywhere.
+    res = compute_rich_club_coefficient_alstott(W, kind="weighted")
+
+    assert res.richness.size > 0
+    assert np.allclose(res.coefficient, 1.0, atol=1.0e-12)
+
+
+def test_compute_rich_club_coefficient_alstott_rich_club_detection() -> None:
+    from orbitkit.metrics import compute_rich_club_coefficient_alstott
+
+    rng = np.random.default_rng(seed=42)
+
+    # Hand-crafted core-periphery graph:
+    # * Nodes 0, 1, 2 form a dense heavy-weight triangle (weights = 10.0)
+    # * Nodes 3, 4, 5 are peripheral leaves connected to the core with light weights
+
+    W = np.zeros((6, 6))
+    W[0, 1] = W[1, 0] = 10.0
+    W[1, 2] = W[2, 1] = 10.0
+    W[0, 2] = W[2, 0] = 10.0
+    W[0, 3] = W[3, 0] = 1.0
+    W[1, 4] = W[4, 1] = 1.0
+    W[2, 5] = W[5, 2] = 1.0
+
+    # 1. Unnormalized connectedness C(r)
+    # At threshold r = 1 (nodes with degree > 1, i.e. 0, 1, 2), C should be
+    # sum of triangle weights = 30.0
+
+    rcc = compute_rich_club_coefficient_alstott(W, normalized=False, rng=rng)
+    assert np.isclose(rcc.coefficient[0], 30.0)
+
+    # 2. Weighted rich club (Serrano null model)
+    rcc = compute_rich_club_coefficient_alstott(W, kind="weighted", rng=rng)
+    assert rcc.coefficient[0] > 1.0
+
+    # 3. Topological rich club (Chung-Lu null model)
+    rcc = compute_rich_club_coefficient_alstott(W, kind="topological", rng=rng)
+    assert rcc.coefficient[0] > 1.0
+
+    # 4. Mixed rich club (Serrano + Chung-Lu)
+    rcc = compute_rich_club_coefficient_alstott(W, kind="mixed", rng=rng)
+    assert rcc.coefficient[0] > 1.0
+
+
+def test_compute_rich_club_coefficient_alstott_edge_cases() -> None:
+    from orbitkit.metrics import compute_rich_club_coefficient_alstott
+
+    with pytest.raises(ValueError, match="square"):
+        compute_rich_club_coefficient_alstott(np.zeros((3, 4)))
+
+    with pytest.raises(ValueError, match="fewer than 4 nodes"):
+        compute_rich_club_coefficient_alstott(np.zeros((3, 3)))
+
+    with pytest.raises(ValueError, match="unknown 'kind'"):
+        compute_rich_club_coefficient_alstott(
+            np.zeros((5, 5)),
+            kind="unknown",  # ty: ignore[invalid-argument-type]
+        )
+
+    with pytest.raises(ValueError, match="unknown 'richness'"):
+        compute_rich_club_coefficient_alstott(
+            np.zeros((5, 5)),
+            richness="unknown",  # ty: ignore[invalid-argument-type]
+        )
+
+    # Graph with no edges returns empty arrays
+    res_empty = compute_rich_club_coefficient_alstott(np.zeros((6, 6)))
+    assert res_empty.richness.size == 0
+    assert res_empty.coefficient.size == 0
+
+
+# }}}
+
+
 # {{{ networkx cross-checks
 
 
@@ -1453,34 +1569,6 @@ def test_rich_club_coefficient_matches_networkx() -> None:
         assert rc_ok == pytest.approx(rc_nx)
 
 
-def test_compute_rich_club_coefficient_normalized() -> None:
-    from orbitkit.metrics import compute_rich_club_coefficient
-
-    rng = np.random.default_rng(42)
-
-    # validation checks
-    mat_small = np.zeros((3, 3))
-    with pytest.raises(ValueError, match="fewer than 4"):
-        compute_rich_club_coefficient(mat_small, normalized=True)
-
-    mat_k5 = np.ones((5, 5)) - np.eye(5)
-    with pytest.raises(ValueError, match="'n_samples'"):
-        compute_rich_club_coefficient(mat_k5, normalized=True, n_samples=0)
-
-    with pytest.raises(ValueError, match="'q'"):
-        compute_rich_club_coefficient(mat_k5, normalized=True, q=0)
-
-    with pytest.raises(ValueError, match="'delta_q'"):
-        compute_rich_club_coefficient(mat_k5, normalized=True, delta_q=0)
-
-    # clique invariant: all normalized coefficients should be exactly 1.0
-    rc_k5 = compute_rich_club_coefficient(
-        mat_k5, normalized=True, q=10, n_samples=5, rng=rng
-    )
-    for _, val in rc_k5.items():
-        assert np.isclose(val, 1.0, atol=1.0e-12)
-
-
 def test_compute_rich_club_coefficient_normalized_networkx() -> None:
     from orbitkit.metrics import compute_rich_club_coefficient
 
@@ -1505,94 +1593,6 @@ def test_compute_rich_club_coefficient_normalized_networkx() -> None:
     for deg in rc_ok:
         if deg in rc_nx:
             assert np.isclose(rc_ok[deg], rc_nx[deg], atol=0.15)
-
-
-# }}}
-
-
-# {{{ test_compute_rich_club_coefficient_alstott
-
-
-def test_compute_rich_club_coefficient_alstott_uniform_weights() -> None:
-    from orbitkit.adjacency import generate_adjacency_erdos_renyi
-    from orbitkit.metrics import compute_rich_club_coefficient_alstott
-
-    rng = np.random.default_rng(seed=42)
-
-    n = 30
-    W = generate_adjacency_erdos_renyi(n, p=0.4, rng=rng, dtype=np.float64)
-
-    # When all edge weights are constant, the Serrano null model exactly equals
-    # the empirical weights, so the normalized weighted rich-club coefficient
-    # must be identically 1.0 everywhere.
-    res = compute_rich_club_coefficient_alstott(W, kind="weighted")
-
-    assert res.richness.size > 0
-    assert np.allclose(res.coefficient, 1.0, atol=1.0e-12)
-
-
-def test_compute_rich_club_coefficient_alstott_rich_club_detection() -> None:
-    from orbitkit.metrics import compute_rich_club_coefficient_alstott
-
-    rng = np.random.default_rng(seed=42)
-
-    # Hand-crafted core-periphery graph:
-    # * Nodes 0, 1, 2 form a dense heavy-weight triangle (weights = 10.0)
-    # * Nodes 3, 4, 5 are peripheral leaves connected to the core with light weights
-
-    W = np.zeros((6, 6))
-    W[0, 1] = W[1, 0] = 10.0
-    W[1, 2] = W[2, 1] = 10.0
-    W[0, 2] = W[2, 0] = 10.0
-    W[0, 3] = W[3, 0] = 1.0
-    W[1, 4] = W[4, 1] = 1.0
-    W[2, 5] = W[5, 2] = 1.0
-
-    # 1. Unnormalized connectedness C(r)
-    # At threshold r = 1 (nodes with degree > 1, i.e. 0, 1, 2), C should be
-    # sum of triangle weights = 30.0
-
-    rcc = compute_rich_club_coefficient_alstott(W, normalized=False, rng=rng)
-    assert np.isclose(rcc.coefficient[0], 30.0)
-
-    # 2. Weighted rich club (Serrano null model)
-    rcc = compute_rich_club_coefficient_alstott(W, kind="weighted", rng=rng)
-    assert rcc.coefficient[0] > 1.0
-
-    # 3. Topological rich club (Chung-Lu null model)
-    rcc = compute_rich_club_coefficient_alstott(W, kind="topological", rng=rng)
-    assert rcc.coefficient[0] > 1.0
-
-    # 4. Mixed rich club (Serrano + Chung-Lu)
-    rcc = compute_rich_club_coefficient_alstott(W, kind="mixed", rng=rng)
-    assert rcc.coefficient[0] > 1.0
-
-
-def test_compute_rich_club_coefficient_alstott_edge_cases() -> None:
-    from orbitkit.metrics import compute_rich_club_coefficient_alstott
-
-    with pytest.raises(ValueError, match="square"):
-        compute_rich_club_coefficient_alstott(np.zeros((3, 4)))
-
-    with pytest.raises(ValueError, match="fewer than 4 nodes"):
-        compute_rich_club_coefficient_alstott(np.zeros((3, 3)))
-
-    with pytest.raises(ValueError, match="unknown 'kind'"):
-        compute_rich_club_coefficient_alstott(
-            np.zeros((5, 5)),
-            kind="unknown",  # ty: ignore[invalid-argument-type]
-        )
-
-    with pytest.raises(ValueError, match="unknown 'richness'"):
-        compute_rich_club_coefficient_alstott(
-            np.zeros((5, 5)),
-            richness="unknown",  # ty: ignore[invalid-argument-type]
-        )
-
-    # Graph with no edges returns empty arrays
-    res_empty = compute_rich_club_coefficient_alstott(np.zeros((6, 6)))
-    assert res_empty.richness.size == 0
-    assert res_empty.coefficient.size == 0
 
 
 # }}}
