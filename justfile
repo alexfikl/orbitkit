@@ -74,10 +74,11 @@ requirements_build_txt:
 requirements_test_txt:
     uv pip compile --upgrade --universal --python-version '3.10' \
         --group test \
-        --group codegen \
-        --group backends \
-        --group clustering \
+        --group test-extras \
         --group visualization \
+        --extra codegen \
+        --extra backends \
+        --extra clustering \
         -o {{ REQUIREMENTS_DIR }}/requirements-test.txt \
         pyproject.toml
 

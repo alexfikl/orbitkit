@@ -40,7 +40,9 @@ dependencies = [
     "rich>=10",
     "scipy>=1.14",
 ]
-# NOTE: this is just here because readthedocs does not know how to read dependency-groups
+optional-dependencies.backends = [ "jax>=0.6", "jitcdde>=1.8.3", "jitcode>=1.7.3" ]
+optional-dependencies.clustering = [ "leidenalg>=0.10" ]
+optional-dependencies.codegen = [ "pymbolic>=2024.2", "pytools>=2024", "sympy>=1.12" ]
 optional-dependencies.docs = [
     "jitcode>=1.7.3",
     "pymbolic>=2024.2",
@@ -56,11 +58,7 @@ urls.Repository = "https://github.com/alexfikl/orbitkit"
 [dependency-groups]
 dev = [ "pyproject-fmt", "reuse", "typos", "uv" ]
 test = [ "pytest", "pytest-github-actions-annotate-failures", "ruff", "scipy-stubs", "ty" ]
-docs = [ "sphinx>=6", "sphinx-book-theme" ]
-backends = [ "jax>=0.6", "jitcdde>=1.8.3", "jitcode>=1.7.3" ]
-clustering = [ "leidenalg>=0.10" ]
-codegen = [ "pymbolic>=2024.2", "pytools>=2024", "sympy>=1.12" ]
-extras = [ "bctpy", "networkx", "requests" ]
+test-extras = [ "bctpy", "networkx" ]
 visualization = [ "matplotlib", "scienceplots" ]
 
 [tool.hatch]
