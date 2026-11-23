@@ -1598,6 +1598,277 @@ def test_compute_rich_club_coefficient_normalized_networkx() -> None:
 # }}}
 
 
+# {{{ bctpy cross-checks
+
+
+def _assert_clustering_matches_bct(c_ok: np.ndarray, c_bct: np.ndarray) -> None:
+    """Compare clustering coefficients, allowing bct's 0 for undefined values."""
+    assert c_ok.shape == c_bct.shape
+
+    mask = ~np.isnan(c_ok)
+    assert np.allclose(c_ok[mask], c_bct[mask])
+
+    # NOTE: bct returns 0 for nodes where orbitkit reports an undefined value
+    # (e.g. nodes with fewer than two neighbors)
+    assert np.allclose(c_bct[~mask], 0.0)
+
+
+def _assert_rich_club_matches_bct(rc: dict[int, float], levels: np.ndarray) -> int:
+    """Compare a binary rich-club dict with ``bct.rich_club_bu`` levels.
+
+    ``bct.rich_club_bu`` returns ``levels[k]`` for the club of nodes with
+    degree larger than ``k + 1``, while orbitkit uses degree larger than ``k``.
+    bct also appends an undefined top level, which is skipped here.
+
+    :returns: the number of levels that were actually compared.
+    """
+    matched = 0
+    for k, value in rc.items():
+        if k < 1 or k > len(levels):
+            continue
+
+        expected = levels[k - 1]
+        if not np.isfinite(expected):
+            continue
+
+        assert value == pytest.approx(float(expected))
+        matched += 1
+
+    return matched
+
+
+def test_costantini_clustering_matches_bct() -> None:
+    """Costantini variants 7 and 8 match bctpy on signed/weighted graphs."""
+    from orbitkit.metrics import compute_weighted_clustering_coefficient_costantini
+
+    bct = pytest.importorskip("bct")
+    positive_cases = [
+        np.array([
+            [0.0, 1.0, 0.5],
+            [1.0, 0.0, 0.8],
+            [0.5, 0.8, 0.0],
+        ]),
+        np.array([
+            [0.0, 1.0, 0.5, 0.3],
+            [1.0, 0.0, 0.8, 0.0],
+            [0.5, 0.8, 0.0, 1.0],
+            [0.3, 0.0, 1.0, 0.0],
+        ]),
+    ]
+    signed_cases = [
+        # signed triangle: one negative edge, max positive weight = 1
+        np.array([
+            [0.0, 1.0, -0.5],
+            [1.0, 0.0, 1.0],
+            [-0.5, 1.0, 0.0],
+        ]),
+        # signed square with a negative edge
+        np.array([
+            [0.0, 1.0, 0.0, -0.3],
+            [1.0, 0.0, -0.8, 0.0],
+            [0.0, -0.8, 0.0, 1.0],
+            [-0.3, 0.0, 1.0, 0.0],
+        ]),
+    ]
+
+    # variant 7 is the Onnela coefficient for positive weights
+    for mat in positive_cases:
+        c_ok = compute_weighted_clustering_coefficient_costantini(mat, variant=7)
+        c_bct = bct.clustering_coef_wu(mat)
+        _assert_clustering_matches_bct(c_ok, c_bct)
+
+    # variant 8 is the Costantini coefficient for signed weights
+    for mat in positive_cases + signed_cases:
+        c_ok = compute_weighted_clustering_coefficient_costantini(mat, variant=8)
+        # NOTE: bct modifies the diagonal in place
+        c_bct = bct.clustering_coef_wu_sign(mat.copy(), coef_type="costantini")
+        _assert_clustering_matches_bct(c_ok, c_bct)
+
+
+def test_compute_rich_club_coefficient_matches_bct() -> None:
+    """compute_rich_club_coefficient matches bct.rich_club_bu."""
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_rich_club_coefficient
+
+    bct = pytest.importorskip("bct")
+
+    cases = [
+        # 4-node star
+        np.array([
+            [0.0, 1.0, 1.0, 1.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+        ]),
+        # 5-node path
+        np.array([
+            [0.0, 1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0, 0.0],
+        ]),
+        # complete 5-node graph
+        np.ones((5, 5)) - np.eye(5),
+    ]
+
+    rng = np.random.default_rng(42)
+    for _ in range(10):
+        n = int(rng.integers(5, 12))
+        p = float(rng.uniform(0.3, 0.7))
+        cases.append(generate_adjacency_erdos_renyi(n, p=p, symmetric=True, rng=rng))
+
+    matched = 0
+    for mat in cases:
+        rc_ok = compute_rich_club_coefficient(mat)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            levels, _, _ = bct.rich_club_bu(mat)
+
+        matched += _assert_rich_club_matches_bct(rc_ok, levels)
+
+    assert matched > 0
+
+
+def test_compute_rich_club_coefficient_opsahl_matches_bct() -> None:
+    """compute_rich_club_coefficient_opsahl matches bct.rich_club_wu."""
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_rich_club_coefficient_opsahl
+
+    bct = pytest.importorskip("bct")
+
+    # core-periphery graph: a heavy triangle with light dangling edges
+    mat = np.zeros((6, 6))
+    mat[0, 1] = mat[1, 0] = 10.0
+    mat[1, 2] = mat[2, 1] = 10.0
+    mat[0, 2] = mat[2, 0] = 10.0
+    mat[0, 3] = mat[3, 0] = 1.0
+    mat[1, 4] = mat[4, 1] = 1.0
+    mat[2, 5] = mat[5, 2] = 1.0
+    cases = [mat]
+
+    rng = np.random.default_rng(42)
+    for _ in range(10):
+        n = int(rng.integers(5, 11))
+        p = float(rng.uniform(0.3, 0.7))
+        adj = generate_adjacency_erdos_renyi(n, p=p, symmetric=True, rng=rng)
+
+        weights = rng.uniform(0.5, 2.0, size=(n, n))
+        weights = np.triu(weights, k=1)
+        cases.append(adj * (weights + weights.T))
+
+    matched = 0
+    for mat in cases:
+        rc_ok = compute_rich_club_coefficient_opsahl(
+            mat, richness="degree", normalized=False
+        )
+        with np.errstate(invalid="ignore", divide="ignore"):
+            levels = bct.rich_club_wu(mat)
+
+        for threshold, value in zip(rc_ok.richness, rc_ok.coefficient, strict=True):
+            k = int(threshold)
+            if k >= len(levels) or not np.isfinite(levels[k]):
+                continue
+
+            assert value == pytest.approx(float(levels[k]))
+            matched += 1
+
+    assert matched > 0
+
+
+def test_compute_participation_coefficient_matches_bct() -> None:
+    """compute_participation_coefficient matches bct.participation_coef."""
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_participation_coefficient
+
+    bct = pytest.importorskip("bct")
+
+    rng = np.random.default_rng(42)
+    for _ in range(10):
+        n = int(rng.integers(6, 12))
+        p = float(rng.uniform(0.3, 0.9))
+        adj = generate_adjacency_erdos_renyi(n, p=p, symmetric=True, rng=rng)
+        weights = rng.uniform(0.5, 2.0, size=(n, n))
+        weights = np.triu(weights, k=1)
+        mat = adj * (weights + weights.T)
+
+        communities = rng.permutation(np.arange(n) % 3)
+
+        p_ok = compute_participation_coefficient(mat, communities)
+        p_bct = bct.participation_coef(mat, communities)
+        assert np.allclose(p_ok, p_bct)
+
+
+def test_compute_modularity_matches_bct() -> None:
+    """compute_modularity matches bct.modularity_und_sign(qtype="gja")."""
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_modularity
+
+    bct = pytest.importorskip("bct")
+
+    rng = np.random.default_rng(42)
+    for _ in range(10):
+        n = int(rng.integers(6, 12))
+        p = float(rng.uniform(0.3, 0.9))
+        adj = generate_adjacency_erdos_renyi(n, p=p, symmetric=True, rng=rng)
+        weights = rng.uniform(-1.0, 1.0, size=(n, n))
+        weights = np.triu(weights, k=1)
+        mat = adj * (weights + weights.T)
+
+        if not (np.any(mat > 0.0) and np.any(mat < 0.0)):
+            continue
+
+        communities = rng.permutation(np.arange(n) % 3)
+        labels = [set(np.flatnonzero(communities == c)) for c in np.unique(communities)]
+
+        q_ok = compute_modularity(mat, labels)  # ty: ignore[invalid-argument-type]
+        _, q_bct = bct.modularity_und_sign(mat, communities, qtype="gja")
+        assert q_ok == pytest.approx(float(q_bct))
+
+        # positive-only case recovers the unsigned modularity
+        q_ok = compute_modularity(np.abs(mat), labels)  # ty: ignore[invalid-argument-type]
+        _, q_bct = bct.modularity_und(np.abs(mat), kci=communities)
+        assert q_ok == pytest.approx(float(q_bct))
+
+
+def test_compute_assortativity_newman_matches_bct() -> None:
+    """compute_assortativity_newman matches bct.assortativity_wei."""
+    from orbitkit.adjacency import generate_adjacency_erdos_renyi
+    from orbitkit.metrics import compute_assortativity_newman
+
+    bct = pytest.importorskip("bct")
+
+    cases = [
+        # weighted 4-node path
+        np.array([
+            [0.0, 1.0, 0.0, 0.0],
+            [1.0, 0.0, 2.0, 0.0],
+            [0.0, 2.0, 0.0, 3.0],
+            [0.0, 0.0, 3.0, 0.0],
+        ]),
+    ]
+
+    rng = np.random.default_rng(42)
+    for _ in range(10):
+        n = int(rng.integers(6, 12))
+        p = float(rng.uniform(0.3, 0.9))
+        adj = generate_adjacency_erdos_renyi(n, p=p, symmetric=True, rng=rng)
+        weights = rng.uniform(0.5, 2.0, size=(n, n))
+        weights = np.triu(weights, k=1)
+        cases.append(adj * (weights + weights.T))
+
+    for mat in cases:
+        r_ok = compute_assortativity_newman(mat)
+        r_bct = bct.assortativity_wei(mat, flag=0)
+
+        if np.isnan(r_ok):
+            assert np.isnan(r_bct)
+        else:
+            assert r_ok == pytest.approx(float(r_bct))
+
+
+# }}}
+
+
 if __name__ == "__main__":
     import sys
 
