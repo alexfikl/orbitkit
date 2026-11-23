@@ -1570,9 +1570,14 @@ def test_rich_club_coefficient_matches_networkx() -> None:
 
 
 def test_compute_rich_club_coefficient_normalized_networkx() -> None:
+    import inspect
+
     from orbitkit.metrics import compute_rich_club_coefficient
 
     nx = pytest.importorskip("networkx")
+
+    if "n_samples" not in inspect.signature(nx.rich_club_coefficient).parameters:
+        pytest.skip("networkx 'n_samples' requires networkx 3.7 or newer")
 
     # Generate a random graph
     G = nx.erdos_renyi_graph(30, 0.35, seed=42)
